@@ -2491,6 +2491,32 @@
       });
     }
 
+    function getFacetedGemMaterial(gemPreset = 'ruby', slot = 'torso') {
+      const slotKey = slot || currentBuildingSlot;
+      const slotPresetId = (STATE.slotTextures && slotKey) ? STATE.slotTextures[slotKey] : null;
+      const slotTp = slotPresetId ? TEXTURE_PRESETS.find(t => t.id === slotPresetId) : null;
+      const baseGlow = (slotTp && slotTp.glow) ? slotTp.glow : STATE.glowColor;
+
+      const GEM_SPECS = {
+        ruby:      { col: 0xff123e, emissive: 0x990022, glowMult: 1.15 },
+        sapphire:  { col: 0x0072ff, emissive: 0x002288, glowMult: 1.15 },
+        emerald:   { col: 0x00e676, emissive: 0x005522, glowMult: 1.15 },
+        amethyst:  { col: 0xba68c8, emissive: 0x4a148c, glowMult: 1.10 },
+        topaz:     { col: 0xffd600, emissive: 0xcc6600, glowMult: 1.20 },
+        diamond:   { col: 0xe0f7fa, emissive: 0x00bcd4, glowMult: 0.95 }
+      };
+      const spec = GEM_SPECS[gemPreset] || { col: new THREE.Color(baseGlow), emissive: new THREE.Color(baseGlow).multiplyScalar(0.7), glowMult: 1.0 };
+
+      return new THREE.MeshStandardMaterial({
+        color: spec.col,
+        emissive: spec.emissive,
+        emissiveIntensity: 0.95 * spec.glowMult,
+        roughness: 0.04,
+        metalness: 0.12,
+        side: THREE.DoubleSide
+      });
+    }
+
     /* =========================================================================
        3. INICIALIZACIÓN THREE.JS
        ========================================================================= */
@@ -3480,64 +3506,72 @@
           let radius, cx, cz;
           let stridentOutwardDisp = 0;
 
-          // 3. SUPERFICIE FORJADA C2 CONTINUA CON HOLGURA NATURAL DE CORAZA (SIN QUEDAR EXCESIVAMENTE CEÑIDA NI CREAR PLIEGUES)
+          // 3. SUPERFICIE FORJADA C2 CONTINUA CON AJUSTE CEÑIDO AL PERSONAJE (PEGADO EN EL CUELLO Y EN LA MITAD DEL PECHO)
           if (partKey === 'torso') {
             const sampleY = Math.max(0.02, Math.min(0.98, effNormY));
-            const sHip = sampleProfileAt(profile, 0.05, angle);
             const sWaist = sampleProfileAt(profile, 0.24, angle);
-            const sChest = sampleProfileAt(profile, 0.72, angle);
-            const chestArch = Math.pow(THREE.MathUtils.smoothstep(sampleY, 0.04, 0.90), 0.76);
-            const lowerHipBlend = Math.pow(1.0 - THREE.MathUtils.smoothstep(sampleY, 0.0, 0.24), 1.4);
+            const sChest = sampleProfileAt(profile, 0.68, angle);
+            const sNeck = sampleProfileAt(profile, 0.94, angle);
 
-            cx = THREE.MathUtils.lerp(sWaist.cx, sChest.cx, chestArch);
-            cz = THREE.MathUtils.lerp(sWaist.cz, sChest.cz, chestArch);
+            // Transición suave: abdomen -> tórax -> cuello
+            const chestArch = Math.pow(THREE.MathUtils.smoothstep(sampleY, 0.04, 0.68), 0.85);
+            const neckArch = THREE.MathUtils.smoothstep(sampleY, 0.66, 0.98);
 
-            // Holgura natural de coraza forjada sobre el jubón/cota (cintura entallada con margen real 1.02..1.04 y tórax amplio 1.05..1.10)
-            const rWaist = sWaist.radius * (1.022 + 0.016 * frontAlign + 0.018 * flankAlign)
-              + (sHip.radius * 0.028 + 0.016 * avgRadius) * lowerHipBlend;
-            const rChest = sChest.radius * (1.052 + 0.045 * frontAlign + 0.038 * flankAlign + 0.018 * backAlign);
-            const baseFittedR = THREE.MathUtils.lerp(rWaist, rChest, chestArch);
+            // Centrado continuo sobre el eje vertebral y cervical
+            const baseCx = THREE.MathUtils.lerp(sWaist.cx, sChest.cx, chestArch);
+            const baseCz = THREE.MathUtils.lerp(sWaist.cz, sChest.cz, chestArch);
+            cx = THREE.MathUtils.lerp(baseCx, sNeck.cx, neckArch);
+            cz = THREE.MathUtils.lerp(baseCz, sNeck.cz, neckArch);
 
-            const domeCurve = Math.sin(Math.pow(chestArch, 0.82) * Math.PI * 0.82);
+            // Holgura ceñida y atlética:
+            // - Cerca del cuello (neckArch -> 1): el radio converge al contorno del cuello/clavícula con holgura mínima (1.016..1.022)
+            // - En la mitad del personaje (zona esternal): ajuste pegado al cuerpo sin abultamiento hueco (1.018 en vez de 1.10)
+            const rWaist = sWaist.radius * (1.015 + 0.010 * frontAlign + 0.012 * flankAlign);
+            const rChest = sChest.radius * (1.020 + 0.016 * frontAlign + 0.016 * flankAlign + 0.012 * backAlign);
+            const rNeck = sNeck.radius * (1.016 + 0.008 * frontAlign + 0.010 * flankAlign);
+
+            const midR = THREE.MathUtils.lerp(rWaist, rChest, chestArch);
+            // Convergencia progresiva hacia el cuello para que no quede abierta ni despegada
+            const baseFittedR = THREE.MathUtils.lerp(midR, rNeck, neckArch);
+
+            // Domo pectoral moderado y pegado al personaje en el centro (sin crear cámara de aire vacía)
+            const domeCurve = Math.sin(Math.pow(chestArch, 0.9) * (1.0 - neckArch * 0.75) * Math.PI);
+            const frontCloseScale = 1.0 - neckArch * 0.70;
 
             if (chestContour === 'strident_prow') {
-              // Quilla rompe-lanzas continua desde el abdomen hasta el cuello sin pliegues horizontales
-              const centerProw = Math.pow(frontAlign, 2.4) * 0.068 * avgRadius * domeCurve;
+              const centerProw = Math.pow(frontAlign, 2.4) * 0.030 * avgRadius * domeCurve * frontCloseScale;
               radius = baseFittedR;
               stridentOutwardDisp += centerProw;
             } else if (chestContour === 'winged_valkyrie_cuirass') {
-              // Expansión alada suave hacia los hombros sin escalón a mitad del pecho
-              const pecWing = Math.sin(Math.min(1.0, absAng / 1.05) * Math.PI * 0.5) * chestArch * 0.052 * avgRadius * frontAlign;
+              const pecWing = Math.sin(Math.min(1.0, absAng / 1.05) * Math.PI * 0.5) * chestArch * 0.026 * avgRadius * frontAlign * frontCloseScale;
               radius = baseFittedR;
               stridentOutwardDisp += pecWing;
             } else if (chestContour === 'draconic_ribs_relief') {
-              // Quilla dracónica longitudinal limpia (sin ondas horizontales que crucen el pecho)
-              const sternumEdge = Math.pow(frontAlign, 2.6) * 0.062 * avgRadius * domeCurve;
+              const sternumEdge = Math.pow(frontAlign, 2.6) * 0.028 * avgRadius * domeCurve * frontCloseScale;
               radius = baseFittedR;
               stridentOutwardDisp += sternumEdge;
             } else if (chestContour === 'lineage_archon_carapace') {
-              // Coraza alta de arconte continua de cintura a garganta
-              const archonDome = (0.044 * chestArch + 0.030 * domeCurve * Math.pow(frontAlign, 1.9)) * avgRadius * frontAlign;
+              const archonDome = (0.022 * chestArch + 0.016 * domeCurve * Math.pow(frontAlign, 1.9)) * avgRadius * frontAlign * frontCloseScale;
               radius = baseFittedR;
               stridentOutwardDisp += archonDome;
             } else if (chestContour === 'globose') {
-              const domeArch = domeCurve * 0.046 * avgRadius * Math.pow(frontAlign, 1.3);
+              const domeArch = domeCurve * 0.022 * avgRadius * Math.pow(frontAlign, 1.3) * frontCloseScale;
               radius = baseFittedR + domeArch;
             } else if (chestContour === 'flat_cone') {
-              const vTaper = chestArch * 0.040 * avgRadius * Math.pow(frontAlign, 1.45);
+              const vTaper = chestArch * 0.020 * avgRadius * Math.pow(frontAlign, 1.45) * frontCloseScale;
               radius = baseFittedR + vTaper;
             } else if (chestContour === 'corset_arch') {
-              const corsetCurve = Math.pow(chestArch, 1.1) * 0.046 * avgRadius * frontAlign;
+              const corsetCurve = Math.pow(chestArch, 1.1) * 0.024 * avgRadius * frontAlign * frontCloseScale;
               radius = baseFittedR + corsetCurve;
             } else {
-              // 'anatomical' / 'smooth_cuirass': curva noble continua C2 con volumen pectoral heroico
-              const smoothDome = domeCurve * 0.042 * avgRadius * frontAlign;
+              // 'anatomical' / 'smooth_cuirass': curva ceñida continua C2 con volumen heroico pegado al esternón
+              const smoothDome = domeCurve * 0.020 * avgRadius * frontAlign * frontCloseScale;
               radius = baseFittedR + smoothDome;
             }
 
             // En la espalda: suave surco espinal anatómico manteniendo holgura sobre la espalda
             if (backAlign > 0.08) {
-              const spineGroove = -Math.pow(backAlign, 6.0) * 0.010 * avgRadius * Math.sin(sampleY * Math.PI);
+              const spineGroove = -Math.pow(backAlign, 6.0) * 0.008 * avgRadius * Math.sin(sampleY * Math.PI);
               stridentOutwardDisp += spineGroove;
             }
           } else {
@@ -3575,19 +3609,20 @@
             : 0.0;
           const edgeBevel = safeBevel * (chamferRamp + bevelRidge);
 
-          // 5. Acampanado controlado en peto y extremidades
+          // 5. Acampanado controlado en peto y extremidades (ajuste pegado cerca del cuello)
           let extraFlare = 0;
-          const effFlareBot = partKey === 'torso' ? Math.min(0.032, flareBottom) : flareBottom;
-          const effFlareTop = partKey === 'torso' ? Math.min(0.038, flareTop) : flareTop;
+          const effFlareBot = partKey === 'torso' ? Math.min(0.024, flareBottom) : flareBottom;
+          const effFlareTop = partKey === 'torso' ? Math.min(0.010, flareTop) : flareTop;
           if (effFlareBot !== 0) extraFlare += Math.pow(Math.max(0, 1.0 - adjLocalNormY), 2.0) * effFlareBot * avgRadius;
           if (effFlareTop !== 0) extraFlare += Math.pow(Math.max(0, adjLocalNormY), 2.0) * effFlareTop * avgRadius;
 
-          // 6. Quilla / Arista central biselada continua de arriba a abajo
+          // 6. Quilla / Arista central biselada continua de arriba a abajo ceñida en la mitad
           let extraRidge = 0;
           if (ridgeCenterZ !== 0 && Math.cos(angle) > 0) {
             const centerFactor = Math.pow(Math.cos(angle), 2.2);
             const edgeFade = Math.min(1.0, Math.min(adjLocalNormY / 0.08, (1.0 - adjLocalNormY) / 0.08));
-            extraRidge = centerFactor * (0.45 + 0.55 * edgeFade) * ridgeCenterZ * avgRadius;
+            const ridgeFactor = partKey === 'torso' ? Math.min(0.10, ridgeCenterZ * 0.60) : ridgeCenterZ;
+            extraRidge = centerFactor * (0.45 + 0.55 * edgeFade) * ridgeFactor * avgRadius;
           }
 
           let flutingDisp = 0;
@@ -4878,22 +4913,46 @@
       const tBulk = STATE.fit.torsoScale * STATE.fit.globalBulk;
       const tSize = tBox.getSize(new THREE.Vector3());
       const tCenter = tBox.getCenter(new THREE.Vector3());
-
       const chestY = tCenter.y + tSize.y * (0.13 + STATE.fit.torsoOffsetY);
-      const chestZ = tBox.max.z + 0.022 * tBulk;
+
+      // Medir la cota exterior real del peto ya construido en slotArmorMeshes.torso
+      let armorFrontZ = -Infinity;
+      let armorBackZ = Infinity;
+      const torsoArmorShells = (slotArmorMeshes.torso || []).filter(m => m && m.isMesh);
+      torsoArmorShells.forEach(mesh => {
+        mesh.updateWorldMatrix(true, false);
+        const geo = mesh.geometry;
+        if (!geo || !geo.attributes || !geo.attributes.position) return;
+        const pos = geo.attributes.position;
+        const v = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i);
+          v.applyMatrix4(mesh.matrixWorld);
+          // Medir puntos en el área de altura del pecho
+          if (Math.abs(v.y - chestY) < tSize.y * 0.28) {
+            if (Math.abs(v.x - tCenter.x) < tSize.x * 0.36) {
+              if (v.z > armorFrontZ) armorFrontZ = v.z;
+              if (v.z < armorBackZ) armorBackZ = v.z;
+            }
+          }
+        }
+      });
+
+      // El punto de anclaje frontal chestZ descansa en la cara exterior visible del peto metálico
+      const chestZ = isFinite(armorFrontZ) ? (armorFrontZ + 0.0035) : (tBox.max.z + 0.065 * tBulk);
       const chestPos = new THREE.Vector3(tCenter.x, chestY, chestZ);
 
       const emblemGroup = new THREE.Group();
       emblemGroup.name = 'Paladin_Chest_Emblem_3D';
       const scaleRef = Math.max(0.055, Math.min(tSize.x, tSize.y) * 0.23) * tBulk;
 
-      // Helper que curva cualquier pieza lateral siguiendo el cilindro torácico (evita piezas planas sobresaliendo de perfil)
+      // Helper que curva cualquier pieza lateral siguiendo el cilindro torácico
       const curveOnTorso = (mesh, xNorm, yNorm, zExtra = 0, rotZ = 0, rotX = 0) => {
         const sgn = xNorm < 0 ? -1 : (xNorm > 0 ? 1 : 0);
         const absX = Math.abs(xNorm);
-        const zDrop = -Math.pow(absX, 1.85) * scaleRef * 0.38;
-        const yawY = -sgn * Math.min(0.68, absX * 0.44);
-        mesh.position.set(xNorm * scaleRef, yNorm * scaleRef, zDrop + zExtra);
+        const zDrop = -Math.pow(absX, 1.75) * scaleRef * 0.32;
+        const yawY = -sgn * Math.min(0.68, absX * 0.40);
+        mesh.position.set(xNorm * scaleRef, yNorm * scaleRef, zDrop + zExtra + 0.002);
         mesh.rotation.set(rotX, yawY, rotZ);
       };
 
@@ -5171,6 +5230,206 @@
         emblemGroup.add(throatSpine);
       }
 
+      /* =========================================================================
+         PIEDRAS PRECIOSAS EN LOS HUECOS Y RECORTES DE LA CORAZA (GEMSTONES IN CUTOUTS)
+         Gemas facetadas, engastes de garras de oro y cabujones en cada ventana/escote
+         ========================================================================= */
+      const defaultWindowMap = {
+        1: 'none', 2: 'keyhole_sternum', 3: 'rib_slots', 4: 'diamond_sternum', 5: 'heart_window',
+        6: 'none', 7: 'dual_lozenges', 8: 'vertical_split', 9: 'none', 10: 'diamond_sternum',
+        11: 'rib_slots', 12: 'heart_window', 13: 'dual_lozenges', 14: 'keyhole_sternum', 15: 'vertical_split',
+        16: 'diamond_sternum', 17: 'heart_window', 18: 'rib_slots', 19: 'keyhole_sternum'
+      };
+      const defaultNeckMap = {
+        1: 'square', 2: 'v_deep', 3: 'v_deep', 4: 'sweetheart', 5: 'halter_v',
+        6: 'u_scoop', 7: 'u_scoop', 8: 'halter_v', 9: 'square', 10: 'high_choker_collar',
+        11: 'mandible_gorget', 12: 'clavicle_wings', 13: 'asymmetric_exotic', 14: 'clavicle_wings', 15: 'mandible_gorget',
+        16: 'high_choker_collar', 17: 'clavicle_wings', 18: 'mandible_gorget', 19: 'high_choker_collar'
+      };
+      const ovrTorsoForGems = STATE.fit.chestCutoutOverride || null;
+      const activeWindowCutout = (ovrTorsoForGems && ovrTorsoForGems.windowCutout) ? ovrTorsoForGems.windowCutout : (defaultWindowMap[torsoType] || 'none');
+      const activeNeckCutout = (ovrTorsoForGems && ovrTorsoForGems.neckCutout) ? ovrTorsoForGems.neckCutout : (defaultNeckMap[torsoType] || 'none');
+
+      // 1. GEMAS FACETADAS EN LA VENTANA O CALADO DEL PETO (windowCutout)
+      if (activeWindowCutout === 'diamond_sternum') {
+        const diaGroup = new THREE.Group();
+        diaGroup.name = 'Gem_Diamond_Sternum';
+
+        // Engaste perimetral de oro biselado
+        const diaBezel = new THREE.Mesh(new THREE.TorusGeometry(scaleRef * 0.38, scaleRef * 0.024, 8, 4), trimMat);
+        diaBezel.rotation.z = Math.PI / 4;
+        diaGroup.add(diaBezel);
+
+        // Gran Diamante / Esmeralda imperial facetada de 8 caras con brillo reflectivo
+        const diaGemMat = getFacetedGemMaterial('emerald', 'torso');
+        const diaGem = new THREE.Mesh(new THREE.OctahedronGeometry(scaleRef * 0.32), diaGemMat);
+        diaGem.scale.set(0.85, 1.30, 0.44);
+        diaGem.position.z = 0.006;
+        diaGroup.add(diaGem);
+
+        // 4 Garras de sujeción (prongs) que abrazan la piedra en las 4 esquinas del hueco
+        [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5].forEach(ang => {
+          const prong = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.045, scaleRef * 0.12, 0.014), trimMat);
+          prong.position.set(Math.cos(ang) * (scaleRef * 0.28), Math.sin(ang) * (scaleRef * 0.28), 0.009);
+          prong.rotation.z = ang;
+          diaGroup.add(prong);
+        });
+
+        curveOnTorso(diaGroup, 0, -0.34, 0.004);
+        emblemGroup.add(diaGroup);
+
+      } else if (activeWindowCutout === 'heart_window') {
+        const heartGroup = new THREE.Group();
+        heartGroup.name = 'Gem_Heart_Window';
+
+        // Marco de oro perfilado al corazón
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(scaleRef * 0.34, scaleRef * 0.024, 8, 24), trimMat);
+        rim.scale.set(1.15, 1.25, 0.45);
+        heartGroup.add(rim);
+
+        // Rubí facetado de corazón con núcleo carmesí brillante
+        const rubyMat = getFacetedGemMaterial('ruby', 'torso');
+        const rubyGem = new THREE.Mesh(new THREE.OctahedronGeometry(scaleRef * 0.28), rubyMat);
+        rubyGem.scale.set(1.05, 1.28, 0.45);
+        rubyGem.position.z = 0.006;
+        heartGroup.add(rubyGem);
+
+        [-1, 1].forEach(sgn => {
+          const lobeGem = new THREE.Mesh(new THREE.SphereGeometry(scaleRef * 0.14, 12, 10), rubyMat);
+          lobeGem.scale.set(1, 1, 0.45);
+          lobeGem.position.set(sgn * (scaleRef * 0.12), scaleRef * 0.12, 0.005);
+          heartGroup.add(lobeGem);
+
+          const prong = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.04, scaleRef * 0.10, 0.012), trimMat);
+          prong.position.set(sgn * (scaleRef * 0.24), scaleRef * 0.06, 0.008);
+          prong.rotation.z = sgn * 0.45;
+          heartGroup.add(prong);
+        });
+
+        curveOnTorso(heartGroup, 0, -0.28, 0.004);
+        emblemGroup.add(heartGroup);
+
+      } else if (activeWindowCutout === 'keyhole_sternum') {
+        const keyGroup = new THREE.Group();
+        keyGroup.name = 'Gem_Keyhole_Sternum';
+
+        // Corona superior con Zafiro Real facetado (corte brillante icosaédrico)
+        const saphMat = getFacetedGemMaterial('sapphire', 'torso');
+        const roundBezel = new THREE.Mesh(new THREE.TorusGeometry(scaleRef * 0.24, scaleRef * 0.022, 8, 20), trimMat);
+        roundBezel.position.y = scaleRef * 0.12;
+        keyGroup.add(roundBezel);
+
+        const roundGem = new THREE.Mesh(new THREE.IcosahedronGeometry(scaleRef * 0.20, 0), saphMat);
+        roundGem.scale.set(1, 1, 0.48);
+        roundGem.position.set(0, scaleRef * 0.12, 0.006);
+        keyGroup.add(roundGem);
+
+        for (let g = 0; g < 6; g++) {
+          const a = (g / 6) * Math.PI * 2;
+          const claw = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.038, scaleRef * 0.075, 0.012), trimMat);
+          claw.position.set(Math.cos(a) * (scaleRef * 0.18), scaleRef * 0.12 + Math.sin(a) * (scaleRef * 0.18), 0.008);
+          claw.rotation.z = a;
+          keyGroup.add(claw);
+        }
+
+        // Ranura inferior con Baguette de Topacio facetada
+        const bagMat = getFacetedGemMaterial('topaz', 'torso');
+        const bagBezel = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.16, scaleRef * 0.44, 0.014), trimMat);
+        bagBezel.position.set(0, -scaleRef * 0.36, 0.002);
+        keyGroup.add(bagBezel);
+
+        const bagGem = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.10, scaleRef * 0.38, 0.016), bagMat);
+        bagGem.position.set(0, -scaleRef * 0.36, 0.007);
+        keyGroup.add(bagGem);
+
+        curveOnTorso(keyGroup, 0, 0, 0.004);
+        emblemGroup.add(keyGroup);
+
+      } else if (activeWindowCutout === 'dual_lozenges') {
+        [-1, 1].forEach(sgn => {
+          const lozGroup = new THREE.Group();
+          lozGroup.name = `Gem_Dual_Lozenge_${sgn > 0 ? 'R' : 'L'}`;
+
+          const lozBezel = new THREE.Mesh(new THREE.TorusGeometry(scaleRef * 0.25, scaleRef * 0.020, 8, 4), trimMat);
+          lozBezel.rotation.z = Math.PI / 4;
+          lozGroup.add(lozBezel);
+
+          const lozGemMat = getFacetedGemMaterial(sgn > 0 ? 'sapphire' : 'ruby', 'torso');
+          const lozGem = new THREE.Mesh(new THREE.OctahedronGeometry(scaleRef * 0.20), lozGemMat);
+          lozGem.scale.set(0.80, 1.25, 0.42);
+          lozGem.position.z = 0.005;
+          lozGroup.add(lozGem);
+
+          [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5].forEach(ang => {
+            const p = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.035, scaleRef * 0.08, 0.012), trimMat);
+            p.position.set(Math.cos(ang) * (scaleRef * 0.18), Math.sin(ang) * (scaleRef * 0.18), 0.008);
+            p.rotation.z = ang;
+            lozGroup.add(p);
+          });
+
+          curveOnTorso(lozGroup, sgn * 0.68, -0.16, 0.005);
+          emblemGroup.add(lozGroup);
+        });
+
+      } else if (activeWindowCutout === 'rib_slots') {
+        [-1, 1].forEach(sgn => {
+          [-0.10, -0.42].forEach((slotY, sIdx) => {
+            const ribGemMat = getFacetedGemMaterial(sIdx === 0 ? 'amethyst' : 'emerald', 'torso');
+            const slotChannel = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.42, scaleRef * 0.10, 0.012), trimMat);
+            curveOnTorso(slotChannel, sgn * 0.68, slotY, 0.002, sgn * 0.26);
+            emblemGroup.add(slotChannel);
+
+            const slotCrystal = new THREE.Mesh(new THREE.OctahedronGeometry(scaleRef * 0.12), ribGemMat);
+            slotCrystal.scale.set(1.45, 0.55, 0.45);
+            curveOnTorso(slotCrystal, sgn * 0.68, slotY, 0.008, sgn * 0.26);
+            emblemGroup.add(slotCrystal);
+          });
+        });
+
+      } else if (activeWindowCutout === 'vertical_split') {
+        const gemTypes = ['diamond', 'sapphire', 'topaz'];
+        [-0.48, -0.12, 0.24].forEach((posY, idx) => {
+          const splitGroup = new THREE.Group();
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.32, scaleRef * 0.065, 0.011), trimMat);
+          splitGroup.add(bar);
+
+          const gemMat = getFacetedGemMaterial(gemTypes[idx], 'torso');
+          const gemSize = scaleRef * (idx === 1 ? 0.20 : 0.15);
+          const gem = new THREE.Mesh(new THREE.OctahedronGeometry(gemSize), gemMat);
+          gem.scale.set(1.0, 1.22, 0.45);
+          gem.position.z = 0.006;
+          splitGroup.add(gem);
+
+          curveOnTorso(splitGroup, 0, posY, 0.004);
+          emblemGroup.add(splitGroup);
+        });
+      }
+
+      // 2. GEMA REGAL EN EL HUECO DEL ESCOTE / CUELLO (Throat / Clavicle Pendant Gem)
+      if (activeNeckCutout === 'v_deep' || activeNeckCutout === 'sweetheart' || activeNeckCutout === 'u_scoop' || activeNeckCutout === 'clavicle_wings' || activeNeckCutout === 'mandible_gorget' || activeNeckCutout === 'asymmetric_exotic') {
+        const neckGemGroup = new THREE.Group();
+        neckGemGroup.name = 'Gem_Neck_Dip_Pendant';
+
+        const bail = new THREE.Mesh(new THREE.TorusGeometry(scaleRef * 0.18, scaleRef * 0.022, 8, 18), trimMat);
+        neckGemGroup.add(bail);
+
+        const neckGemMat = getFacetedGemMaterial((torsoType % 2 === 0) ? 'ruby' : 'sapphire', 'torso');
+        const pendantGem = new THREE.Mesh(new THREE.OctahedronGeometry(scaleRef * 0.22), neckGemMat);
+        pendantGem.scale.set(0.74, 1.42, 0.45);
+        pendantGem.position.z = 0.006;
+        neckGemGroup.add(pendantGem);
+
+        [-scaleRef * 0.09, scaleRef * 0.09].forEach(gx => {
+          const prong = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.034, scaleRef * 0.08, 0.012), trimMat);
+          prong.position.set(gx, 0, 0.008);
+          neckGemGroup.add(prong);
+        });
+
+        const dipY = activeNeckCutout === 'v_deep' ? 0.62 : (activeNeckCutout === 'sweetheart' ? 0.66 : 0.74);
+        curveOnTorso(neckGemGroup, 0, dipY, 0.004);
+        emblemGroup.add(neckGemGroup);
+      }
+
       // Planchas supra-claviculares y escapulares cortantes 3D que suben hacia el cuello y cubren clavícula, hombro interior y paletilla
       if (torsoType >= 10 || (STATE.fit.chestCutoutOverride && STATE.fit.chestCutoutOverride.hasClavicleScapulaYoke)) {
         [-1, 1].forEach(sgn => {
@@ -5198,6 +5457,7 @@
           }
 
           // Aleta dorsal de paletilla (escápula) que abraza por encima del trapecio hacia la espalda alta
+          const scapZ = isFinite(armorBackZ) ? (armorBackZ - chestZ) * 0.62 : (-tSize.z * 0.62);
           const scapulaBlade = new THREE.Mesh(createBeveledCuttingPlate({
             width: scaleRef * 0.44,
             length: scaleRef * 1.26,
@@ -5208,7 +5468,7 @@
             sweepX: sgn * 0.24,
             sharpness: 1.55
           }), mainMat);
-          scapulaBlade.position.set(sgn * scaleRef * 0.72, scaleRef * 0.88, -tSize.z * 0.62);
+          scapulaBlade.position.set(sgn * scaleRef * 0.72, scaleRef * 0.88, scapZ);
           scapulaBlade.rotation.set(0.42, sgn * 0.35, -sgn * 0.48);
           emblemGroup.add(scapulaBlade);
 
@@ -5222,7 +5482,7 @@
             sweepX: sgn * 0.24,
             sharpness: 1.70
           }), trimMat);
-          scapulaTrim.position.set(sgn * scaleRef * 0.74, scaleRef * 0.90, -tSize.z * 0.64);
+          scapulaTrim.position.set(sgn * scaleRef * 0.74, scaleRef * 0.90, scapZ - 0.002);
           scapulaTrim.rotation.set(0.42, sgn * 0.35, -sgn * 0.48);
           emblemGroup.add(scapulaTrim);
         });
@@ -5258,7 +5518,7 @@
       const dorsalSpread = (ovrTorso && ovrTorso.dorsalFinSpread) ? ovrTorso.dorsalFinSpread : 1.0;
 
       // Solo añadir relieves 3D específicos en espalda cuando NO es 'smooth', 'laminated', 'broad_dorsals' ni 'winged_shell' (que ya van moldeados en la malla limpia)
-      const backZ = -(tSize.z * 0.98 + 0.024 * tBulk);
+      const backZ = isFinite(armorBackZ) ? (armorBackZ - chestZ - 0.005) : -(tSize.z * 1.02 + 0.040 * tBulk);
       if (backStyle === 'wide_dorsal_shields_3d') {
         const dorsalGroup = new THREE.Group();
         dorsalGroup.name = 'Torso_Wide_Dorsal_Shields_3D';
@@ -6992,26 +7252,26 @@
             createFormFittedShell(nMesh, isWideClavicleWrap ? mainMat : trimMat, {
               targetPart: 'neck',
               slotName: 'torso',
-              thicknessRatio: 0.028 * tBulk,
+              thicknessRatio: 0.021 * tBulk,
               yMin: 0.02,
               yMax: highNeckMax,
               vPointBottom: 0.08,
-              archTop: isWideClavicleWrap ? 0.10 : 0.04,
-              ridgeCenterZ: 0.14,
+              archTop: isWideClavicleWrap ? 0.06 : 0.02,
+              ridgeCenterZ: 0.08,
               foldStyle: isWideClavicleWrap ? 'swallow_tail' : 'ogee_conopial',
-              foldDepth: 0.06,
-              bevelRadius: 0.008
+              foldDepth: 0.05,
+              bevelRadius: 0.007
             });
             if (isWideClavicleWrap) {
               createFormFittedShell(nMesh, trimMat, {
                 targetPart: 'neck',
                 slotName: 'torso',
-                thicknessRatio: 0.033 * tBulk,
+                thicknessRatio: 0.025 * tBulk,
                 yMin: highNeckMax - 0.18,
                 yMax: highNeckMax,
-                archTop: 0.10,
-                ridgeCenterZ: 0.16,
-                bevelRadius: 0.007
+                archTop: 0.06,
+                ridgeCenterZ: 0.09,
+                bevelRadius: 0.006
               });
             }
           });
