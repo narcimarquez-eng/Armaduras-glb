@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js Hair Rendering Techniques - Graphics Engineering Lab</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js r128 and OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      overflow: hidden;
+      background-color: #07090e;
+      user-select: none;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.35);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.65);
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #1e293b;
+      height: 5px;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen text-slate-200">
+
+  <!-- 3D Canvas Container -->
+  <div id="canvas-container" class="absolute inset-0 w-full h-full"></div>
+
+  <!-- TOP BAR: Navigation & Technique Switcher -->
+  <header class="absolute top-3 left-3 right-3 flex flex-wrap items-center justify-between gap-3 pointer-events-none z-20">
+    <div class="pointer-events-auto flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-700/60 shadow-2xl">
+      <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
+      <div>
+        <h1 class="text-sm font-bold tracking-wide uppercase text-white flex items-center gap-2">
+          Hair Rendering Lab <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">Three.js r128</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Anclaje Anatómico Unificado &bull; Colisión Craneal &bull; Alta Densidad y Longitud</p>
+      </div>
+    </div>
+
+    <!-- Technique Selector Tabs -->
+    <div class="pointer-events-auto flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-700/60 shadow-2xl overflow-x-auto max-w-full">
+      <button onclick="setTechnique('cards')" id="tab-cards" class="tech-tab active px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        1. Hair Cards (1,200+ Tiras)
+      </button>
+      <button onclick="setTechnique('shells')" id="tab-shells" class="tech-tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        2. Shells & Fins (Volumétrico)
+      </button>
+      <button onclick="setTechnique('strands')" id="tab-strands" class="tech-tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        3. Instanced Strands (4,500+ Fibras)
+      </button>
+      <button onclick="setTechnique('clumps')" id="tab-clumps" class="tech-tab px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 flex items-center gap-1.5 text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+        4. Volumetric Clumps (350+ Mechones)
+      </button>
+    </div>
+  </header>
+
+  <!-- LEFT PANEL: Technical HUD & Performance Metrics -->
+  <aside class="absolute left-3 top-20 bottom-3 w-80 pointer-events-none flex flex-col gap-3 z-10">
+    <!-- Realtime Hardware Stats -->
+    <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-700/60 shadow-xl font-mono text-xs">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2.5">
+        <span class="text-slate-400 font-bold uppercase tracking-wider text-[10px]">GPU Performance HUD</span>
+        <span id="stat-fps" class="text-emerald-400 font-bold text-sm bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">60 FPS</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-[11px]">
+        <div>
+          <span class="text-slate-500">Draw Calls:</span>
+          <span id="stat-calls" class="text-slate-200 font-semibold ml-1">1</span>
+        </div>
+        <div>
+          <span class="text-slate-500">Triángulos:</span>
+          <span id="stat-triangles" class="text-slate-200 font-semibold ml-1">0</span>
+        </div>
+        <div>
+          <span class="text-slate-500">Vértices:</span>
+          <span id="stat-vertices" class="text-slate-200 font-semibold ml-1">0</span>
+        </div>
+        <div>
+          <span class="text-slate-500">Frame Time:</span>
+          <span id="stat-ms" class="text-cyan-400 font-semibold ml-1">16.6 ms</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Technique Technical Analysis Card -->
+    <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-700/60 shadow-xl flex-1 flex flex-col overflow-y-auto">
+      <div class="flex items-center justify-between mb-2">
+        <h2 id="card-tech-title" class="text-xs font-bold uppercase tracking-wider text-cyan-400">Técnica: Hair Cards</h2>
+        <span id="card-tech-badge" class="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono border border-blue-500/30">Estándar AAA</span>
+      </div>
+      <p id="card-tech-desc" class="text-[12px] text-slate-300 leading-relaxed mb-3"></p>
+
+      <div class="space-y-2 text-[11px] font-mono border-t border-slate-800/80 pt-2.5">
+        <div class="bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
+          <div class="text-emerald-400 font-semibold mb-0.5 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+            Anclaje & Flujo Anatómico
+          </div>
+          <p id="card-tech-pros" class="text-slate-400 font-sans text-[11px] leading-snug"></p>
+        </div>
+
+        <div class="bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
+          <div class="text-amber-400 font-semibold mb-0.5 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+            Desafío Gráfico
+          </div>
+          <p id="card-tech-cons" class="text-slate-400 font-sans text-[11px] leading-snug"></p>
+        </div>
+
+        <div class="bg-slate-950/50 p-2 rounded-lg border border-slate-800/50">
+          <div class="text-cyan-400 font-semibold mb-0.5">Arquitectura & GPU</div>
+          <p id="card-tech-cost" class="text-slate-400 font-sans text-[11px] leading-snug"></p>
+        </div>
+      </div>
+
+      <!-- Camera Quick Presets -->
+      <div class="mt-auto pt-3 border-t border-slate-800">
+        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 block font-mono">Vistas de Cámara Directa</label>
+        <div class="grid grid-cols-5 gap-1">
+          <button onclick="setCameraView('front')" class="px-1.5 py-1.5 bg-slate-800 hover:bg-cyan-900/50 hover:text-cyan-300 text-[10px] rounded transition font-medium border border-slate-700/50">Frontal</button>
+          <button onclick="setCameraView('threequarter')" class="px-1.5 py-1.5 bg-slate-800 hover:bg-cyan-900/50 hover:text-cyan-300 text-[10px] rounded transition font-medium border border-slate-700/50">3/4</button>
+          <button onclick="setCameraView('side')" class="px-1.5 py-1.5 bg-slate-800 hover:bg-cyan-900/50 hover:text-cyan-300 text-[10px] rounded transition font-medium border border-slate-700/50">Perfil</button>
+          <button onclick="setCameraView('back')" class="px-1.5 py-1.5 bg-slate-800 hover:bg-cyan-900/50 hover:text-cyan-300 text-[10px] rounded transition font-medium border border-slate-700/50">Espalda</button>
+          <button onclick="setCameraView('top')" class="px-1.5 py-1.5 bg-slate-800 hover:bg-cyan-900/50 hover:text-cyan-300 text-[10px] rounded transition font-medium border border-slate-700/50">Corona</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT PANEL: Customization & Parametric Deformers -->
+  <aside class="absolute right-3 top-20 bottom-3 w-80 pointer-events-none flex flex-col gap-3 z-10">
+    <div class="pointer-events-auto bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-slate-700/60 shadow-xl flex-1 flex flex-col overflow-y-auto">
+      
+      <!-- Section 1: Parámetros del Pelo & Físicas -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 mb-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path></svg>
+            Longitud, Cantidad & Estilo
+          </span>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+          <!-- Hair Colors (Root & Tip Gradient) -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-400 block mb-1">Color Raíz</label>
+              <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <input type="color" id="param-color-root" value="#1e110b" class="w-6 h-5 rounded cursor-pointer border-0 bg-transparent" oninput="updateHairMaterial()">
+                <span class="text-[10px] font-mono text-slate-300" id="label-color-root">#1e110b</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400 block mb-1">Color Puntas</label>
+              <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <input type="color" id="param-color-tip" value="#a86438" class="w-6 h-5 rounded cursor-pointer border-0 bg-transparent" oninput="updateHairMaterial()">
+                <span class="text-[10px] font-mono text-slate-300" id="label-color-tip">#a86438</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Color Presets -->
+          <div class="flex items-center justify-between bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800/70">
+            <span class="text-[10px] text-slate-400 font-mono">Tonos:</span>
+            <div class="flex items-center gap-2">
+              <button onclick="setHairPreset('#140d09', '#4a2c18')" class="w-4 h-4 rounded-full bg-[#3a2010] border border-slate-500 hover:scale-125 transition" title="Castaño Natural"></button>
+              <button onclick="setHairPreset('#5e3516', '#e0a958')" class="w-4 h-4 rounded-full bg-[#e0a958] border border-slate-500 hover:scale-125 transition" title="Rubio Miel"></button>
+              <button onclick="setHairPreset('#3d0e08', '#b8371b')" class="w-4 h-4 rounded-full bg-[#b8371b] border border-slate-500 hover:scale-125 transition" title="Cobrizo Intenso"></button>
+              <button onclick="setHairPreset('#0c0d12', '#262b38')" class="w-4 h-4 rounded-full bg-[#181c26] border border-slate-500 hover:scale-125 transition" title="Negro Azabache"></button>
+              <button onclick="setHairPreset('#272b33', '#cbd5e1')" class="w-4 h-4 rounded-full bg-[#cbd5e1] border border-slate-500 hover:scale-125 transition" title="Plata / Blanco"></button>
+              <button onclick="setHairPreset('#082026', '#00f0ff')" class="w-4 h-4 rounded-full bg-[#00f0ff] border border-slate-500 hover:scale-125 transition" title="Neon Cyan"></button>
+            </div>
+          </div>
+
+          <!-- Length slider (Extended up to 2.8x for long locks) -->
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-200 font-medium">Longitud de Melena</span>
+              <span id="val-hair-length" class="font-mono text-cyan-400">1.75x</span>
+            </div>
+            <input type="range" id="param-hair-length" min="0.4" max="2.8" step="0.05" value="1.75" class="w-full" oninput="onHairParamChange()">
+          </div>
+
+          <!-- Density slider -->
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-200 font-medium">Cantidad / Densidad</span>
+              <span id="val-hair-density" class="font-mono text-cyan-400">135%</span>
+            </div>
+            <input type="range" id="param-hair-density" min="0.5" max="2.0" step="0.05" value="1.35" class="w-full" oninput="onHairParamChange()">
+          </div>
+
+          <!-- Curl / Wave Frequency -->
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-300">Ondulación / Rizo</span>
+              <span id="val-hair-curl" class="font-mono text-cyan-400">0.45</span>
+            </div>
+            <input type="range" id="param-hair-curl" min="0.0" max="1.2" step="0.05" value="0.45" class="w-full" oninput="onHairParamChange()">
+          </div>
+
+          <!-- Specular / Anisotropy -->
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-300">Brillo Anisotrópico Kajiya-Kay</span>
+              <span id="val-hair-spec" class="font-mono text-cyan-400">1.35</span>
+            </div>
+            <input type="range" id="param-hair-spec" min="0.2" max="2.5" step="0.05" value="1.35" class="w-full" oninput="updateHairMaterial()">
+          </div>
+
+          <!-- Wind physics strength -->
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-slate-300">Viento Dinámico (Shader)</span>
+              <span id="val-wind" class="font-mono text-cyan-400">0.45</span>
+            </div>
+            <input type="range" id="param-wind" min="0.0" max="1.5" step="0.05" value="0.45" class="w-full" oninput="updateWind()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Morphing Cabeza Paramétrica -->
+      <div class="mb-4 pt-3 border-t border-slate-800">
+        <div class="flex items-center justify-between pb-1.5 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Morfología de Cabeza
+          </span>
+          <button onclick="resetHeadMorphs()" class="text-[10px] text-slate-400 hover:text-cyan-300 font-mono underline">Reset</button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-300">Ancho Craneal</span>
+              <span id="val-cran-width" class="font-mono text-cyan-400">1.00</span>
+            </div>
+            <input type="range" id="param-cran-width" min="0.78" max="1.30" step="0.01" value="1.0" class="w-full" oninput="updateHeadMorphs()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-300">Altura Craneal</span>
+              <span id="val-cran-height" class="font-mono text-cyan-400">1.00</span>
+            </div>
+            <input type="range" id="param-cran-height" min="0.82" max="1.28" step="0.01" value="1.0" class="w-full" oninput="updateHeadMorphs()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-300">Profundidad Craneal</span>
+              <span id="val-cran-depth" class="font-mono text-cyan-400">1.00</span>
+            </div>
+            <input type="range" id="param-cran-depth" min="0.82" max="1.28" step="0.01" value="1.0" class="w-full" oninput="updateHeadMorphs()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-300">Ancho Mandíbula</span>
+              <span id="val-jaw-width" class="font-mono text-cyan-400">1.00</span>
+            </div>
+            <input type="range" id="param-jaw-width" min="0.75" max="1.35" step="0.01" value="1.0" class="w-full" oninput="updateHeadMorphs()">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[11px] mb-0.5">
+              <span class="text-slate-300">Proyección Mentón</span>
+              <span id="val-chin-prom" class="font-mono text-cyan-400">1.00</span>
+            </div>
+            <input type="range" id="param-chin-prom" min="0.75" max="1.35" step="0.01" value="1.0" class="w-full" oninput="updateHeadMorphs()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Studio Lighting & Wireframe toggles -->
+      <div class="pt-2.5 border-t border-slate-800 space-y-1.5 text-xs">
+        <label class="flex items-center justify-between cursor-pointer">
+          <span class="text-slate-300">Rim Light Trasero (Contraluz)</span>
+          <input type="checkbox" id="toggle-rim" checked class="w-4 h-4 rounded text-cyan-500 bg-slate-800 border-slate-700" onchange="toggleRimLight(this.checked)">
+        </label>
+        <label class="flex items-center justify-between cursor-pointer">
+          <span class="text-slate-300">Ver Malla / Wireframe</span>
+          <input type="checkbox" id="toggle-wireframe" class="w-4 h-4 rounded text-cyan-500 bg-slate-800 border-slate-700" onchange="toggleWireframe(this.checked)">
+        </label>
+        <label class="flex items-center justify-between cursor-pointer">
+          <span class="text-slate-300">Rotación Automática</span>
+          <input type="checkbox" id="toggle-autorotate" class="w-4 h-4 rounded text-cyan-500 bg-slate-800 border-slate-700" onchange="toggleAutoRotate(this.checked)">
+        </label>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- BOTTOM HELPER -->
+  <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/85 backdrop-blur-md px-4 py-1.5 rounded-full border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2 pointer-events-none z-10 shadow-lg">
+    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    Las 4 técnicas comparten el mismo sistema de raíces en el cuero cabelludo y repulsión craneal
+  </div>
+
+  <!-- MAIN APPLICATION SCRIPT -->
+  <script>
+    /* ==========================================================================
+       THREE.JS HAIR RENDERING LAB - UNIFIED ANATOMICAL SCALP & COLLISION ENGINE
+       ========================================================================== */
+
+    let scene, camera, renderer, controls;
+    let headGroup, headMesh, scalpCapMesh, hairGroup;
+    let earLeft, earRight, noseMesh, neckMesh;
+    let baseHeadPositions;
+    let currentTechnique = 'cards';
+    let clock = new THREE.Clock();
+
+    // Studio Lights
+    let keyLight, fillLight, rimLight;
+
+    // Unified Anatomical Scalp Anchors (World/Head-Space Root Positions & Normals)
+    let unifiedScalpRoots = [];
+    // Subset of scalp triangle indices from headMesh for exact Shell extraction
+    let scalpTriangleIndices = [];
+
+    // Shared Shader Uniforms
+    const hairUniforms = {
+      uTime: { value: 0 },
+      uColorRoot: { value: new THREE.Color(0x1e110b) },
+      uColorTip: { value: new THREE.Color(0xa86438) },
+      uSpecularIntensity: { value: 1.35 },
+      uWindStrength: { value: 0.45 },
+      uWindDir: { value: new THREE.Vector3(1.0, 0.15, 0.4).normalize() },
+      uLength: { value: 1.75 },
+      uDensity: { value: 1.35 },
+      uCurl: { value: 0.45 }
+    };
+
+    // Procedural Textures Cache
+    let proceduralHairCardTex = null;
+    let proceduralShellTex = null;
+
+    // Performance Counters
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let fps = 60;
+
+    // Parametric Head Morph State
+    const headMorphs = {
+      cranWidth: 1.0,
+      cranHeight: 1.0,
+      cranDepth: 1.0,
+      jawWidth: 1.0,
+      chinProm: 1.0
+    };
+
+    // Center of the cranium in world coordinates for collision pushing
+    const CRANIUM_CENTER = new THREE.Vector3(0, 1.22, -0.04);
+
+    // Technical Information for UI HUD
+    const TECHNIQUE_DATA = {
+      cards: {
+        title: "1. Hair Cards (Tiras Poligonales en Capas)",
+        badge: "Estándar AAA (PC / PS5)",
+        desc: "Más de 1,200 cintas curvadas multi-segmento ancladas exactamente en los folículos del cuero cabelludo. Cada tarjeta nace en la raíz, se divide en la raya superior y cae rodeando el cráneo, las sienes y los hombros sin atravesar la cara.",
+        pros: "Alineación anatómica exacta con caída natural por gravedad y campo de repulsión elipsoidal. Máxima densidad visual con 1 sola Draw Call.",
+        cons: "Requiere Alpha-Test / Alpha-cutout calibrado para evitar artefactos de ordenación de transparencia entre capas superpuestas.",
+        cost: "~1,200 - 1,800 tiras curvadas (~18k-28k tris). Consolidado en 1 BufferGeometry (1 Draw Call a 60 FPS)."
+      },
+      shells: {
+        title: "2. Shells & Fins (Capas Volumétricas + Aletas)",
+        badge: "Pelo Denso / Pelaje Volumétrico",
+        desc: "28 casquetes concéntricos extraídos directamente de los triángulos del cuero cabelludo de la cabeza + aletas longitudinales (Fins) que siguen el flujo descendente del pelo. El desplazamiento de corte por viento/gravedad curva las capas hacia abajo.",
+        pros: "Cobertura 100% exacta sobre el cráneo porque extruye los mismos vértices anatómicos de la cabeza. Denso, acolchado y sin huecos.",
+        cons: "Para melenas muy largas, las capas exteriores deben combinarse con aletas (fins) para mantener la silueta de los mechones.",
+        cost: "28 Shells + 450 Fins combinadas en 2 llamadas de dibujado. 60 FPS constantes."
+      },
+      strands: {
+        title: "3. Instanced Strands (4,500+ Fibras 3D Curvas)",
+        badge: "Fidelidad Geométrica Pura",
+        desc: "Miles de fibras tridimensionales curvadas de 7 segmentos ancladas individualmente en la corona, sienes y nuca. Cada fibra calcula su trayectoria con raya al medio, caída gravitatoria, rizo sinusoidal y colisión craneal.",
+        pros: "Volumen real fibra a fibra desde cualquier ángulo de cámara con reflejo anisotrópico Kajiya-Kay y ondulación física.",
+        cons: "Elevado número de vértices procesados en el Vertex Shader.",
+        cost: "Hasta 5,500 fibras multi-segmento (~60k tris) unificadas en GPU para mantener 60 FPS."
+      },
+      clumps: {
+        title: "4. Volumetric Clump Locks (350+ Mechones Escultóricos)",
+        badge: "Cine / Stylized AAA",
+        desc: "Más de 350 tubos volumétricos cónicos con sección perfilada y torsión que nacen en las raíces exactas del cuero cabelludo y caen en cascada por los laterales y la espalda rodeando el cuello.",
+        pros: "Volumen sólido impecable sin transparencias, sombreado anisotrópico sedoso y oclusión profunda entre capas de mechones.",
+        cons: "Mayor carga geométrica al generar tubos cerrados de múltiples secciones.",
+        cost: "350 - 500 mechones tubulares (~45k tris) fusionados en 1 sola Draw Call."
+      }
+    };
+
+    /* ==========================================================================
+       INITIALIZATION
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      initEngine();
+      createProceduralTextures();
+      buildAnatomicalHead();
+      createStudioLighting();
+      setTechnique('cards');
+      window.addEventListener('resize', onWindowResize, false);
+      animate();
+    });
+
+    function initEngine() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x07090e);
+      scene.fog = new THREE.FogExp2(0x07090e, 0.06);
+
+      camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 100);
+      camera.position.set(0, 1.15, 4.1);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.18;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.target.set(0, 1.05, 0);
+      controls.maxPolarAngle = Math.PI / 2 + 0.15;
+      controls.minDistance = 1.3;
+      controls.maxDistance = 7.5;
+
+      // Studio Floor
+      const floorGeo = new THREE.PlaneGeometry(30, 30);
+      const floorMat = new THREE.MeshStandardMaterial({
+        color: 0x06080c,
+        roughness: 0.85,
+        metalness: 0.1
+      });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.75;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      headGroup = new THREE.Group();
+      scene.add(headGroup);
+
+      hairGroup = new THREE.Group();
+      scene.add(hairGroup);
+    }
+
+    /* ==========================================================================
+       3-POINT STUDIO LIGHTING
+       ========================================================================== */
+    function createStudioLighting() {
+      keyLight = new THREE.DirectionalLight(0xfff3e6, 2.1);
+      keyLight.position.set(2.6, 3.6, 3.0);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 1024;
+      keyLight.shadow.mapSize.height = 1024;
+      keyLight.shadow.bias = -0.0005;
+      scene.add(keyLight);
+
+      fillLight = new THREE.DirectionalLight(0x7aa2f7, 0.9);
+      fillLight.position.set(-3.2, 1.4, 1.8);
+      scene.add(fillLight);
+
+      rimLight = new THREE.SpotLight(0xdcf8ff, 5.5, 14, Math.PI / 3.5, 0.45, 1.2);
+      rimLight.position.set(0, 2.9, -3.4);
+      rimLight.target.position.set(0, 1.1, 0);
+      scene.add(rimLight);
+      scene.add(rimLight.target);
+
+      const ambientLight = new THREE.AmbientLight(0x161e2e, 1.35);
+      scene.add(ambientLight);
+    }
+
+    /* ==========================================================================
+       PROCEDURAL TEXTURES (Dense Hair Strands Alpha & Volumetric Follicles)
+       ========================================================================== */
+    function createProceduralTextures() {
+      // 1. High-density Hair Card Texture (Fine multi-fiber alpha mask)
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 1024;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      const numStrands = 1100;
+      for (let i = 0; i < numStrands; i++) {
+        // Concentrate slightly toward the center of the card so edges taper softly
+        const uRand = (Math.random() + Math.random()) * 0.5;
+        const x = 24 + uRand * (c.width - 48);
+        const width = 0.7 + Math.random() * 2.1;
+        const brightness = 160 + Math.floor(Math.random() * 95);
+        const alpha = 0.35 + Math.random() * 0.65;
+
+        ctx.strokeStyle = `rgba(${brightness}, ${brightness}, ${brightness}, ${alpha})`;
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+
+        let curX = x;
+        const steps = 16;
+        const stepY = c.height / steps;
+        const wavePhase = Math.random() * Math.PI * 2;
+        for (let s = 1; s <= steps; s++) {
+          const y = s * stepY;
+          curX += Math.sin(s * 0.6 + wavePhase) * 3.5 + (Math.random() - 0.5) * 4.0;
+          ctx.lineTo(curX, y);
+        }
+        ctx.stroke();
+      }
+
+      // Smooth root & tapered tip alpha gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, c.height);
+      grad.addColorStop(0.0, 'rgba(255,255,255,0.0)');
+      grad.addColorStop(0.04, 'rgba(255,255,255,0.98)');
+      grad.addColorStop(0.78, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.94, 'rgba(255,255,255,0.45)');
+      grad.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, c.width, c.height);
+
+      proceduralHairCardTex = new THREE.CanvasTexture(c);
+      proceduralHairCardTex.wrapS = THREE.ClampToEdgeWrapping;
+      proceduralHairCardTex.wrapT = THREE.ClampToEdgeWrapping;
+
+      // 2. High-density Shell Follicle Clump Texture
+      const cs = document.createElement('canvas');
+      cs.width = 512;
+      cs.height = 512;
+      const ctxS = cs.getContext('2d');
+      ctxS.fillStyle = '#000000';
+      ctxS.fillRect(0, 0, 512, 512);
+
+      // Draw overlapping micro-clumps so shells look like thick plush hair
+      for (let i = 0; i < 18000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const r = 1.0 + Math.random() * 2.6;
+        const val = Math.floor(80 + Math.pow(Math.random(), 0.65) * 175);
+        ctxS.fillStyle = `rgb(${val},${val},${val})`;
+        ctxS.beginPath();
+        ctxS.arc(x, y, r, 0, Math.PI * 2);
+        ctxS.fill();
+      }
+
+      proceduralShellTex = new THREE.CanvasTexture(cs);
+      proceduralShellTex.wrapS = THREE.RepeatWrapping;
+      proceduralShellTex.wrapT = THREE.RepeatWrapping;
+    }
+
+    /* ==========================================================================
+       ANATOMICAL HEAD & UNIFIED SCALP SURFACE SAMPLER
+       ========================================================================== */
+    function isPointOnScalp(localRawX, localRawY, localRawZ) {
+      // localRaw coordinates are on the base sphere (radius ~0.82) before Y shift (+1.1)
+      // Crown is at y > 0.25
+      // Front hairline is above forehead (z > 0, y > 0.32 + x^2*0.25)
+      // Temples go down around sides (abs(x) > 0.48, y > -0.08, z < 0.28)
+      // Back of head / nape goes down to y > -0.52 (z < 0.05)
+
+      if (localRawY > 0.36) return true; // Top crown
+
+      // Frontal hairline curve (receding slightly at temples)
+      if (localRawZ >= 0.05) {
+        const hairlineY = 0.28 + Math.pow(Math.abs(localRawX), 1.5) * 0.18 + localRawZ * 0.12;
+        if (localRawY > hairlineY) return true;
+      }
+
+      // Sideburns / Temples (around ears)
+      if (localRawZ < 0.18 && localRawZ > -0.25 && Math.abs(localRawX) > 0.45) {
+        // Leave space for the ear around y in [-0.18, 0.08], z in [-0.12, 0.08]
+        const inEarZone = (localRawY < 0.08 && localRawY > -0.25 && localRawZ > -0.14 && localRawZ < 0.10);
+        if (!inEarZone && localRawY > -0.12) return true;
+      }
+
+      // Back of cranium and nape of neck
+      if (localRawZ <= -0.05 && localRawY > -0.52) {
+        return true;
+      }
+
+      return false;
+    }
+
+    function buildAnatomicalHead() {
+      // High-res sphere deformed into an anatomical head with cranium, jaw, chin, brow
+      const headGeom = new THREE.SphereGeometry(0.80, 64, 64);
+      const pos = headGeom.attributes.position;
+      const v = new THREE.Vector3();
+
+      // Store which vertices belong to the scalp
+      const vertexIsScalp = new Uint8Array(pos.count);
+
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        const rawX = v.x;
+        const rawY = v.y;
+        const rawZ = v.z;
+
+        // Check scalp membership in canonical coordinates
+        if (isPointOnScalp(rawX, rawY, rawZ)) {
+          vertexIsScalp[i] = 1;
+        }
+
+        // 1. Vertical cranial proportion
+        v.y *= 1.24;
+
+        // 2. Facial plane & jaw tapering
+        if (v.y < 0.1) {
+          const t = Math.max(0, (v.y + 1.0) / 1.1);
+          v.x *= 0.74 + 0.26 * t;
+          v.z *= 0.84 + 0.16 * t;
+
+          // Chin projection
+          if (v.z > 0.15 && v.y < -0.42 && v.y > -0.82) {
+            const chinFactor = Math.max(0, 1.0 - Math.abs(v.x) * 2.2);
+            v.z += 0.11 * chinFactor;
+          }
+        }
+
+        // 3. Brow ridge & eye sockets
+        if (v.z > 0.35 && v.y > -0.05 && v.y < 0.25) {
+          // Slight eye socket indentation
+          const eyeDist = Math.min(
+            Math.hypot(v.x - 0.24, v.y - 0.08),
+            Math.hypot(v.x + 0.24, v.y - 0.08)
+          );
+          if (eyeDist < 0.16) {
+            v.z -= (0.16 - eyeDist) * 0.32;
+          }
+          // Brow prominence
+          if (v.y > 0.14 && v.y < 0.24) {
+            v.z += 0.035 * (1.0 - Math.abs(v.x));
+          }
+        }
+
+        // 4. Cranial back volume (occipital bone)
+        if (v.z < -0.1 && v.y > -0.25) {
+          v.z -= 0.06 * Math.cos(v.y * 1.2);
+        }
+
+        // Shift head up so center is around y = 1.15
+        v.y += 1.12;
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+
+      headGeom.computeVertexNormals();
+      baseHeadPositions = new Float32Array(pos.array);
+
+      // Identify all triangles strictly inside the scalp region for Mode 2 (Shells) and root sampling
+      const indexAttr = headGeom.index;
+      scalpTriangleIndices = [];
+      for (let i = 0; i < indexAttr.count; i += 3) {
+        const a = indexAttr.getX(i);
+        const b = indexAttr.getX(i + 1);
+        const c = indexAttr.getX(i + 2);
+        if (vertexIsScalp[a] && vertexIsScalp[b] && vertexIsScalp[c]) {
+          scalpTriangleIndices.push(a, b, c);
+        }
+      }
+
+      const skinMat = new THREE.MeshStandardMaterial({
+        color: 0xdcb094,
+        roughness: 0.52,
+        metalness: 0.05
+      });
+
+      headMesh = new THREE.Mesh(headGeom, skinMat);
+      headMesh.castShadow = true;
+      headMesh.receiveShadow = true;
+      headGroup.add(headMesh);
+
+      // Dark under-scalp cap directly built from the scalp triangles so no bald skin peeks through
+      const capGeo = buildScalpGeometryFromHead(0.003);
+      const capMat = new THREE.MeshStandardMaterial({
+        color: hairUniforms.uColorRoot.value,
+        roughness: 0.92,
+        side: THREE.DoubleSide
+      });
+      scalpCapMesh = new THREE.Mesh(capGeo, capMat);
+      headGroup.add(scalpCapMesh);
+
+      // Neck & Shoulders bust
+      const neckGeo = new THREE.CylinderGeometry(0.36, 0.52, 0.95, 36);
+      neckMesh = new THREE.Mesh(neckGeo, skinMat);
+      neckMesh.position.set(0, 0.25, -0.08);
+      neckMesh.castShadow = true;
+      neckMesh.receiveShadow = true;
+      headGroup.add(neckMesh);
+
+      // Anatomical Nose
+      const noseGeo = new THREE.ConeGeometry(0.11, 0.34, 16);
+      noseMesh = new THREE.Mesh(noseGeo, skinMat);
+      noseMesh.position.set(0, 1.12, 0.76);
+      noseMesh.rotation.x = Math.PI * 0.12;
+      headGroup.add(noseMesh);
+
+      // Anatomical Ears
+      const earGeo = new THREE.SphereGeometry(0.13, 16, 16);
+      earGeo.scale(0.38, 1.1, 0.65);
+      earLeft = new THREE.Mesh(earGeo, skinMat);
+      earLeft.position.set(0.75, 1.06, -0.04);
+      earLeft.rotation.y = -0.25;
+      headGroup.add(earLeft);
+
+      earRight = new THREE.Mesh(earGeo, skinMat);
+      earRight.position.set(-0.75, 1.06, -0.04);
+      earRight.rotation.y = 0.25;
+      headGroup.add(earRight);
+
+      // Eyes
+      const eyeWhiteGeo = new THREE.SphereGeometry(0.095, 24, 24);
+      const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2 });
+      const irisGeo = new THREE.SphereGeometry(0.052, 20, 20);
+      const irisMat = new THREE.MeshStandardMaterial({ color: 0x25384c, roughness: 0.1 });
+
+      [-1, 1].forEach(side => {
+        const eye = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+        eye.position.set(side * 0.23, 1.20, 0.63);
+        const iris = new THREE.Mesh(irisGeo, irisMat);
+        iris.position.set(0, 0, 0.055);
+        eye.add(iris);
+        headGroup.add(eye);
+      });
+
+      // Sample unified scalp roots across the triangles
+      rebuildUnifiedScalpRoots();
+    }
+
+    /* ==========================================================================
+       EXTRACT EXACT SCALP SUB-MESH FROM DEFORMED HEAD GEOMETRY
+       ========================================================================== */
+    function buildScalpGeometryFromHead(normalOffset = 0.0) {
+      const headPos = headMesh.geometry.attributes.position;
+      const headNorm = headMesh.geometry.attributes.normal;
+
+      // Map old vertex index -> new compact vertex index
+      const vertMap = new Map();
+      const newPositions = [];
+      const newNormals = [];
+      const newUvs = [];
+      const newIndices = [];
+
+      const v = new THREE.Vector3();
+      const n = new THREE.Vector3();
+
+      for (let i = 0; i < scalpTriangleIndices.length; i++) {
+        const oldIdx = scalpTriangleIndices[i];
+        let newIdx = vertMap.get(oldIdx);
+        if (newIdx === undefined) {
+          newIdx = newPositions.length / 3;
+          vertMap.set(oldIdx, newIdx);
+
+          v.fromBufferAttribute(headPos, oldIdx);
+          n.fromBufferAttribute(headNorm, oldIdx).normalize();
+
+          v.addScaledVector(n, normalOffset);
+          newPositions.push(v.x, v.y, v.z);
+          newNormals.push(n.x, n.y, n.z);
+
+          // Spherical UVs anchored to scalp for consistent follicle noise
+          const u = 0.5 + Math.atan2(v.x, v.z) / (Math.PI * 2);
+          const vCoord = (v.y - 0.5) / 1.5;
+          newUvs.push(u, vCoord);
+        }
+        newIndices.push(newIdx);
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(newPositions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(newNormals, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(newUvs, 2));
+      geo.setIndex(newIndices);
+      return geo;
+    }
+
+    /* ==========================================================================
+       UNIFIED SCALP ROOT SAMPLER (Used by ALL 4 Hair Techniques!)
+       ========================================================================== */
+    function rebuildUnifiedScalpRoots() {
+      unifiedScalpRoots = [];
+      const posAttr = headMesh.geometry.attributes.position;
+      const normAttr = headMesh.geometry.attributes.normal;
+
+      const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3();
+      const nA = new THREE.Vector3(), nB = new THREE.Vector3(), nC = new THREE.Vector3();
+
+      const numTriangles = scalpTriangleIndices.length / 3;
+
+      // Deterministic pseudo-random generator so hair doesn't flicker when morphing head sliders
+      let seed = 1337;
+      function seededRandom() {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+      }
+
+      // Generate ~5,500 evenly distributed root anchors on the exact scalp surface
+      const samplesPerTri = Math.max(1, Math.ceil(5600 / numTriangles));
+
+      for (let t = 0; t < numTriangles; t++) {
+        const i0 = scalpTriangleIndices[t * 3];
+        const i1 = scalpTriangleIndices[t * 3 + 1];
+        const i2 = scalpTriangleIndices[t * 3 + 2];
+
+        vA.fromBufferAttribute(posAttr, i0);
+        vB.fromBufferAttribute(posAttr, i1);
+        vC.fromBufferAttribute(posAttr, i2);
+
+        nA.fromBufferAttribute(normAttr, i0);
+        nB.fromBufferAttribute(normAttr, i1);
+        nC.fromBufferAttribute(normAttr, i2);
+
+        for (let s = 0; s < samplesPerTri; s++) {
+          let r1 = seededRandom();
+          let r2 = seededRandom();
+          if (r1 + r2 > 1.0) {
+            r1 = 1.0 - r1;
+            r2 = 1.0 - r2;
+          }
+          const r3 = 1.0 - r1 - r2;
+
+          const rootPos = new THREE.Vector3()
+            .addScaledVector(vA, r1)
+            .addScaledVector(vB, r2)
+            .addScaledVector(vC, r3);
+
+          const rootNorm = new THREE.Vector3()
+            .addScaledVector(nA, r1)
+            .addScaledVector(nB, r2)
+            .addScaledVector(nC, r3)
+            .normalize();
+
+          unifiedScalpRoots.push({
+            pos: rootPos,
+            normal: rootNorm,
+            randPhase: seededRandom() * Math.PI * 2,
+            randSpread: (seededRandom() - 0.5) * 2.0,
+            randScale: 0.82 + seededRandom() * 0.36
+          });
+        }
+      }
+    }
+
+    /* ==========================================================================
+       CORE HAIR FLOW & CRANIAL COLLISION SOLVER
+       Ensures every strand/card/clump starts at the scalp root, parts naturally,
+       and drapes around the head, ears, and shoulders without penetrating the face!
+       ========================================================================== */
+    function generateHairStrandPoints(anchor, totalLength, numSegments, curlAmount) {
+      const points = [];
+      const rootPos = anchor.pos.clone();
+      const rootNorm = anchor.normal.clone();
+
+      // Slight inset so root is firmly planted inside the scalp cap
+      points.push(rootPos.clone().addScaledVector(rootNorm, -0.008));
+
+      // Natural hair parting away from the center-top parting line (x = 0)
+      const sideSign = rootPos.x >= 0 ? 1.0 : -1.0;
+
+      // Prevent hair from falling forward over the eyes/nose:
+      // If rooted near the front/temples, sweep laterally & slightly backward
+      const isFront = rootPos.z > 0.15;
+      const lateralPush = isFront ? sideSign * 0.65 : sideSign * 0.30;
+      const backwardBias = isFront ? -0.35 : -0.12;
+
+      // Initial growth direction: outward from scalp + parting flow
+      const tangentDir = new THREE.Vector3(
+        rootNorm.x * 0.75 + lateralPush + anchor.randSpread * 0.12,
+        Math.max(0.15, rootNorm.y * 0.65),
+        rootNorm.z * 0.7 + backwardBias
+      ).normalize();
+
+      let currentPos = rootPos.clone();
+      const stepLen = totalLength / numSegments;
+
+      // Scaled collision radii based on current head morphs
+      const headRadX = 0.83 * headMorphs.cranWidth;
+      const headRadY = 1.02 * headMorphs.cranHeight;
+      const headRadZ = 0.85 * headMorphs.cranDepth;
+
+      for (let s = 1; s <= numSegments; s++) {
+        const frac = s / numSegments; // 0 -> 1 along strand
+
+        // Gravity increases progressively along the length of the hair
+        const gravityPull = Math.pow(frac, 1.15) * 1.45;
+
+        // Curl / Wave oscillation
+        const waveAngle = frac * Math.PI * 3.5 + anchor.randPhase;
+        const curlOffset = new THREE.Vector3(
+          Math.cos(waveAngle) * curlAmount * 0.14 * frac,
+          0,
+          Math.sin(waveAngle) * curlAmount * 0.14 * frac
+        );
+
+        // Step direction combining initial root lift + strong downward gravity
+        const segDir = new THREE.Vector3(
+          tangentDir.x * (1.0 - frac * 0.45) + curlOffset.x,
+          tangentDir.y * (1.0 - frac * 0.85) - gravityPull,
+          tangentDir.z * (1.0 - frac * 0.35) + curlOffset.z
+        ).normalize();
+
+        currentPos.addScaledVector(segDir, stepLen);
+
+        // 1. CRANIAL ELLIPSOID COLLISION PUSH-OUT
+        const rel = new THREE.Vector3().subVectors(currentPos, CRANIUM_CENTER);
+        const normX = rel.x / headRadX;
+        const normY = rel.y / headRadY;
+        const normZ = rel.z / headRadZ;
+        const ellipDist = Math.sqrt(normX * normX + normY * normY + normZ * normZ);
+
+        // Keep hair slightly outside the skull & ears (shell buffer grows slightly with layer)
+        const minBuffer = 1.03 + frac * 0.04;
+        if (ellipDist < minBuffer && currentPos.y > 0.35) {
+          const pushScale = minBuffer / Math.max(ellipDist, 0.001);
+          currentPos.set(
+            CRANIUM_CENTER.x + rel.x * pushScale,
+            CRANIUM_CENTER.y + rel.y * pushScale,
+            CRANIUM_CENTER.z + rel.z * pushScale
+          );
+        }
+
+        // 2. FACE EXCLUSION GUARD (Never cross in front of forehead/eyes/cheeks)
+        if (currentPos.z > 0.22 && currentPos.y < 1.38) {
+          currentPos.x += sideSign * 0.08;
+          const minSideX = 0.56 * headMorphs.cranWidth;
+          if (Math.abs(currentPos.x) < minSideX) {
+            currentPos.x = sideSign * minSideX;
+          }
+        }
+
+        // 3. NECK & SHOULDER DRAPING COLLISION
+        if (currentPos.y <= 0.55) {
+          const neckCenterX = 0;
+          const neckCenterZ = -0.08;
+          const dx = currentPos.x - neckCenterX;
+          const dz = currentPos.z - neckCenterZ;
+          const distNeck = Math.hypot(dx, dz);
+          const neckRadius = 0.46 + Math.max(0, (0.45 - currentPos.y) * 0.42); // widens at shoulders
+          if (distNeck < neckRadius) {
+            const factor = neckRadius / Math.max(distNeck, 0.001);
+            currentPos.x = neckCenterX + dx * factor;
+            currentPos.z = neckCenterZ + dz * factor;
+          }
+        }
+
+        points.push(currentPos.clone());
+      }
+
+      return points;
+    }
+
+    /* ==========================================================================
+       BUILD ORIENTED RIBBON GEOMETRY ALONG A 3D CURVE (Used by Cards & Strands)
+       ========================================================================== */
+    function buildRibbonBufferFromPoints(points, baseWidth, tipTaper, twistAmount = 0) {
+      const segs = points.length - 1;
+      const positions = new Float32Array((segs + 1) * 2 * 3);
+      const normals = new Float32Array((segs + 1) * 2 * 3);
+      const uvs = new Float32Array((segs + 1) * 2 * 2);
+      const indices = [];
+
+      const tangent = new THREE.Vector3();
+      const headToPoint = new THREE.Vector3();
+      const sideVec = new THREE.Vector3();
+      const surfNormal = new THREE.Vector3();
+
+      for (let i = 0; i <= segs; i++) {
+        const vFrac = i / segs; // 0 at root, 1 at tip
+        const p = points[i];
+
+        if (i < segs) {
+          tangent.subVectors(points[i + 1], p).normalize();
+        } else {
+          tangent.subVectors(p, points[i - 1]).normalize();
+        }
+
+        // Vector pointing outward from the head axis so the ribbon lies flat against the head contour
+        headToPoint.subVectors(p, CRANIUM_CENTER).normalize();
+        sideVec.crossVectors(tangent, headToPoint).normalize();
+
+        if (twistAmount !== 0) {
+          sideVec.applyAxisAngle(tangent, vFrac * twistAmount);
+        }
+
+        surfNormal.crossVectors(sideVec, tangent).normalize();
+
+        // Width tapers smoothly at root and toward tip
+        const rootFade = Math.min(1.0, 0.45 + vFrac * 2.2);
+        const halfW = (baseWidth * 0.5) * rootFade * (1.0 - vFrac * tipTaper);
+
+        const leftX = p.x - sideVec.x * halfW;
+        const leftY = p.y - sideVec.y * halfW;
+        const leftZ = p.z - sideVec.z * halfW;
+
+        const rightX = p.x + sideVec.x * halfW;
+        const rightY = p.y + sideVec.y * halfW;
+        const rightZ = p.z + sideVec.z * halfW;
+
+        const vIdx = i * 6;
+        positions[vIdx]     = leftX;  positions[vIdx + 1] = leftY;  positions[vIdx + 2] = leftZ;
+        positions[vIdx + 3] = rightX; positions[vIdx + 4] = rightY; positions[vIdx + 5] = rightZ;
+
+        normals[vIdx]     = surfNormal.x; normals[vIdx + 1] = surfNormal.y; normals[vIdx + 2] = surfNormal.z;
+        normals[vIdx + 3] = surfNormal.x; normals[vIdx + 4] = surfNormal.y; normals[vIdx + 5] = surfNormal.z;
+
+        const uvIdx = i * 4;
+        uvs[uvIdx]     = 0.0; uvs[uvIdx + 1] = vFrac;
+        uvs[uvIdx + 2] = 1.0; uvs[uvIdx + 3] = vFrac;
+
+        if (i < segs) {
+          const row = i * 2;
+          indices.push(row, row + 1, row + 2);
+          indices.push(row + 1, row + 3, row + 2);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geo.setIndex(indices);
+      return geo;
+    }
+
+    /* ==========================================================================
+       SHARED ANISOTROPIC KAJIYA-KAY HAIR SHADER
+       ========================================================================== */
+    function createAnisotropicHairShader(useAlphaMap = false, alphaCutoff = 0.22) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: hairUniforms.uTime,
+          uColorRoot: hairUniforms.uColorRoot,
+          uColorTip: hairUniforms.uColorTip,
+          uSpecularIntensity: hairUniforms.uSpecularIntensity,
+          uWindStrength: hairUniforms.uWindStrength,
+          uWindDir: hairUniforms.uWindDir,
+          uAlphaMap: { value: proceduralHairCardTex },
+          uUseAlpha: { value: useAlphaMap ? 1.0 : 0.0 },
+          uAlphaCutoff: { value: alphaCutoff }
+        },
+        vertexShader: `
+          varying vec3 vWorldNormal;
+          varying vec3 vWorldPosition;
+          varying vec2 vUv;
+          uniform float uTime;
+          uniform float uWindStrength;
+          uniform vec3 uWindDir;
+
+          void main() {
+            vUv = uv;
+            // Wind only affects hair progressively toward the tips (uv.y > 0), keeping roots locked!
+            float tipFactor = pow(clamp(uv.y, 0.0, 1.0), 1.85);
+            float wave = sin(uTime * 3.6 + position.x * 4.0 + position.z * 4.0 + position.y * 2.5);
+            vec3 windDisplacement = uWindDir * wave * uWindStrength * 0.14 * tipFactor;
+
+            vec3 displaced = position + windDisplacement;
+            vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
+            vWorldPosition = worldPos.xyz;
+            vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+
+            gl_Position = projectionMatrix * viewMatrix * worldPos;
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vWorldNormal;
+          varying vec3 vWorldPosition;
+          varying vec2 vUv;
+          uniform vec3 uColorRoot;
+          uniform vec3 uColorTip;
+          uniform float uSpecularIntensity;
+          uniform sampler2D uAlphaMap;
+          uniform float uUseAlpha;
+          uniform float uAlphaCutoff;
+
+          float kajiyaKaySpecular(vec3 T, vec3 V, vec3 L, float expPower) {
+            vec3 H = normalize(L + V);
+            float dotTH = clamp(dot(T, H), -1.0, 1.0);
+            float sinTH = sqrt(max(0.0, 1.0 - dotTH * dotTH));
+            return pow(sinTH, expPower);
+          }
+
+          void main() {
+            float alpha = 1.0;
+            float strandVariation = 1.0;
+
+            if (uUseAlpha > 0.5) {
+              vec4 tex = texture2D(uAlphaMap, vUv);
+              if (tex.a < uAlphaCutoff) discard;
+              alpha = tex.a;
+              strandVariation = 0.75 + 0.35 * tex.r;
+            } else {
+              // Micro-fiber procedural sheen across UV.x for solid strands/clumps
+              strandVariation = 0.82 + 0.18 * sin(vUv.x * 31.4159);
+            }
+
+            // Root-to-Tip Color Gradient with natural root AO darkening
+            float rootAO = smoothstep(0.0, 0.18, vUv.y) * 0.65 + 0.35;
+            vec3 baseColor = mix(uColorRoot, uColorTip, pow(vUv.y, 1.1)) * rootAO * strandVariation;
+
+            vec3 N = normalize(vWorldNormal);
+            if (!gl_FrontFacing) N = -N;
+
+            vec3 V = normalize(cameraPosition - vWorldPosition);
+            vec3 L = normalize(vec3(2.6, 3.6, 3.0));
+            vec3 RimL = normalize(vec3(0.0, 2.9, -3.4));
+
+            // Approximate hair tangent along V coordinate derivative
+            vec3 T = normalize(dFdy(vWorldPosition) + vec3(0.0, -0.001, 0.0));
+
+            // Shifted Dual-Highlight (Primary + Secondary Marschner/Kajiya-Kay lobe)
+            vec3 T1 = normalize(T + N * 0.12);
+            vec3 T2 = normalize(T - N * 0.22);
+
+            float spec1 = kajiyaKaySpecular(T1, V, L, 42.0);
+            float spec2 = kajiyaKaySpecular(T2, V, L, 18.0) * 0.55;
+            float totalSpec = (spec1 + spec2) * uSpecularIntensity * smoothstep(0.05, 0.3, vUv.y);
+
+            // Rim backlight translucency
+            float rimFresnel = pow(1.0 - max(0.0, dot(N, V)), 2.6);
+            float rimHighlight = rimFresnel * max(0.0, dot(-RimL, V)) * 1.4 * uSpecularIntensity;
+
+            // Wrapped diffuse lighting
+            float wrapDiff = max(0.0, dot(N, L) * 0.65 + 0.35);
+
+            vec3 finalRGB = baseColor * wrapDiff
+                          + vec3(1.0, 0.94, 0.86) * totalSpec * 0.45
+                          + mix(uColorTip, vec3(0.88, 0.96, 1.0), 0.5) * rimHighlight * 0.45;
+
+            gl_FragColor = vec4(finalRGB, alpha);
+          }
+        `,
+        side: THREE.DoubleSide,
+        transparent: false,
+        depthWrite: true
+      });
+    }
+
+    /* ==========================================================================
+       TECHNIQUE 1: HAIR CARDS (1,100+ Multi-Segment Curved Ribbons on Scalp)
+       ========================================================================== */
+    function generateHairCards() {
+      clearHairGroup();
+
+      const totalRoots = unifiedScalpRoots.length;
+      const targetCards = Math.min(totalRoots, Math.floor(1050 * hairUniforms.uDensity.value));
+      const stride = Math.max(1, Math.floor(totalRoots / targetCards));
+
+      const baseLen = 0.68 * hairUniforms.uLength.value;
+      const curl = hairUniforms.uCurl.value;
+      const cardGeometries = [];
+
+      for (let i = 0; i < totalRoots; i += stride) {
+        const anchor = unifiedScalpRoots[i];
+        const len = baseLen * anchor.randScale;
+        const pts = generateHairStrandPoints(anchor, len, 8, curl);
+        const cardGeo = buildRibbonBufferFromPoints(pts, 0.115, 0.55, (anchor.randSpread) * 0.45);
+        cardGeometries.push(cardGeo);
+      }
+
+      const mergedGeo = mergeIndexedGeometries(cardGeometries);
+      const cardMat = createAnisotropicHairShader(true, 0.25);
+
+      const mesh = new THREE.Mesh(mergedGeo, cardMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      hairGroup.add(mesh);
+
+      updateStatsUI(1, mergedGeo.index.count / 3, mergedGeo.attributes.position.count);
+    }
+
+    /* ==========================================================================
+       TECHNIQUE 2: SHELLS & FINS (28 Exact Scalp Shells + 500 Silhouette Fins)
+       ========================================================================== */
+    function generateShellsAndFins() {
+      clearHairGroup();
+
+      const numShells = Math.floor(26 * Math.min(1.4, hairUniforms.uDensity.value));
+      // Thick volumetric extrusion that scales with hair length
+      const maxThickness = 0.22 * Math.pow(hairUniforms.uLength.value, 0.75);
+      const gravityDrop = 0.16 * hairUniforms.uLength.value;
+
+      const baseScalpGeo = buildScalpGeometryFromHead(0.0);
+      const basePos = baseScalpGeo.attributes.position;
+      const baseNorm = baseScalpGeo.attributes.normal;
+      const baseUv = baseScalpGeo.attributes.uv;
+      const baseIdx = baseScalpGeo.index.array;
+
+      const shellGeos = [];
+      const v = new THREE.Vector3();
+      const n = new THREE.Vector3();
+
+      for (let s = 1; s <= numShells; s++) {
+        const layerFrac = s / numShells; // 0 -> 1
+        const g = new THREE.BufferGeometry();
+        const pArr = new Float32Array(basePos.array.length);
+        const nArr = new Float32Array(baseNorm.array.length);
+        const uvArr = new Float32Array(baseUv.array.length);
+
+        for (let i = 0; i < basePos.count; i++) {
+          v.fromBufferAttribute(basePos, i);
+          n.fromBufferAttribute(baseNorm, i);
+
+          // Outward extrusion along scalp normal + progressive downward combing/gravity
+          const combFactor = Math.pow(layerFrac, 1.4);
+          v.x += n.x * maxThickness * layerFrac;
+          v.y += n.y * maxThickness * layerFrac - gravityDrop * combFactor;
+          v.z += n.z * maxThickness * layerFrac - 0.05 * combFactor;
+
+          pArr[i * 3]     = v.x;
+          pArr[i * 3 + 1] = v.y;
+          pArr[i * 3 + 2] = v.z;
+
+          nArr[i * 3]     = n.x;
+          nArr[i * 3 + 1] = n.y;
+          nArr[i * 3 + 2] = n.z;
+
+          uvArr[i * 2]     = baseUv.getX(i);
+          // Encode shell layer fraction in UV.y for the fragment shader threshold
+          uvArr[i * 2 + 1] = layerFrac;
+        }
+
+        g.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
+        g.setAttribute('normal', new THREE.BufferAttribute(nArr, 3));
+        g.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+        g.setIndex(Array.from(baseIdx));
+        shellGeos.push(g);
+      }
+
+      baseScalpGeo.dispose();
+      const mergedShellsGeo = mergeIndexedGeometries(shellGeos);
+
+      const shellMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: hairUniforms.uTime,
+          uNoiseMap: { value: proceduralShellTex },
+          uColorRoot: hairUniforms.uColorRoot,
+          uColorTip: hairUniforms.uColorTip,
+          uSpecularIntensity: hairUniforms.uSpecularIntensity,
+          uWindStrength: hairUniforms.uWindStrength,
+          uWindDir: hairUniforms.uWindDir
+        },
+        vertexShader: `
+          varying vec3 vWorldNormal;
+          varying vec3 vWorldPosition;
+          varying vec2 vUv;
+          varying vec3 vLocalPos;
+          uniform float uTime;
+          uniform float uWindStrength;
+          uniform vec3 uWindDir;
+
+          void main() {
+            vUv = uv;
+            vLocalPos = position;
+            float layerFrac = uv.y;
+            float sway = pow(layerFrac, 1.8) * uWindStrength * 0.06;
+            vec3 wind = uWindDir * sin(uTime * 4.0 + position.x * 6.0 + position.z * 6.0) * sway;
+
+            vec4 wp = modelMatrix * vec4(position + wind, 1.0);
+            vWorldPosition = wp.xyz;
+            vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+            gl_Position = projectionMatrix * viewMatrix * wp;
+          }
+        `,
+        fragmentShader: `
+          varying vec3 vWorldNormal;
+          varying vec3 vWorldPosition;
+          varying vec2 vUv;
+          varying vec3 vLocalPos;
+          uniform sampler2D uNoiseMap;
+          uniform vec3 uColorRoot;
+          uniform vec3 uColorTip;
+          uniform float uSpecularIntensity;
+
+          void main() {
+            float layerFrac = vUv.y;
+            // Tri-planar / spherical follicle coordinate sampling
+            vec2 follicleUV = vec2(atan(vLocalPos.x, vLocalPos.z) * 3.5, vLocalPos.y * 6.5);
+            float follicleVal = texture2D(uNoiseMap, follicleUV).r;
+
+            // Conical taper: outer shells require higher follicle values
+            float threshold = pow(layerFrac, 0.85) * 0.86;
+            if (follicleVal < threshold) discard;
+
+            float ao = mix(0.28, 1.0, pow(layerFrac, 0.65));
+            vec3 col = mix(uColorRoot, uColorTip, layerFrac) * ao;
+
+            vec3 N = normalize(vWorldNormal);
+            vec3 V = normalize(cameraPosition - vWorldPosition);
+            vec3 L = normalize(vec3(2.6, 3.6, 3.0));
+            vec3 RimL = normalize(vec3(0.0, 2.9, -3.4));
+
+            float NdotL = max(0.0, dot(N, L) * 0.65 + 0.35);
+            float rim = pow(1.0 - max(0.0, dot(N, V)), 2.5) * max(0.0, dot(-RimL, V)) * 1.6 * uSpecularIntensity;
+
+            vec3 finalColor = col * NdotL + vec3(0.95, 0.92, 0.85) * rim * layerFrac;
+            gl_FragColor = vec4(finalColor, 1.0);
+          }
+        `,
+        side: THREE.DoubleSide
+      });
+
+      const shellsMesh = new THREE.Mesh(mergedShellsGeo, shellMat);
+      shellsMesh.castShadow = true;
+      hairGroup.add(shellsMesh);
+
+      // Add Silhouette Fins rooted on the scalp to give long flowing locks & fuzzy edges
+      const finCount = Math.floor(450 * hairUniforms.uDensity.value);
+      const stride = Math.max(1, Math.floor(unifiedScalpRoots.length / finCount));
+      const finGeos = [];
+      const finLen = 0.52 * hairUniforms.uLength.value;
+
+      for (let i = 0; i < unifiedScalpRoots.length; i += stride) {
+        const anchor = unifiedScalpRoots[i];
+        const pts = generateHairStrandPoints(anchor, finLen * anchor.randScale, 6, hairUniforms.uCurl.value);
+        finGeos.push(buildRibbonBufferFromPoints(pts, 0.075, 0.7, 0.6));
+      }
+
+      const mergedFinsGeo = mergeIndexedGeometries(finGeos);
+      const finsMat = createAnisotropicHairShader(true, 0.28);
+      const finsMesh = new THREE.Mesh(mergedFinsGeo, finsMat);
+      hairGroup.add(finsMesh);
+
+      const totalTris = (mergedShellsGeo.index.count + mergedFinsGeo.index.count) / 3;
+      const totalVerts = mergedShellsGeo.attributes.position.count + mergedFinsGeo.attributes.position.count;
+      updateStatsUI(2, totalTris, totalVerts);
+    }
+
+    /* ==========================================================================
+       TECHNIQUE 3: INSTANCED / CURVED 3D STRANDS (4,500+ Flowing Fibers)
+       ========================================================================== */
+    function generateInstancedStrands() {
+      clearHairGroup();
+
+      const totalRoots = unifiedScalpRoots.length;
+      const targetStrands = Math.min(totalRoots, Math.floor(3800 * hairUniforms.uDensity.value));
+      const stride = Math.max(1, Math.floor(totalRoots / targetStrands));
+
+      const baseLen = 0.66 * hairUniforms.uLength.value;
+      const curl = hairUniforms.uCurl.value;
+      const strandGeos = [];
+
+      for (let i = 0; i < totalRoots; i += stride) {
+        const anchor = unifiedScalpRoots[i];
+        const len = baseLen * anchor.randScale;
+        const pts = generateHairStrandPoints(anchor, len, 7, curl);
+        // Fine individual 3D tapered strand
+        strandGeos.push(buildRibbonBufferFromPoints(pts, 0.022, 0.85, 0.2));
+      }
+
+      const mergedGeo = mergeIndexedGeometries(strandGeos);
+      const strandMat = createAnisotropicHairShader(false, 0.0);
+
+      const strandsMesh = new THREE.Mesh(mergedGeo, strandMat);
+      strandsMesh.castShadow = true;
+      strandsMesh.receiveShadow = true;
+      hairGroup.add(strandsMesh);
+
+      updateStatsUI(1, mergedGeo.index.count / 3, mergedGeo.attributes.position.count);
+    }
+
+    /* ==========================================================================
+       TECHNIQUE 4: VOLUMETRIC CLUMP LOCKS (350+ Tapered Sculpted Locks on Scalp)
+       ========================================================================== */
+    function generateVolumetricClumps() {
+      clearHairGroup();
+
+      const totalRoots = unifiedScalpRoots.length;
+      const targetClumps = Math.min(totalRoots, Math.floor(340 * hairUniforms.uDensity.value));
+      const stride = Math.max(1, Math.floor(totalRoots / targetClumps));
+
+      const baseLen = 0.72 * hairUniforms.uLength.value;
+      const curl = hairUniforms.uCurl.value;
+      const clumpGeos = [];
+
+      for (let i = 0; i < totalRoots; i += stride) {
+        const anchor = unifiedScalpRoots[i];
+        const len = baseLen * anchor.randScale;
+        const pts = generateHairStrandPoints(anchor, len, 8, curl);
+        const clumpGeo = buildTaperedClumpTube(pts, 0.048 * anchor.randScale, 5);
+        clumpGeos.push(clumpGeo);
+      }
+
+      const mergedGeo = mergeIndexedGeometries(clumpGeos);
+      const clumpMat = createAnisotropicHairShader(false, 0.0);
+
+      const clumpMesh = new THREE.Mesh(mergedGeo, clumpMat);
+      clumpMesh.castShadow = true;
+      clumpMesh.receiveShadow = true;
+      hairGroup.add(clumpMesh);
+
+      updateStatsUI(1, mergedGeo.index.count / 3, mergedGeo.attributes.position.count);
+    }
+
+    /* Builds a closed 3D Volumetric Clump Lock with root-to-tip tapering along a curve */
+    function buildTaperedClumpTube(points, maxRadius, radialSegments) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const tubularSegments = 10;
+      const frames = curve.computeFrenetFrames(tubularSegments, false);
+
+      const positions = [];
+      const normals = [];
+      const uvs = [];
+      const indices = [];
+
+      const vertex = new THREE.Vector3();
+      const normal = new THREE.Vector3();
+      const p = new THREE.Vector3();
+
+      for (let i = 0; i <= tubularSegments; i++) {
+        const vFrac = i / tubularSegments;
+        curve.getPointAt(vFrac, p);
+
+        const N = frames.normals[i];
+        const B = frames.binormals[i];
+
+        // Taper: narrow at root insertion, full in mid-lock, sharp point at tip
+        const profile = Math.sin(Math.min(1.0, vFrac * 3.5) * Math.PI * 0.5) * (1.0 - Math.pow(vFrac, 1.35));
+        const r = maxRadius * Math.max(0.04, profile);
+
+        for (let j = 0; j <= radialSegments; j++) {
+          const uFrac = j / radialSegments;
+          const theta = uFrac * Math.PI * 2 + vFrac * 1.2; // slight helical twist
+
+          const sin = Math.sin(theta);
+          const cos = -Math.cos(theta);
+
+          // Slightly flattened cross-section so locks stack naturally on the head
+          normal.x = (cos * N.x + sin * B.x * 0.72);
+          normal.y = (cos * N.y + sin * B.y * 0.72);
+          normal.z = (cos * N.z + sin * B.z * 0.72);
+          normal.normalize();
+
+          vertex.x = p.x + r * normal.x;
+          vertex.y = p.y + r * normal.y;
+          vertex.z = p.z + r * normal.z;
+
+          positions.push(vertex.x, vertex.y, vertex.z);
+          normals.push(normal.x, normal.y, normal.z);
+          uvs.push(uFrac, vFrac);
+        }
+      }
+
+      for (let j = 1; j <= tubularSegments; j++) {
+        for (let i = 1; i <= radialSegments; i++) {
+          const a = (radialSegments + 1) * (j - 1) + (i - 1);
+          const b = (radialSegments + 1) * j + (i - 1);
+          const c = (radialSegments + 1) * j + i;
+          const d = (radialSegments + 1) * (j - 1) + i;
+
+          indices.push(a, b, d);
+          indices.push(b, c, d);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setIndex(indices);
+      return geo;
+    }
+
+    /* ==========================================================================
+       INDEXED BUFFER GEOMETRY MERGER (Zero External Dependencies)
+       ========================================================================== */
+    function mergeIndexedGeometries(geometries) {
+      let totalVerts = 0;
+      let totalIndices = 0;
+
+      for (const g of geometries) {
+        totalVerts += g.attributes.position.count;
+        totalIndices += g.index.count;
+      }
+
+      const mergedPos = new Float32Array(totalVerts * 3);
+      const mergedNorm = new Float32Array(totalVerts * 3);
+      const mergedUv = new Float32Array(totalVerts * 2);
+      const mergedIndices = new Uint32Array(totalIndices);
+
+      let vertOffset = 0;
+      let idxOffset = 0;
+
+      for (const g of geometries) {
+        const count = g.attributes.position.count;
+        mergedPos.set(g.attributes.position.array, vertOffset * 3);
+        mergedNorm.set(g.attributes.normal.array, vertOffset * 3);
+        mergedUv.set(g.attributes.uv.array, vertOffset * 2);
+
+        const idxArr = g.index.array;
+        for (let i = 0; i < idxArr.length; i++) {
+          mergedIndices[idxOffset + i] = idxArr[i] + vertOffset;
+        }
+
+        vertOffset += count;
+        idxOffset += idxArr.length;
+        g.dispose();
+      }
+
+      const merged = new THREE.BufferGeometry();
+      merged.setAttribute('position', new THREE.BufferAttribute(mergedPos, 3));
+      merged.setAttribute('normal', new THREE.BufferAttribute(mergedNorm, 3));
+      merged.setAttribute('uv', new THREE.BufferAttribute(mergedUv, 2));
+      merged.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
+      return merged;
+    }
+
+    /* ==========================================================================
+       REAL-TIME HEAD MORPHING & AUTOMATIC HAIR RE-ANCHORING
+       ========================================================================== */
+    function updateHeadMorphs() {
+      headMorphs.cranWidth = parseFloat(document.getElementById('param-cran-width').value);
+      headMorphs.cranHeight = parseFloat(document.getElementById('param-cran-height').value);
+      headMorphs.cranDepth = parseFloat(document.getElementById('param-cran-depth').value);
+      headMorphs.jawWidth = parseFloat(document.getElementById('param-jaw-width').value);
+      headMorphs.chinProm = parseFloat(document.getElementById('param-chin-prom').value);
+
+      document.getElementById('val-cran-width').innerText = headMorphs.cranWidth.toFixed(2);
+      document.getElementById('val-cran-height').innerText = headMorphs.cranHeight.toFixed(2);
+      document.getElementById('val-cran-depth').innerText = headMorphs.cranDepth.toFixed(2);
+      document.getElementById('val-jaw-width').innerText = headMorphs.jawWidth.toFixed(2);
+      document.getElementById('val-chin-prom').innerText = headMorphs.chinProm.toFixed(2);
+
+      const posAttr = headMesh.geometry.attributes.position;
+      const v = new THREE.Vector3();
+
+      for (let i = 0; i < posAttr.count; i++) {
+        v.set(
+          baseHeadPositions[i * 3],
+          baseHeadPositions[i * 3 + 1],
+          baseHeadPositions[i * 3 + 2]
+        );
+
+        const relY = v.y - 1.12;
+        if (relY >= 0.0) {
+          v.x *= headMorphs.cranWidth;
+          v.y = 1.12 + relY * headMorphs.cranHeight;
+          v.z *= headMorphs.cranDepth;
+        } else {
+          const jawMix = Math.min(1.0, Math.abs(relY) / 0.95);
+          v.x *= THREE.MathUtils.lerp(headMorphs.cranWidth, headMorphs.jawWidth, jawMix);
+          v.y = 1.12 + relY * headMorphs.cranHeight;
+          v.z = v.z * headMorphs.cranDepth + (v.z > 0.18 ? (headMorphs.chinProm - 1.0) * 0.16 * jawMix : 0.0);
+        }
+
+        posAttr.setXYZ(i, v.x, v.y, v.z);
+      }
+
+      headMesh.geometry.computeVertexNormals();
+      posAttr.needsUpdate = true;
+
+      // Update ear & nose positions to match morphed head
+      earLeft.position.set(0.75 * headMorphs.cranWidth, 1.06, -0.04 * headMorphs.cranDepth);
+      earRight.position.set(-0.75 * headMorphs.cranWidth, 1.06, -0.04 * headMorphs.cranDepth);
+      noseMesh.position.set(0, 1.12, 0.76 * headMorphs.cranDepth);
+
+      // Rebuild Scalp Cap & Unified Roots from the newly morphed head
+      if (scalpCapMesh) {
+        scalpCapMesh.geometry.dispose();
+        scalpCapMesh.geometry = buildScalpGeometryFromHead(0.003);
+      }
+
+      rebuildUnifiedScalpRoots();
+      rebuildCurrentHair();
+    }
+
+    function resetHeadMorphs() {
+      document.getElementById('param-cran-width').value = 1.0;
+      document.getElementById('param-cran-height').value = 1.0;
+      document.getElementById('param-cran-depth').value = 1.0;
+      document.getElementById('param-jaw-width').value = 1.0;
+      document.getElementById('param-chin-prom').value = 1.0;
+      updateHeadMorphs();
+    }
+
+    /* ==========================================================================
+       MEMORY MANAGEMENT & UI CONTROLS
+       ========================================================================== */
+    function clearHairGroup() {
+      while (hairGroup.children.length > 0) {
+        const obj = hairGroup.children[0];
+        hairGroup.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+          else obj.material.dispose();
+        }
+      }
+    }
+
+    function setTechnique(tech) {
+      currentTechnique = tech;
+
+      document.querySelectorAll('.tech-tab').forEach(tab => {
+        tab.classList.remove('active', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/40', 'shadow-sm');
+        tab.classList.add('text-slate-300', 'border-transparent');
+      });
+
+      const activeBtn = document.getElementById(`tab-${tech}`);
+      if (activeBtn) {
+        activeBtn.classList.add('active', 'bg-cyan-500/20', 'text-cyan-300', 'border-cyan-500/40', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-300', 'border-transparent');
+      }
+
+      const data = TECHNIQUE_DATA[tech];
+      document.getElementById('card-tech-title').innerText = data.title;
+      document.getElementById('card-tech-badge').innerText = data.badge;
+      document.getElementById('card-tech-desc').innerText = data.desc;
+      document.getElementById('card-tech-pros').innerText = data.pros;
+      document.getElementById('card-tech-cons').innerText = data.cons;
+      document.getElementById('card-tech-cost').innerText = data.cost;
+
+      rebuildCurrentHair();
+    }
+
+    function rebuildCurrentHair() {
+      if (currentTechnique === 'cards') generateHairCards();
+      else if (currentTechnique === 'shells') generateShellsAndFins();
+      else if (currentTechnique === 'strands') generateInstancedStrands();
+      else if (currentTechnique === 'clumps') generateVolumetricClumps();
+
+      const wf = document.getElementById('toggle-wireframe').checked;
+      if (wf) toggleWireframe(true);
+    }
+
+    function onHairParamChange() {
+      const len = parseFloat(document.getElementById('param-hair-length').value);
+      const den = parseFloat(document.getElementById('param-hair-density').value);
+      const curl = parseFloat(document.getElementById('param-hair-curl').value);
+
+      hairUniforms.uLength.value = len;
+      hairUniforms.uDensity.value = den;
+      hairUniforms.uCurl.value = curl;
+
+      document.getElementById('val-hair-length').innerText = len.toFixed(2) + 'x';
+      document.getElementById('val-hair-density').innerText = Math.round(den * 100) + '%';
+      document.getElementById('val-hair-curl').innerText = curl.toFixed(2);
+
+      rebuildCurrentHair();
+    }
+
+    function updateHairMaterial() {
+      const rootHex = document.getElementById('param-color-root').value;
+      const tipHex = document.getElementById('param-color-tip').value;
+      const spec = parseFloat(document.getElementById('param-hair-spec').value);
+
+      hairUniforms.uColorRoot.value.set(rootHex);
+      hairUniforms.uColorTip.value.set(tipHex);
+      hairUniforms.uSpecularIntensity.value = spec;
+
+      document.getElementById('label-color-root').innerText = rootHex;
+      document.getElementById('label-color-tip').innerText = tipHex;
+      document.getElementById('val-hair-spec').innerText = spec.toFixed(2);
+
+      if (scalpCapMesh) scalpCapMesh.material.color.set(rootHex);
+    }
+
+    function setHairPreset(root, tip) {
+      document.getElementById('param-color-root').value = root;
+      document.getElementById('param-color-tip').value = tip;
+      updateHairMaterial();
+    }
+
+    function updateWind() {
+      const w = parseFloat(document.getElementById('param-wind').value);
+      hairUniforms.uWindStrength.value = w;
+      document.getElementById('val-wind').innerText = w.toFixed(2);
+    }
+
+    function toggleRimLight(enabled) {
+      rimLight.visible = enabled;
+    }
+
+    function toggleWireframe(enabled) {
+      headMesh.material.wireframe = enabled;
+      hairGroup.traverse(child => {
+        if (child.material) child.material.wireframe = enabled;
+      });
+    }
+
+    function toggleAutoRotate(enabled) {
+      controls.autoRotate = enabled;
+      controls.autoRotateSpeed = 1.8;
+    }
+
+    function setCameraView(view) {
+      if (view === 'front') animateCameraTo(0, 1.15, 4.0, 0, 1.05, 0);
+      else if (view === 'threequarter') animateCameraTo(2.4, 1.3, 3.1, 0, 1.05, 0);
+      else if (view === 'side') animateCameraTo(3.9, 1.15, 0.0, 0, 1.05, 0);
+      else if (view === 'back') animateCameraTo(0.0, 1.25, -4.0, 0, 1.05, 0);
+      else if (view === 'top') animateCameraTo(0.0, 4.1, 0.9, 0, 1.1, 0);
+    }
+
+    function animateCameraTo(px, py, pz, tx, ty, tz) {
+      const startPos = camera.position.clone();
+      const endPos = new THREE.Vector3(px, py, pz);
+      const startTarget = controls.target.clone();
+      const endTarget = new THREE.Vector3(tx, ty, tz);
+      let progress = 0;
+
+      function step() {
+        progress += 0.05;
+        const ease = 1 - Math.pow(1 - Math.min(1, progress), 3);
+        camera.position.lerpVectors(startPos, endPos, ease);
+        controls.target.lerpVectors(startTarget, endTarget, ease);
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    function updateStatsUI(calls, triangles, vertices) {
+      document.getElementById('stat-calls').innerText = calls;
+      document.getElementById('stat-triangles').innerText = Math.round(triangles).toLocaleString();
+      document.getElementById('stat-vertices').innerText = Math.round(vertices).toLocaleString();
+    }
+
+    /* ==========================================================================
+       MAIN RENDER LOOP
+       ========================================================================== */
+    function animate() {
+      requestAnimationFrame(animate);
+
+      hairUniforms.uTime.value = clock.getElapsedTime();
+      controls.update();
+      renderer.render(scene, camera);
+
+      frameCount++;
+      const now = performance.now();
+      const delta = now - lastTime;
+      if (delta >= 500) {
+        fps = Math.round((frameCount * 1000) / delta);
+        frameCount = 0;
+        lastTime = now;
+
+        const fpsEl = document.getElementById('stat-fps');
+        fpsEl.innerText = `${fps} FPS`;
+        const ms = (1000 / Math.max(fps, 1)).toFixed(1);
+        document.getElementById('stat-ms').innerText = `${ms} ms`;
+      }
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</body>
+</html>

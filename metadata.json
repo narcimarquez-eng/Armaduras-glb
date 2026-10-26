@@ -1,0 +1,6 @@
+{
+  "name": "Parametric Armor Studio HD",
+  "description": "Estudio 3D interactivo para ajuste, articulación mecánica y personalización procedural PBR de armaduras paramétricas sobre modelos humanoides.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
