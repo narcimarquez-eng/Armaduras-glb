@@ -11,7 +11,16 @@
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p style="font-family:sans-serif;padding:16px"><a href="public/assets/aistudio/Parametric_Character_Outfitter___Wardrobe_Studio__10__fc55dc6c.html">Abrir Parametric Armor Studio</a></p></div>
+    <script>
+      // En GitHub Pages no hay servidor de Vite: se redirige al estudio estático (relativo a la carpeta del repo).
+      (function () {
+        if (!/\.github\.io$/.test(location.hostname)) return;
+        var p = location.pathname;
+        if (!p.endsWith('/')) { location.replace(p + '/' + location.search); return; }
+        location.replace(p + 'public/assets/aistudio/Parametric_Character_Outfitter___Wardrobe_Studio__10__fc55dc6c.html');
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
