@@ -1141,6 +1141,172 @@
     ];
 
     /* =========================================================================
+       1b. CLASES Y RANGOS: 30 armaduras = Pesada · Ligera · Mago × D · C · B · A · S · SR
+       - Pesada: el ajuste base de siempre.
+       - Ligera: hombreras, rodilleras y musleras más pequeñas; escarcelas más separadas;
+         botas y peto más cortos. Usa los mismos parámetros del panel de ajuste.
+       - Mago: sin placas (solo tela, tiara y cetro).
+       - Rango: a más rango, más florituras (ventanas, espaldar, aletas, acanalado, bordes).
+       ========================================================================= */
+    const FIT_DEFAULTS = JSON.parse(JSON.stringify(STATE.fit));
+
+    const ARMOR_CLASSES = {
+      pesada: { name: 'Pesada', fit: {}, chest: {}, boot: {} },
+      ligera: {
+        name: 'Ligera',
+        fit: {
+          shoulderSize: 0.72,
+          kneeScale: 0.90, kneeWingSize: 0.55,
+          cuissesScale: 0.90, cuissesLength: 0.72,
+          tassetScale: 0.92, tassetLength: 0.80, tassetWidth: 0.78
+        },
+        chest: { yMinFront: 0.22 },
+        boot: { collarFactor: 0.95 }
+      },
+      mago: { name: 'Mago', fit: {}, chest: {}, boot: { collarFactor: 0.90 } }
+    };
+
+    const ARMOR_RANKS = {
+      D: {
+        name: 'D', hint: 'Sin florituras: placa lisa y biseles simples', badge: 'bg-slate-700 text-slate-200',
+        fluting: 0.05, rolled: 0.85,
+        shoulder: { scaleMult: 0.96, stridentTilt: 0.0, sharpness: 1.0, extraStridentFin: false, finLength: 1.0, finCurve: 0.0, armFoldStyle: 'ogee_conopial' },
+        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: false, hasClavicleScapulaYoke: false, foldDepth: 0.10 }
+      },
+      C: {
+        name: 'C', hint: 'Pocas florituras: nervio central y cenefa', badge: 'bg-emerald-900 text-emerald-200',
+        fluting: 0.25, rolled: 0.95,
+        shoulder: { scaleMult: 1.00, stridentTilt: 0.0, sharpness: 1.1, extraStridentFin: false, finLength: 1.1, finCurve: 0.0, armFoldStyle: 'ogee_conopial' },
+        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: false, hasClavicleScapulaYoke: false, foldDepth: 0.13 }
+      },
+      B: {
+        name: 'B', hint: 'Acanalado y cenefas de borde', badge: 'bg-sky-900 text-sky-200',
+        fluting: 0.50, rolled: 1.05,
+        shoulder: { scaleMult: 1.00, stridentTilt: 0.10, sharpness: 1.25, extraStridentFin: false, finLength: 1.3, finCurve: 0.05, armFoldStyle: 'swallow_tail' },
+        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.16 }
+      },
+      A: {
+        name: 'A', hint: 'Ventanas de costilla y espaldar laminado', badge: 'bg-violet-900 text-violet-200',
+        fluting: 0.80, rolled: 1.12,
+        shoulder: { scaleMult: 1.02, stridentTilt: 0.15, sharpness: 1.45, extraStridentFin: false, finLength: 1.6, finCurve: 0.10, armFoldStyle: 'triple_v' },
+        chest: { windowCutout: 'rib_slots', backStyle: 'laminated', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.18 }
+      },
+      S: {
+        name: 'S', hint: 'Aletas estridentes, gema central y espaldar alado', badge: 'bg-amber-900 text-amber-200',
+        fluting: 1.10, rolled: 1.20,
+        shoulder: { scaleMult: 1.05, stridentTilt: 0.20, sharpness: 1.70, extraStridentFin: true, finLength: 1.9, finCurve: 0.15, armFoldStyle: 'swallow_tail' },
+        chest: { windowCutout: 'diamond_sternum', backStyle: 'winged_shell', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.19 }
+      },
+      SR: {
+        name: 'SR', hint: 'Máxima ornamentación: escudos dorsales y ventana de sternón', badge: 'bg-rose-900 text-rose-200',
+        fluting: 1.35, rolled: 1.30,
+        shoulder: { scaleMult: 1.08, stridentTilt: 0.25, sharpness: 2.00, extraStridentFin: true, finLength: 2.2, finCurve: 0.20, armFoldStyle: 'upward_arch' },
+        chest: { windowCutout: 'keyhole_sternum', backStyle: 'wide_dorsal_shields_3d', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.21, dorsalWingScale: 1.15, dorsalFinSpread: 1.10 }
+      }
+    };
+
+    // Orden de la lista: por rango y, dentro de cada rango, 2 Pesadas · 2 Ligeras · 1 Mago
+    const ARMOR_LOOKS = [
+      // ---- D ----
+      { rank: 'D', cls: 'pesada', name: 'Soldado de Hierro Bruñido', tex: 'forged_commander_steel',
+        gear: { underlayer: 2, helmet: 0, torso: 2, gloves: 2, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 3 } },
+      { rank: 'D', cls: 'pesada', name: 'Guardia de Torneo Biselado', tex: 'hammered_smooth',
+        gear: { underlayer: 1, helmet: 0, torso: 3, gloves: 2, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 2 } },
+      { rank: 'D', cls: 'ligera', name: 'Explorador de Cuero Endurecido', tex: 'leather_cuirass',
+        gear: { underlayer: 3, helmet: 0, torso: 2, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 2, boots: 5, weapon: 4 } },
+      { rank: 'D', cls: 'ligera', name: 'Escudero de Gambesón', tex: 'padded_gambeson',
+        gear: { underlayer: 1, helmet: 0, torso: 2, gloves: 1, belt: 3, tassets: 2, cuisses: 1, knees: 1, boots: 1, weapon: 1 } },
+      { rank: 'D', cls: 'mago', name: 'Aprendiz de Tela Sencilla', tex: 'ranger_forest_suede',
+        gear: { underlayer: 15, helmet: 0, torso: 0, gloves: 0, belt: 3, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- C ----
+      { rank: 'C', cls: 'pesada', name: 'Caballero de Malla Anillada', tex: 'interlocked_chainmail',
+        gear: { underlayer: 6, helmet: 1, torso: 2, gloves: 2, belt: 2, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 3 } },
+      { rank: 'C', cls: 'pesada', name: 'Templario de Acero Damasco', tex: 'damascus',
+        gear: { underlayer: 2, helmet: 1, torso: 2, gloves: 3, belt: 2, tassets: 5, cuisses: 5, knees: 4, boots: 3, weapon: 2 } },
+      { rank: 'C', cls: 'ligera', name: 'Veloz de Cuero Verde', tex: 'ranger_forest_suede',
+        gear: { underlayer: 3, helmet: 1, torso: 4, gloves: 1, belt: 4, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 4 } },
+      { rank: 'C', cls: 'ligera', name: 'Cazador de Escamas Finas', tex: 'weathered_veteran_iron',
+        gear: { underlayer: 10, helmet: 1, torso: 9, gloves: 1, belt: 3, tassets: 2, cuisses: 3, knees: 3, boots: 6, weapon: 4 } },
+      { rank: 'C', cls: 'mago', name: 'Acólito de Brocado Azul', tex: 'royal_brocade_velvet',
+        gear: { underlayer: 4, helmet: 1, torso: 0, gloves: 0, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- B ----
+      { rank: 'B', cls: 'pesada', name: 'Campeón de la Alianza', tex: 'royal_alliance_plate',
+        gear: { underlayer: 6, helmet: 1, torso: 2, gloves: 3, belt: 2, tassets: 5, cuisses: 5, knees: 2, boots: 3, weapon: 3 } },
+      { rank: 'B', cls: 'pesada', name: 'Jinete Gótico de Maximiliano', tex: 'gothic_fluted_maximilian',
+        gear: { underlayer: 13, helmet: 0, torso: 3, gloves: 2, belt: 4, tassets: 2, cuisses: 2, knees: 3, boots: 2, weapon: 2 } },
+      { rank: 'B', cls: 'ligera', name: 'Ballestero de Brigantina', tex: 'assassin_shadow_leather',
+        gear: { underlayer: 5, helmet: 0, torso: 9, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 2, boots: 5, weapon: 4 } },
+      { rank: 'B', cls: 'ligera', name: 'Monje de Lamelar Oriental', tex: 'samurai_kozane_lacquer',
+        gear: { underlayer: 12, helmet: 0, torso: 2, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 5, boots: 1, weapon: 4 } },
+      { rank: 'B', cls: 'mago', name: 'Hechicero de Amatista', tex: 'arcane_crystal_amethyst',
+        gear: { underlayer: 15, helmet: 3, torso: 0, gloves: 0, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- A ----
+      { rank: 'A', cls: 'pesada', name: 'Vanguardia de Runas', tex: 'runic_plate',
+        gear: { underlayer: 8, helmet: 1, torso: 2, gloves: 2, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 6 } },
+      { rank: 'A', cls: 'pesada', name: 'Dragón de Escamas Dentadas', tex: 'wyvern_serrated_plate',
+        gear: { underlayer: 11, helmet: 4, torso: 8, gloves: 5, belt: 7, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 9 } },
+      { rank: 'A', cls: 'ligera', name: 'Asesino de Cuero Sombrío', tex: 'boiled_wyrmhide_armor',
+        gear: { underlayer: 3, helmet: 0, torso: 9, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 8 } },
+      { rank: 'A', cls: 'ligera', name: 'Paladín Ágil de Laurel', tex: 'laurel_leaf_plate',
+        gear: { underlayer: 12, helmet: 1, torso: 6, gloves: 1, belt: 2, tassets: 5, cuisses: 5, knees: 2, boots: 1, weapon: 5 } },
+      { rank: 'A', cls: 'mago', name: 'Invocador de Obsidiana', tex: 'black_gold_marble',
+        gear: { underlayer: 15, helmet: 3, torso: 0, gloves: 0, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 6, weapon: 10 } },
+      // ---- S ----
+      { rank: 'S', cls: 'pesada', name: 'Estrella del Norte Mjölnir', tex: 'mjolnir_thunder_plate',
+        gear: { underlayer: 6, helmet: 5, torso: 10, gloves: 3, belt: 2, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 5 } },
+      { rank: 'S', cls: 'pesada', name: 'Dragón Imperial de Rubí', tex: 'dragon_scale_ruby',
+        gear: { underlayer: 11, helmet: 4, torso: 15, gloves: 5, belt: 6, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
+      { rank: 'S', cls: 'ligera', name: 'Danzarina Élfica de Filigrana', tex: 'emerald_elven_filigree',
+        gear: { underlayer: 7, helmet: 3, torso: 14, gloves: 1, belt: 4, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 8 } },
+      { rank: 'S', cls: 'ligera', name: 'Lancero Solar Ligero', tex: 'paladin_sun_gold',
+        gear: { underlayer: 8, helmet: 6, torso: 1, gloves: 1, belt: 1, tassets: 1, cuisses: 1, knees: 1, boots: 1, weapon: 5 } },
+      { rank: 'S', cls: 'mago', name: 'Oráculo Astral', tex: 'ornate',
+        gear: { underlayer: 15, helmet: 5, torso: 0, gloves: 0, belt: 1, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- SR ----
+      { rank: 'SR', cls: 'pesada', name: 'Dinastía Celestial', tex: 'dynasty_celestial_rose',
+        gear: { underlayer: 4, helmet: 2, torso: 5, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
+      { rank: 'SR', cls: 'pesada', name: 'Soberano de Vacío', tex: 'void_corrupted_adamant',
+        gear: { underlayer: 12, helmet: 5, torso: 19, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 9 } },
+      { rank: 'SR', cls: 'ligera', name: 'Serafín Ligero de Mithril', tex: 'mithril_starlight_weave',
+        gear: { underlayer: 7, helmet: 5, torso: 17, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
+      { rank: 'SR', cls: 'ligera', name: 'Fénix Ígneo Ligero', tex: 'phoenix_flame_plumage',
+        gear: { underlayer: 11, helmet: 4, torso: 16, gloves: 4, belt: 7, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
+      { rank: 'SR', cls: 'mago', name: 'Archimago Cósmico', tex: 'celestial_astral_constellation',
+        gear: { underlayer: 15, helmet: 5, torso: 0, gloves: 0, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 4, weapon: 10 } }
+    ];
+
+    // Aplica una armadura por clase y rango: equipo, ajuste, overrides de forma y material
+    function applyArmorLook(look) {
+      const cls = ARMOR_CLASSES[look.cls];
+      const rank = ARMOR_RANKS[look.rank];
+      const tp = TEXTURE_PRESETS.find(t => t.id === look.tex) || TEXTURE_PRESETS[0];
+
+      // Las hombreras van integradas en el peto
+      STATE.equipment = { ...look.gear, shoulders: 0 };
+
+      // Ajuste limpio + modificadores de la clase
+      Object.assign(STATE.fit, FIT_DEFAULTS, cls.fit);
+      STATE.fit.flutingIntensity = rank.fluting;
+      STATE.fit.rolledEdgeFlange = rank.rolled;
+      STATE.fit.shoulderShapeOverride = { ...rank.shoulder };
+      STATE.fit.chestCutoutOverride = { ...rank.chest, ...cls.chest };
+      STATE.fit.bootShapeOverride = { ...cls.boot };
+
+      // Material
+      Object.keys(STATE.slotTextures).forEach(k => { STATE.slotTextures[k] = null; });
+      STATE.materialType = tp.id; STATE.primaryColor = tp.primary; STATE.secondaryColor = tp.secondary;
+      STATE.clothColor = tp.cloth; STATE.metalness = tp.metalness; STATE.roughness = tp.roughness;
+      STATE.surfaceTexture = tp.texture; STATE.bumpDepth = tp.bump; STATE.textureTiling = tp.tiling;
+      STATE.glowColor = tp.glow || '#fbbf24';
+
+      updateSlotTextureBadgesUI();
+      syncMaterialUI();
+      syncFitSlidersUI();
+      updateWardrobePieces();
+      showToast(`Rango ${rank.name} · ${cls.name}: ${look.name}`);
+    }
+
+    /* =========================================================================
        2. GENERADOR DE DECORACIONES DE PLACA Y FILIGRANA HD (SIN PUNTOS RUIDOSOS)
        ========================================================================= */
     const proceduralTexturesCache = {};
@@ -13276,6 +13442,36 @@
         });
         pc.appendChild(card);
       });
+
+      // 30 armaduras por clase y rango, agrupadas por rango
+      Object.keys(ARMOR_RANKS).forEach(rk => {
+        const rank = ARMOR_RANKS[rk];
+        const head = document.createElement('div');
+        head.className = 'flex items-center gap-2 pt-2';
+        head.innerHTML = `<span class="px-2 py-0.5 rounded-md text-[11px] font-bold ${rank.badge}">Rango ${rank.name}</span><span class="text-[10px] text-slate-500 leading-tight">${rank.hint}</span>`;
+        pc.appendChild(head);
+
+        ARMOR_LOOKS.filter(l => l.rank === rk).forEach(look => {
+          const card = document.createElement('div');
+          card.className = 'glass-btn p-2.5 rounded-2xl flex items-center justify-between cursor-pointer group';
+          card.innerHTML = `
+            <div class="space-y-0.5">
+              <h4 class="text-xs font-bold text-slate-100 group-hover:text-indigo-300 transition flex items-center gap-1.5">
+                <i data-lucide="shield" class="w-3.5 h-3.5 text-indigo-400"></i> ${look.name}
+              </h4>
+              <p class="text-[10px] text-slate-400 leading-tight">${(TEXTURE_PRESETS.find(t => t.id === look.tex) || { name: look.tex }).name}</p>
+            </div>
+            <div class="flex items-center gap-1 pl-2">
+              <span class="text-[10px] font-semibold text-amber-300">${ARMOR_CLASSES[look.cls].name}</span>
+            </div>`;
+          card.addEventListener('click', () => {
+            applyArmorLook(look);
+            renderTexturePresetsGrid();
+          });
+          pc.appendChild(card);
+        });
+      });
+      if (window.lucide) lucide.createIcons();
 
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
