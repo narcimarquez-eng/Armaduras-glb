@@ -7993,27 +7993,40 @@
        alrededor del cuello) + dos grandes solapas tipo cuello de camisa que suben junto
        al cuello y se doblan hacia fuera con punta, o un cuello alto acampanado.
        ========================================================================= */
+    // Catálogo de cuellos por peto (combinación de gorjal + pieza de cuello + adornos)
+    //  yoke.edge: 'v' | 'scallop' | 'straight' | 'chevron'; yoke.lames: 1..3 láminas escalonadas
+    //  neck: 'lapel' | 'lapel_tall' | 'lapel_double' | 'mandarin' | 'none'
+    //  extra: 'wings' | 'feathers' | 'fan' | 'crest' | 'side_spikes' | null
     const PETO_COLLAR_STYLES = {
-      1: { kind: 'lapel',  h: 1.00, spikes: false, gem: true },
-      2: { kind: 'lapel',  h: 1.10, spikes: false, gem: true, sharp: true },
-      3: { kind: 'flared', h: 1.10, spikes: true },
-      4: { kind: 'lapel',  h: 1.00, spikes: false, gem: true, scallop: true },
-      5: { kind: 'flared', h: 1.15, spikes: false, gem: true },
-      6: { kind: 'lapel',  h: 0.95, spikes: false, gem: true, scallop: true },
-      7: { kind: 'lapel',  h: 1.00, spikes: false, gem: true },
-      8: { kind: 'flared', h: 1.10, spikes: true },
-      9: { kind: 'lapel',  h: 0.85, spikes: false, studs: true },
-      10: { kind: 'flared', h: 1.40, spikes: false, gem: true },
-      11: { kind: 'flared', h: 1.25, spikes: true, sharp: true },
-      12: { kind: 'lapel',  h: 1.30, spikes: false, gem: true, sharp: true },
-      13: { kind: 'flared', h: 1.20, spikes: true },
-      14: { kind: 'flared', h: 1.30, spikes: false, gem: true, scallop: true },
-      15: { kind: 'flared', h: 1.30, spikes: true, sharp: true },
-      16: { kind: 'lapel',  h: 1.30, spikes: false, gem: true, sharp: true },
-      17: { kind: 'flared', h: 1.35, spikes: false, gem: true, scallop: true },
-      18: { kind: 'flared', h: 1.30, spikes: true, sharp: true },
-      19: { kind: 'flared', h: 1.45, spikes: false, gem: true }
+      1:  { yoke: { edge: 'v', lames: 1 },        neck: 'lapel',        extra: null,          gem: true },
+      2:  { yoke: { edge: 'v', lames: 1 },        neck: 'lapel_double', extra: null,          gem: true, sharp: true },
+      3:  { yoke: { edge: 'chevron', lames: 3 },  neck: 'none',         extra: 'crest',       gem: false },
+      4:  { yoke: { edge: 'scallop', lames: 1 },  neck: 'mandarin',     extra: null,          gem: true },
+      5:  { yoke: { edge: 'v', lames: 2 },        neck: 'mandarin',     extra: 'wings',       gem: true },
+      6:  { yoke: { edge: 'scallop', lames: 1 },  neck: 'none',         extra: 'fan',         gem: true, fanH: 1.0 },
+      7:  { yoke: { edge: 'straight', lames: 2 }, neck: 'mandarin',     extra: null,          gem: true },
+      8:  { yoke: { edge: 'chevron', lames: 2 },  neck: 'none',         extra: 'crest',       gem: true },
+      9:  { yoke: { edge: 'straight', lames: 1 }, neck: 'lapel',        extra: null,          gem: false, studs: true, low: true },
+      10: { yoke: { edge: 'v', lames: 1 },        neck: 'lapel_tall',   extra: null,          gem: true },
+      11: { yoke: { edge: 'chevron', lames: 3 },  neck: 'none',         extra: 'side_spikes', gem: false, sharp: true },
+      12: { yoke: { edge: 'v', lames: 1 },        neck: 'lapel',        extra: 'wings',       gem: true, sharp: true },
+      13: { yoke: { edge: 'chevron', lames: 1 },  neck: 'lapel_tall',   extra: 'crest',       gem: false, sharp: true },
+      14: { yoke: { edge: 'scallop', lames: 2 },  neck: 'mandarin',     extra: 'feathers',    gem: true },
+      15: { yoke: { edge: 'chevron', lames: 3 },  neck: 'none',         extra: 'crest',       gem: true, sharp: true },
+      16: { yoke: { edge: 'v', lames: 1 },        neck: 'lapel_double', extra: 'side_spikes', gem: true, sharp: true },
+      17: { yoke: { edge: 'scallop', lames: 1 },  neck: 'none',         extra: 'fan',         gem: true, fanH: 1.25 },
+      18: { yoke: { edge: 'chevron', lames: 2 },  neck: 'lapel_tall',   extra: 'side_spikes', gem: false, sharp: true },
+      19: { yoke: { edge: 'v', lames: 2 },        neck: 'mandarin',     extra: 'fan',         gem: true, fanH: 1.4 }
     };
+
+    function orientCuttingPlate(mesh, dir, faceDir) {
+      const y = dir.clone().normalize();
+      let z = faceDir.clone().addScaledVector(y, -faceDir.dot(y));
+      if (z.lengthSq() < 1e-8) z = new THREE.Vector3(0, 0, 1).addScaledVector(y, -y.z);
+      z.normalize();
+      const x = new THREE.Vector3().crossVectors(y, z).normalize();
+      mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+    }
 
     function buildPetoCollar(tMesh, torsoType, mats) {
       const st = PETO_COLLAR_STYLES[torsoType] || PETO_COLLAR_STYLES[1];
@@ -8050,81 +8063,128 @@
       const thick = R * 0.035;
       const rimR = Math.max(0.0022, R * 0.013) * tBulk;
       const center = P(0.9, 0, -R * 0.8);
+      const addRim = (geo, row, r, mat, opts = {}) => { const t = createRolledRimAlongRow(geo, row, r, opts); if (t) group.add(new THREE.Mesh(t, mat)); };
 
-      // 1. GORJAL: placa que baja del cuello sobre trapecios y pecho alto, abierta en V delante
-      const gap = 0.10;
+      // 1. GORJAL (1 a 3 láminas escalonadas) con borde en V, festoneado, recto o chevrón
+      const gap = st.yoke.edge === 'v' ? 0.10 : (st.yoke.edge === 'straight' ? 0.0 : 0.05);
+      const wrap = gap > 0;
       const vOutY = (a) => {
         const c = Math.cos(a);
         const front = Math.pow(Math.max(0, c), 2), back = Math.pow(Math.max(0, -c), 2);
-        let v = 0.80 - 0.10 * front + 0.05 * back;
-        if (st.scallop) v -= 0.025 * Math.pow(Math.abs(Math.cos(a * 4)), 3);
+        let v = (st.low ? 0.84 : 0.80) - 0.08 * front + 0.05 * back;
+        if (st.yoke.edge === 'v') v -= 0.06 * Math.pow(Math.max(0, c), 8);
+        else if (st.yoke.edge === 'scallop') v -= 0.035 * Math.pow(Math.abs(Math.cos(a * 4)), 3);
+        else if (st.yoke.edge === 'chevron') v -= 0.05 * Math.pow(Math.max(0, c), 10) + 0.02 * Math.pow(Math.abs(Math.sin(a * 3)), 6);
         return v;
       };
-      const yoke = (u, v) => {
-        const a = gap + u * (Math.PI * 2 - gap * 2);
-        const inner = P(0.995, a, R * 0.03);
-        const outer = P(vOutY(a), a, R * 0.085 * tBulk);
-        const p = inner.clone().lerp(outer, Math.pow(v, 0.85));
-        return p.addScaledVector(radial(a), Math.sin(v * Math.PI) * R * 0.05);
-      };
-      const yg = createArmorPlatePatch(yoke, { uSegs: 64, vSegs: 10, thickness: thick, refCenter: center });
-      group.add(new THREE.Mesh(yg, mainMat));
-      const yr = createRolledRimAlongRow(yg, yg.userData.rows - 1, rimR * 1.2);
-      if (yr) group.add(new THREE.Mesh(yr, trimMat));
-      const yr2 = createRolledRimAlongRow(yg, yg.userData.rows - 4, rimR * 0.55, { outward: 1.4 });
-      if (yr2) group.add(new THREE.Mesh(yr2, trimMat));
-
-      // 2. SOLAPAS (cuello de camisa grande) o CUELLO ALTO ACAMPANADO, abiertos delante
-      [-1, 1].forEach(sg => {
-        const aF = 0.20, aB = 2.55;
-        const H = R * 0.55 * st.h * tBulk;
-        // Solapa: pie que sube junto al cuello y vuelta que cae hacia fuera con punta.
-        // 'flared' (L2) = pie más alto y vuelta más corta (cuello alto vuelto)
-        const tall = st.kind === 'flared';
-        const s0 = tall ? 0.50 : 0.30;
-        const surf = (u, v) => {
-          const a = sg * (aF + u * (aB - aF));
-          const base = P(0.995, a, R * 0.06);
-          const standH = H * (tall ? 1.05 : 1.0) * (0.62 + 0.38 * THREE.MathUtils.smoothstep(u, 0.0, 0.6));
-          const fold = base.clone().addScaledVector(up, standH).addScaledVector(radial(a), R * (tall ? 0.10 : 0.04));
-          if (v <= s0) return base.lerp(fold, v / s0);
-          const w = (v - s0) / (1 - s0);
-          const tip = Math.pow(Math.max(0, 1 - u / 0.35), 2);
-          const aOut = a - sg * (st.sharp ? 0.22 : 0.15) * tip;
-          let vOut = THREE.MathUtils.lerp(tall ? 0.95 : 0.90, tall ? 0.88 : 0.80, u) - (st.sharp ? 0.20 : 0.15) * tip;
-          if (tall && st.sharp) vOut -= 0.04 * Math.pow(Math.abs(Math.sin(u * Math.PI * 2.5)), 4); // puntas aserradas
-          const outer = P(vOut, aOut, R * (tall ? 0.20 : 0.16) * tBulk);
-          const ctrl = fold.clone().addScaledVector(radial(a), R * (tall ? 0.24 : 0.30)).addScaledVector(up, -H * 0.10);
-          return fold.clone().multiplyScalar((1 - w) * (1 - w)).addScaledVector(ctrl, 2 * (1 - w) * w).addScaledVector(outer, w * w);
+      const nL = st.yoke.lames;
+      for (let i = 0; i < nL; i++) {
+        const t0 = Math.max(0, i / nL - (i > 0 ? 0.08 : 0)), t1 = (i + 1) / nL;
+        const lift = (nL - 1 - i) * thick * 1.4;
+        const yoke = (u, v) => {
+          const a = wrap ? (gap + u * (Math.PI * 2 - gap * 2)) : (u * Math.PI * 2);
+          const t = THREE.MathUtils.lerp(t0, t1, v);
+          const inner = P(0.995, a, R * 0.03);
+          const outer = P(vOutY(a), a, R * 0.085 * tBulk);
+          const p = inner.clone().lerp(outer, Math.pow(t, 0.85));
+          return p.addScaledVector(radial(a), Math.sin(t * Math.PI) * R * 0.05 + lift + (st.yoke.edge === 'chevron' ? Math.pow(Math.max(0, Math.cos(a)), 30) * R * 0.03 : 0));
         };
-        const g = createArmorPlatePatch(surf, { uSegs: 30, vSegs: 14, thickness: thick, refCenter: center.clone().addScaledVector(up, R * 0.4) });
-        group.add(new THREE.Mesh(g, mainMat));
-        const rimTop = createRolledRimAlongRow(g, g.userData.rows - 1, rimR * 1.15);
-        if (rimTop) group.add(new THREE.Mesh(rimTop, trimMat));
-        {
-          const foldRow = Math.round(s0 * (g.userData.rows - 1));
-          const fr = createRolledRimAlongRow(g, foldRow, rimR * 0.8, { outward: 1.2 });
-          if (fr) group.add(new THREE.Mesh(fr, trimMat));
-          const inner2 = createRolledRimAlongRow(g, g.userData.rows - 4, rimR * 0.5, { outward: 1.4 });
-          if (inner2) group.add(new THREE.Mesh(inner2, trimMat));
-        }
-        // Gema en la punta de la solapa / en el cuello alto
-        if (st.gem) {
-          const gp = surf(0.10, tall ? 0.86 : 0.82);
-          const gn = gp.clone().sub(center).normalize();
-          addFacetedJewel(group, gp.clone().addScaledVector(gn, thick), gn, R * 0.05 * tBulk, gemMat, trimMat, dmMat, 6);
-        }
-        if (st.studs) {
-          for (let k = 0; k < 6; k++) {
-            const p = surf(0.12 + k * 0.15, 0.75);
+        const yg = createArmorPlatePatch(yoke, { uSegs: 64, vSegs: Math.max(4, Math.round(10 / nL) + 2), thickness: thick, refCenter: center, wrapU: !wrap });
+        group.add(new THREE.Mesh(yg, (nL > 1 && i % 2 === 1) ? trimMat : mainMat));
+        addRim(yg, yg.userData.rows - 1, rimR * 1.1, (nL > 1 && i % 2 === 1) ? mainMat : trimMat, { closed: !wrap });
+        if (i === nL - 1) addRim(yg, Math.max(0, yg.userData.rows - 3), rimR * 0.5, trimMat, { closed: !wrap, outward: 1.4 });
+        if (st.studs || nL === 3) {
+          for (let k = 0; k < 14; k++) {
+            const uu = 0.04 + k / 14 * 0.92;
+            const p = yoke(uu, 0.5);
             const n = p.clone().sub(center).normalize();
-            const s2 = new THREE.Mesh(new THREE.SphereGeometry(rimR * 1.3, 8, 5), trimMat);
+            const s2 = new THREE.Mesh(new THREE.SphereGeometry(rimR * 1.1, 8, 5), trimMat);
             s2.position.copy(p).addScaledVector(n, thick * 0.6);
             group.add(s2);
           }
         }
-        // Púas sobre el gorjal junto a los hombros
-        if (st.spikes) {
+      }
+
+      // 2. PIEZA DE CUELLO
+      const H = R * 0.55 * tBulk;
+      const lapel = (sg, opts) => {
+        const { tall = false, scale = 1, sharp = st.sharp, mat = mainMat, rimMat = trimMat, aF = 0.20, aB = 2.55 } = opts;
+        const s0 = tall ? 0.50 : 0.30;
+        const HH = H * (tall ? 1.3 : 1.0) * scale;
+        const surf = (u, v) => {
+          const a = sg * (aF + u * (aB - aF));
+          const base = P(0.995, a, R * 0.06);
+          const standH = HH * (0.62 + 0.38 * THREE.MathUtils.smoothstep(u, 0.0, 0.6));
+          const fold = base.clone().addScaledVector(up, standH).addScaledVector(radial(a), R * (tall ? 0.10 : 0.04));
+          if (v <= s0) return base.lerp(fold, v / s0);
+          const w = (v - s0) / (1 - s0);
+          const tip = Math.pow(Math.max(0, 1 - u / 0.35), 2);
+          const aOut = a - sg * (sharp ? 0.22 : 0.15) * tip;
+          let vOut = THREE.MathUtils.lerp(tall ? 0.95 : 0.90, tall ? 0.88 : 0.80, u) - (sharp ? 0.20 : 0.15) * tip * scale;
+          if (tall && sharp) vOut -= 0.04 * Math.pow(Math.abs(Math.sin(u * Math.PI * 2.5)), 4);
+          const outer = P(vOut, aOut, R * (tall ? 0.20 : 0.16) * tBulk * scale);
+          const ctrl = fold.clone().addScaledVector(radial(a), R * (tall ? 0.24 : 0.30) * scale).addScaledVector(up, -HH * 0.10);
+          return fold.clone().multiplyScalar((1 - w) * (1 - w)).addScaledVector(ctrl, 2 * (1 - w) * w).addScaledVector(outer, w * w);
+        };
+        const g = createArmorPlatePatch(surf, { uSegs: 30, vSegs: 14, thickness: thick, refCenter: center.clone().addScaledVector(up, R * 0.4) });
+        group.add(new THREE.Mesh(g, mat));
+        addRim(g, g.userData.rows - 1, rimR * 1.15, rimMat);
+        addRim(g, Math.round(s0 * (g.userData.rows - 1)), rimR * 0.8, rimMat, { outward: 1.2 });
+        addRim(g, g.userData.rows - 4, rimR * 0.5, rimMat, { outward: 1.4 });
+        return surf;
+      };
+      [-1, 1].forEach(sg => {
+        let surf = null;
+        if (st.neck === 'lapel') surf = lapel(sg, {});
+        else if (st.neck === 'lapel_tall') surf = lapel(sg, { tall: true });
+        else if (st.neck === 'lapel_double') {
+          lapel(sg, { scale: 1.25, mat: trimMat, rimMat: mainMat, aF: 0.26 });
+          surf = lapel(sg, { scale: 0.85, aF: 0.16 });
+        } else if (st.neck === 'mandarin') {
+          // Corola de pétalos de placa que se abren hacia fuera alrededor del cuello (sin aro)
+          const nP = 4;
+          for (let k = 0; k < nP; k++) {
+            const ac = sg * (0.55 + k * 0.58);
+            const w = 0.30, hh = H * (0.95 + 0.25 * Math.sin((k / (nP - 1)) * Math.PI));
+            const petal = (u, v) => {
+              const s2 = u * 2 - 1;
+              const half = Math.sin(Math.min(1, v * 1.15) * Math.PI) * 0.85 + 0.15 * (1 - v);
+              const a2 = ac + s2 * w * half;
+              const base = P(0.99, a2, R * 0.05);
+              return base.addScaledVector(up, v * hh).addScaledVector(radial(a2), Math.pow(v, 1.6) * R * 0.14);
+            };
+            const pg = createArmorPlatePatch(petal, { uSegs: 12, vSegs: 10, thickness: thick, refCenter: center.clone().addScaledVector(up, R * 0.2) });
+            group.add(new THREE.Mesh(pg, k % 2 ? trimMat : mainMat));
+            const pr = createRolledRimAlongRow(pg, 0, rimR * 0.8);
+            if (pr) group.add(new THREE.Mesh(pr, k % 2 ? mainMat : trimMat));
+            // nervio central del pétalo
+            const pts = []; for (let i = 0; i <= 8; i++) pts.push(petal(0.5, 0.05 + i / 8 * 0.85).addScaledVector(radial(ac), thick));
+            group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, rimR * 0.6, 5, false), k % 2 ? mainMat : trimMat));
+            if (k === 0) surf = petal;
+          }
+        }
+        if (st.gem && surf) {
+          const gp = st.neck === 'mandarin' ? surf(0.5, 0.45) : surf(0.10, st.neck === 'lapel_tall' ? 0.86 : 0.82);
+          const gn = gp.clone().sub(center).normalize();
+          addFacetedJewel(group, gp.clone().addScaledVector(gn, thick), gn, R * 0.05 * tBulk, gemMat, trimMat, dmMat, 6);
+        }
+
+        // 3. ADORNOS
+        if (st.extra === 'wings' || st.extra === 'feathers') {
+          const n = st.extra === 'feathers' ? 4 : 3;
+          for (let f = 0; f < n; f++) {
+            const a = sg * (0.95 + f * 0.20);
+            const p = P(0.92 - f * 0.012, a, R * 0.12);
+            const blade = new THREE.Mesh(createBeveledCuttingPlate({
+              width: R * (st.extra === 'feathers' ? 0.17 : 0.22), length: R * (0.80 - f * 0.10), thickness: R * 0.02,
+              bevel: 0.34, ridge: R * 0.02, curveArch: 0.16, sweepX: st.extra === 'feathers' ? -0.18 : 0.08, sharpness: 1.8
+            }), f % 2 ? mainMat : trimMat);
+            const outDir = radial(a).multiplyScalar(0.80).add(up.clone().multiplyScalar(0.62 - f * 0.08)).normalize();
+            blade.position.copy(p);
+            orientCuttingPlate(blade, outDir, radial(0).multiplyScalar(1.0).add(up.clone().multiplyScalar(0.45)));
+            group.add(blade);
+          }
+        } else if (st.extra === 'side_spikes') {
           for (let k = 0; k < 3; k++) {
             const a = sg * (1.05 + k * 0.32);
             const pp = P(0.88 - k * 0.02, a, R * 0.11);
@@ -8137,9 +8197,40 @@
         }
       });
 
-      // 3. Joya central en el vértice de la V del gorjal
+      // Abanico de placas tras la nuca (cuello Médici) o cresta de púas
+      if (st.extra === 'fan') {
+        const n = 7;
+        for (let k = 0; k < n; k++) {
+          const t = k / (n - 1) * 2 - 1;
+          const a = Math.PI + t * 1.25;
+          const p = P(0.985, a, R * 0.04);
+          const len = R * (1.45 - Math.abs(t) * 0.45) * (st.fanH || 1);
+          const blade = new THREE.Mesh(createBeveledCuttingPlate({
+            width: R * 0.42, length: len, thickness: R * 0.02, bevel: 0.30, ridge: R * 0.02, curveArch: -0.10, crossCup: 0.18, sharpness: 1.25
+          }), k % 2 ? mainMat : trimMat);
+          const dir = up.clone().multiplyScalar(0.96).add(radial(a).multiplyScalar(0.30)).normalize();
+          blade.position.copy(p);
+          orientCuttingPlate(blade, dir, radial(0)); // cara hacia delante
+          group.add(blade);
+        }
+        if (st.gem) addFacetedJewel(group, P(0.985, Math.PI, R * 0.10).addScaledVector(up, R * 0.12), radial(Math.PI), R * 0.06, gemMat, trimMat, dmMat, 6);
+      } else if (st.extra === 'crest') {
+        for (let k = 0; k < 7; k++) {
+          const t = k / 6 * 2 - 1;
+          const a = Math.PI + t * 1.35;
+          const p = P(0.975, a, R * 0.06);
+          const len = R * (0.62 - Math.abs(t) * 0.25) * (st.sharp ? 1.2 : 1.0);
+          const sp = new THREE.Mesh(createBeveledCuttingPlate({ width: R * 0.13, length: len, thickness: R * 0.02, bevel: 0.38, ridge: R * 0.02, curveArch: 0.10, sharpness: 2.0, serrated: 0.05 }), k % 2 ? mainMat : trimMat);
+          const dir = up.clone().multiplyScalar(0.8).add(radial(a).multiplyScalar(0.6)).normalize();
+          sp.position.copy(p);
+          orientCuttingPlate(sp, dir, new THREE.Vector3(Math.cos(a), 0, -Math.sin(a)).multiplyScalar(1).add(radial(0).multiplyScalar(0.5)));
+          group.add(sp);
+        }
+      }
+
+      // 4. Joya central en el vértice del gorjal
       if (st.gem) {
-        const gp = P(vOutY(0) + 0.01, 0, R * 0.11 * tBulk);
+        const gp = P(vOutY(0) + 0.01, 0, R * 0.11 * tBulk + (nL - 1) * thick * 1.4);
         addFacetedJewel(group, gp, radial(0), R * 0.06 * tBulk, gemMat, trimMat, dmMat, 8);
       }
 
