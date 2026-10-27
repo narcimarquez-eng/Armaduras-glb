@@ -8084,7 +8084,8 @@
         const yoke = (u, v) => {
           const a = wrap ? (gap + u * (Math.PI * 2 - gap * 2)) : (u * Math.PI * 2);
           const t = THREE.MathUtils.lerp(t0, t1, v);
-          const inner = P(0.995, a, R * 0.03);
+          // Borde interior pegado al cuello (sin anillo de malla visible)
+          const inner = P(0.995, a, -R * 0.09).addScaledVector(up, R * 0.05);
           const outer = P(vOutY(a), a, R * 0.085 * tBulk);
           const p = inner.clone().lerp(outer, Math.pow(t, 0.85));
           return p.addScaledVector(radial(a), Math.sin(t * Math.PI) * R * 0.05 + lift + (st.yoke.edge === 'chevron' ? Math.pow(Math.max(0, Math.cos(a)), 30) * R * 0.03 : 0));
