@@ -9905,14 +9905,15 @@
     let archeryT = 0;
     let archeryLastU = 0;
     const ARCHERY_CYCLE = 3.40;
-    const AR_T_AIM = 0.60;    // alzar el arco y encarar
+    const AR_T_AIM = 0.90;    // alzar el arco, encarar y llevar la mano de la cuerda a la flecha
     const AR_T_DRAW = 1.90;   // tensar hasta el anclaje
     const AR_T_HOLD = 2.35;   // suelta
     const AR_T_RELAX = 2.75;  // bajar el arco
     const smooth01 = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
     const AR_UP = new THREE.Vector3(0, 1, 0);
     const AR_DOWN = new THREE.Vector3(0, -1, 0);
-    const AR_AIM_DIR = new THREE.Vector3(0, -0.03, 1);        // se dispara al frente del personaje
+    const _arAimH = new THREE.Vector3();
+    const AR_AIM_DIR = new THREE.Vector3(0, 0, 1);        // se dispara al frente del personaje
     // Postura del brazo de la cuerda. Con el cuerpo de costado, la línea de los hombros (y del
     // arco) atraviesa el tronco: un brazo que la siga queda enterrado en el peto. Se evita con
     // el codo, que sale hacia el lado del pecho (de ahí cabe la mano en el pómulo sin cruzar el
@@ -9921,10 +9922,17 @@
     // por el espaldar del peto.
     const AR_DRAW = {
       hombroArriba: 0.026,   // la escápula se eleva al tensar
-      codoAngulo:   2.6,     // dirección del codo, girando desde la espalda (0) por arriba (1,57) hasta el pecho (3,14)
+      codoAngulo:   2.8,     // dirección del codo, girando desde la espalda (0) por arriba (1,57) hasta el pecho (3,14)
       giro:         1.45,    // el arquero se pone de costado al objetivo (rad)
       extensionArco: 0.985,  // extensión del brazo del arco (1 = recto del todo)
-      desvioArco:   0.14     // metros que se adelanta el arco por delante del pecho mientras se tensa
+      desvioArco:   0.14,    // metros que se adelanta el arco por delante del pecho mientras se tensa
+      desvioFinal:  0.05,    // y lo que queda adelantado a pleno tensado (la flecha pasa por la nariz)
+      alturaNariz:  0.058,   // la línea del arco va a esta altura sobre el hueso de la cabeza (= nariz)
+      giroInicio:   0.40,    // al coger la flecha el pecho está más abierto al objetivo (no paralelo al arco)...
+      extInicio:    0.35,    // ...y el brazo del arco recogido, para que la mano de la cuerda llegue a la flecha
+      abrirHasta:   0.70,    // fracción del tensado en que el cuerpo termina de cerrarse y el brazo de estirarse
+      troncoRoll:   0.14,    // el tronco se dobla de lado: hombro del arco arriba, no paralelo a la flecha
+      troncoAtras:  0.07     // y se echa un poco hacia atrás
     };
 
     function spawnArrowTrail(pos) {
@@ -10219,11 +10227,17 @@
 
       // 1. Estancia de arquero: el cuerpo se pone de costado para que los dos hombros y la
       //    cara queden en el plano de tiro (así el anclaje cae en la mandíbula, no cruzado).
+      //    Al coger la flecha el cuerpo está más abierto y el arco más recogido (la mano de la
+      //    cuerda no llega al culatín con el brazo del arco estirado y los hombros alineados);
+      //    conforme se tensa, el tronco se cierra y el brazo se estira. 'ab' va de 1 a 0.
+      const ab = 1 - smooth01(pull / AR_DRAW.abrirHasta);
+      const giro = THREE.MathUtils.lerp(AR_DRAW.giro, AR_DRAW.giroInicio, ab);
       const pelvis = bonesMap.Pelvis, torso = bonesMap.Torso;
-      if (pelvis) pelvis.rotation.y = -AR_DRAW.giro * 0.38;
-      if (torso) torso.rotation.set(0.02, -AR_DRAW.giro * 0.62, 0);
-      if (bonesMap.Neck) bonesMap.Neck.rotation.set(0, AR_DRAW.giro * 0.30, 0);
-      if (bonesMap.Head) bonesMap.Head.rotation.set(-0.04, AR_DRAW.giro * 0.68, 0);
+      if (pelvis) pelvis.rotation.y = -giro * 0.38;
+      if (torso) torso.rotation.set(0.02 - AR_DRAW.troncoAtras, -giro * 0.62, AR_DRAW.troncoRoll);
+      // La cabeza compensa la mitad del doblez para que la cara siga derecha sobre la flecha
+      if (bonesMap.Neck) bonesMap.Neck.rotation.set(AR_DRAW.troncoAtras * 0.5, giro * 0.30, -AR_DRAW.troncoRoll * 0.5);
+      if (bonesMap.Head) bonesMap.Head.rotation.set(-0.04 + AR_DRAW.troncoAtras * 0.4, giro * 0.68, -AR_DRAW.troncoRoll * 0.5);
       const frame = mannequinRoot || torso;
       frame.updateWorldMatrix(true, false);
       const aimW = AR_AIM_DIR.clone().transformDirection(frame.matrixWorld).normalize();
@@ -10233,12 +10247,28 @@
       cL.sh.updateWorldMatrix(true, false);
       const shLW = new THREE.Vector3().setFromMatrixPosition(cL.sh.matrixWorld);
       const chestFront = new THREE.Vector3(0, 0, 1).transformDirection(torso.matrixWorld).normalize();
-      const targetL = shLW.clone().addScaledVector(aimW, (cL.L1 + cL.L2 + reachL) * AR_DRAW.extensionArco)
-        .addScaledVector(chestFront, AR_DRAW.desvioArco * aim * (1 - smooth01((pull - 0.40) / 0.60)));
-      solveArmIK('L', targetL, reachL);
-      setElbowPole('L', AR_DOWN);          // codo del arco caído, fuera del paso de la cuerda
-      // El arco queda vertical y encarado al objetivo pase lo que pase con el codo
-      alignHandFrame('L', aimW.clone().negate(), AR_UP);
+      // El arco se sostiene a la altura de la nariz: el brazo se alza lo que haga falta para
+      // que la línea de la flecha quede horizontal ahí y la mano de la cuerda la coja a esa altura.
+      const lenL = (cL.L1 + cL.L2 + reachL) * THREE.MathUtils.lerp(AR_DRAW.extensionArco, AR_DRAW.extInicio, ab);
+      let lineY = shLW.y;
+      if (bonesMap.Head) { bonesMap.Head.updateWorldMatrix(true, false); lineY = new THREE.Vector3().setFromMatrixPosition(bonesMap.Head.matrixWorld).y + AR_DRAW.alturaNariz; }
+      const sinA = THREE.MathUtils.clamp((lineY - shLW.y) / lenL, -0.8, 0.8);
+      const aimH = _arAimH.set(aimW.x, 0, aimW.z).normalize();
+      const dirL = aimH.clone().multiplyScalar(Math.sqrt(1 - sinA * sinA)).addScaledVector(AR_UP, sinA);
+      const targetL = shLW.clone().addScaledVector(dirL, lenL)
+        .addScaledVector(chestFront, THREE.MathUtils.lerp(AR_DRAW.desvioArco, AR_DRAW.desvioFinal, smooth01((pull - 0.40) / 0.60)) * aim);
+      // Dos pasadas: orientar la muñeca desplaza el puño, y la segunda corrige ese desfase para
+      // que el arco quede exactamente a la altura pedida.
+      const aimTargetL = targetL.clone();
+      for (let it = 0; it < 2; it++) {
+        solveArmIK('L', aimTargetL, reachL);
+        setElbowPole('L', AR_DOWN);          // codo del arco caído, fuera del paso de la cuerda
+        // El arco queda vertical y encarado al objetivo pase lo que pase con el codo
+        alignHandFrame('L', aimW.clone().negate(), AR_UP);
+        const gw = handGripWorld('L', _ikW);
+        if (!gw) break;
+        aimTargetL.add(_ikV.copy(targetL).sub(gw));
+      }
 
       // 3. Punto de anclaje (pómulo del lado de la cuerda) y recorrido real de tensión
       if (mannequinRoot) mannequinRoot.updateMatrixWorld(true);
