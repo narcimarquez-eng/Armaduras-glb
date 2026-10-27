@@ -722,7 +722,13 @@
         // Mejoras Mecánicas & Despiece
         explodedView: 0.00,
         rolledEdgeFlange: 1.00,
-        flutingIntensity: 0.35
+        flutingIntensity: 0.35,
+
+        // Modos de la clase Ligera (se activan desde ARMOR_CLASSES)
+        bootCollarMin: 0.080,      // altura mínima de la caña de la bota (m)
+        cuissesSpan: null,         // { top, bot } fijo en la muslera, en lugar de la longitud
+        lightHarness: false,       // peto de pecho con tirantes a la espalda
+        clothSides: false          // faldones de tela a los lados, en lugar de escarcelas
       },
       materialType: 'paladin_sun_gold',
       primaryColor: '#f1f5f9', 
@@ -1158,10 +1164,14 @@
           shoulderSize: 0.72,
           kneeScale: 0.90, kneeWingSize: 0.55,
           cuissesScale: 0.90, cuissesLength: 0.72,
-          tassetScale: 0.92, tassetLength: 0.80, tassetWidth: 0.78
+          cuissesSpan: { top: 0.98, bot: 0.46 },   // muslera desde el glúteo, con hueco sobre la rodilla
+          tassetScale: 0.92, tassetLength: 0.80, tassetWidth: 0.78,
+          clothSides: true,                        // faldones de tela en los lados, como el tabardo
+          lightHarness: true,                      // peto de pecho con tirantes
+          bootCollarMin: 0.035                     // bota solo de tobillo y pie
         },
-        chest: { yMinFront: 0.22 },
-        boot: { collarFactor: 0.95 }
+        chest: { yMinFront: 0.42, backStyle: 'none' },   // pecho protegido, sin espaldar
+        boot: { collarFactor: 0.60 }
       },
       mago: { name: 'Mago', fit: {}, chest: {}, boot: { collarFactor: 0.90 } }
     };
@@ -5334,8 +5344,9 @@
         const isL = partName.endsWith('_l');
         const outerU = isL ? 0.75 : 0.25; // u de la cara externa del muslo (rejilla de placa completa)
         getMeshesByAnatomy([partName]).forEach(thMesh => {
-          const yTop = Math.min(0.97, 0.94 * cLen);
-          const yBot = Math.max(0.10, 0.16 / cLen);
+          const span = STATE.fit.cuissesSpan;
+          const yTop = span ? span.top : Math.min(0.97, 0.94 * cLen);
+          const yBot = span ? span.bot : Math.max(0.10, 0.16 / cLen);
           const lameH = d.relief === 'lamellar' ? (yTop - yBot) / d.lames : 0.085;
           const plateBot = d.relief === 'lamellar' ? yBot : yBot + d.lames * lameH * 0.82;
 
@@ -6860,7 +6871,11 @@
 
       buildPaladinChestOrnament();
       buildArticulatedBelt();
-      buildArticulatedTassets();
+      if (STATE.fit.clothSides) {
+        buildClothSideFlaps({ trimMat: getPBRMaterial('trim', 'tassets'), clothMat: getPBRMaterial('cloth', 'tassets') });
+      } else {
+        buildArticulatedTassets();
+      }
       buildArticulatedCuisses();
       buildArticulatedKnees();
       buildArticulatedBoots();
@@ -7349,7 +7364,7 @@
         const groundDepth = fBox ? Math.max(0.052, anklePos.y - fBox.min.y) : 0.068;
         const realFootW = Math.max(0.088, fSize.x) * 1.32 * lBulk;
         const ankleW = Math.max(0.080, sSize.x * 0.86) * 1.14 * lBulk;
-        const collarH = Math.max(0.080, groundDepth * bCfg.collarFactor * 1.25);
+        const collarH = Math.max(STATE.fit.bootCollarMin, groundDepth * bCfg.collarFactor * 1.25);
 
         // 1-2. ESCARPE ARTICULADO: láminas, puntera, talonera, suela y relieves
         buildArticulatedSabaton(group, { L: forwardToeDist, heel: backHeelDist, ground: groundDepth, footW: realFootW, collarH, k: lBulk }, bootType, { mainMat, trimMat, glowMat });
@@ -8638,6 +8653,80 @@
       }
     }
 
+    /* === LIGERA: tirantes de tela y cuero que cruzan el hombro del peto hasta una almohadilla en la espalda === */
+    function buildLightStraps(mats) {
+      const { trimMat, clothMat } = mats;
+      const tb = getWorldBoxOfParts(['torso']);
+      if (!tb) return;
+      const tSize = tb.getSize(new THREE.Vector3());
+      const tc = tb.getCenter(new THREE.Vector3());
+      const W = tSize.x, H = tSize.y;
+      const frontZ = tb.max.z - tc.z + 0.012;
+      const backZ = tb.min.z - tc.z - 0.010;
+      const yAttach = (tb.min.y - tc.y) + H * 0.86;   // borde superior de la pechera
+      const yShoulder = (tb.max.y - tc.y) - H * 0.03; // cresta del hombro
+
+      const group = new THREE.Group();
+      group.name = 'Light_Chest_Straps';
+      [-1, 1].forEach(s => {
+        const curve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(s * W * 0.24, yAttach, frontZ),
+          new THREE.Vector3(s * W * 0.34, yShoulder, 0),
+          new THREE.Vector3(s * W * 0.24, yAttach, backZ)
+        ]);
+        group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.009, 8, false), clothMat));
+
+        // Hebilla de ajuste en el punto de anclaje delantero
+        const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.026, 0.006), trimMat);
+        buckle.position.set(s * W * 0.24, yAttach, frontZ + 0.004);
+        group.add(buckle);
+      });
+
+      // Almohadilla de cuero en la espalda donde terminan los tirantes
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(W * 0.46, H * 0.24, 0.012), clothMat);
+      pad.position.set(0, yShoulder - H * 0.24, backZ - 0.004);
+      group.add(pad);
+
+      attachOrnamentWorld(armorSockets.torso, group, tc, new THREE.Quaternion(), 'torso');
+    }
+
+    /* === LIGERA: faldones de tela a los lados, colgando del cinturón igual que el tabardo === */
+    function buildClothSideFlaps(mats) {
+      const { trimMat, clothMat } = mats;
+      const pelvisBox = getWorldBoxOfParts(['pelvis']);
+      if (!pelvisBox) return;
+      const pSize = pelvisBox.getSize(new THREE.Vector3());
+      const pCenter = pelvisBox.getCenter(new THREE.Vector3());
+      const flapW = Math.max(0.05, pSize.z * 0.46);
+      const flapLen = Math.max(0.10, pSize.y * 0.80);
+      const topY = pSize.y * 0.20; // justo bajo la banda del cinturón
+
+      const group = new THREE.Group();
+      group.name = 'Light_Cloth_Side_Flaps';
+      [-1, 1].forEach(s => {
+        // Tela con pliegues verticales que se ensanchan hacia el bajo
+        const geo = new THREE.PlaneGeometry(flapW, flapLen, 8, 16);
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const uNorm = pos.getX(i) / flapW + 0.5;
+          const vNorm = 0.5 - pos.getY(i) / flapLen;
+          pos.setZ(i, Math.sin(uNorm * Math.PI * 3.0) * 0.006 * (0.4 + 0.6 * vNorm));
+        }
+        geo.computeVertexNormals();
+        const flap = new THREE.Mesh(geo, clothMat);
+        flap.rotation.y = s * Math.PI * 0.5; // plano en el costado, con la normal hacia fuera
+        flap.position.set(s * pSize.x * 0.50, topY - flapLen * 0.5, 0);
+        group.add(flap);
+
+        // Orla dorada en el dobladillo
+        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, flapW), trimMat);
+        hem.position.set(s * pSize.x * 0.50, topY - flapLen, 0);
+        group.add(hem);
+      });
+
+      attachOrnamentWorld(armorSockets.belt, group, pCenter, new THREE.Quaternion(), 'belt');
+    }
+
     function buildAllFittedArmor() {
       clearAllArmorShells();
       // Las hombreras forman ahora un único bloque con el peto: el slot independiente queda desactivado
@@ -9175,6 +9264,9 @@
 
         // 6. ESPALDARONES INTEGRADOS DEL PETO: cúpula + láminas que cubren el deltoides (todos los petos)
         buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
+
+        // 7. PECHERA LIGERA: tirantes flexibles que cruzan el hombro hasta la espalda
+        if (STATE.fit.lightHarness) buildLightStraps({ trimMat, clothMat });
       }
 
       /* === BRAZALES Y GUANTELETES ESCULPIDOS CON BISEL === */
