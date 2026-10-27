@@ -726,6 +726,7 @@
 
         // Modos de la clase Ligera (se activan desde ARMOR_CLASSES)
         bootCollarMin: 0.080,      // altura mínima de la caña de la bota (m)
+        shinTop: null,             // altura de la grebas sobre la espinilla (0-1); null = según bota
         cuissesSpan: null,         // { top, bot } fijo en la muslera, en lugar de la longitud
         lightHarness: false,       // peto de pecho con tirantes a la espalda
         clothSides: false          // faldones de tela a los lados, en lugar de escarcelas
@@ -1168,7 +1169,8 @@
           tassetScale: 0.92, tassetLength: 0.80, tassetWidth: 0.78,
           clothSides: true,                        // faldones de tela en los lados, como el tabardo
           lightHarness: true,                      // peto de pecho con tirantes
-          bootCollarMin: 0.035                     // bota solo de tobillo y pie
+          bootCollarMin: 0.035,                    // bota solo de tobillo y pie
+          shinTop: 0.14                            // grebas que no pasan del tobillo
         },
         chest: { yMinFront: 0.42, backStyle: 'none' },   // pecho protegido, sin espaldar
         boot: { collarFactor: 0.60 }
@@ -9333,7 +9335,7 @@
       if (bootType > 0) {
         ['shin_l', 'shin_r'].forEach(partName => {
           getMeshesByAnatomy([partName]).forEach(sMesh => {
-            const topRatio = bootType === 1 ? 0.86 : 0.92;
+            const topRatio = STATE.fit.shinTop ?? (bootType === 1 ? 0.86 : 0.92);
             createFormFittedShell(sMesh, mainMat, {
               targetPart: partName, thicknessRatio: 0.028 * lBulk,
               yMin: 0.04, yMax: topRatio,
