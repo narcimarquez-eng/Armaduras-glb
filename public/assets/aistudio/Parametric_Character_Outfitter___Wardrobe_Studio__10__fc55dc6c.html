@@ -43,6 +43,7 @@
       <button id="btn-random-human-top" title="Generar un cuerpo humano 3D aleatorio (.GLB) y amoldar la armadura" class="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-xs shadow-lg shadow-amber-600/30 border border-amber-400/40 transition active:scale-95"><i data-lucide="person-standing" class="w-3.5 h-3.5"></i><span>Cuerpo Random (.GLB)</span></button>
       <button id="btn-quick-random" class="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition active:scale-95"><i data-lucide="shuffle" class="w-3.5 h-3.5"></i><span>Armadura Random</span></button>
       <button id="btn-download-html" title="Descargar este archivo HTML" class="glass-btn px-2.5 py-2 rounded-xl text-emerald-300 hover:text-white flex items-center gap-1 text-xs font-medium border-emerald-500/30"><i data-lucide="download" class="w-3.5 h-3.5"></i><span class="hidden md:inline">Bajar HTML</span></button>
+      <button id="btn-download-light-glb" title="Descargar personaje + armadura en un GLB ligero (texturas JPEG, mallas fusionadas, animaciones)" class="glass-btn px-2.5 py-2 rounded-xl text-amber-300 hover:text-white flex items-center gap-1 text-xs font-medium border-amber-500/30"><i data-lucide="feather" class="w-3.5 h-3.5"></i><span class="hidden md:inline">GLB Ligero</span></button>
       <button id="btn-snapshot" title="Tomar captura PNG" class="glass-btn p-2 rounded-xl text-slate-300 hover:text-white"><i data-lucide="camera" class="w-4 h-4"></i></button>
       <button id="btn-reset-cam" title="Centrar cámara" class="glass-btn p-2 rounded-xl text-slate-300 hover:text-white"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
     </div>
@@ -221,6 +222,8 @@
         <div class="pt-2 border-t border-white/10 grid grid-cols-2 gap-1.5">
           <button id="btn-export-all-armor-glb" class="glass-btn py-2 px-2 rounded-xl text-[11px] font-semibold text-emerald-300 hover:text-white flex items-center justify-center gap-1.5 border-emerald-500/30"><i data-lucide="package" class="w-3.5 h-3.5"></i> Bajar Armadura (.GLB)</button>
           <button id="btn-export-full-char-glb" class="glass-btn py-2 px-2 rounded-xl text-[11px] font-semibold text-indigo-300 hover:text-white flex items-center justify-center gap-1.5 border-indigo-500/30"><i data-lucide="user-check" class="w-3.5 h-3.5"></i> Personaje Completo</button>
+          <button id="btn-export-light-char-glb" class="glass-btn py-2 px-2 rounded-xl text-[11px] font-semibold text-amber-300 hover:text-white flex items-center justify-center gap-1.5 border-amber-500/30"><i data-lucide="feather" class="w-3.5 h-3.5"></i> Personaje Ligero</button>
+          <button id="btn-export-light-armor-glb" class="glass-btn py-2 px-2 rounded-xl text-[11px] font-semibold text-amber-300 hover:text-white flex items-center justify-center gap-1.5 border-amber-500/30"><i data-lucide="feather" class="w-3.5 h-3.5"></i> Armadura Ligera</button>
         </div>
       </div>
 
@@ -3024,7 +3027,8 @@
           } else {
             // Dominio vertical ampliado del torso (desde cadera alta 0.25 hasta raíz alta del cuello 0.89) para que los petos nunca queden cortos
             subYMin = lBox.min.y + lSpanY * 0.25;
-            subYMax = lBox.min.y + lSpanY * 0.89;
+            // Hasta la base del cuello (0.965) para que el peto suba por el trapecio sin dejar meseta plana
+            subYMax = lBox.min.y + lSpanY * 0.965;
           }
         } else if (partKey !== 'head' && !partKey.startsWith('foot')) {
           subYMin = lBox.min.y + lSpanY * 0.030;
@@ -3234,6 +3238,19 @@
       const cz = profile.centerZ[h0] * (1 - th) + profile.centerZ[h1] * th;
 
       return { radius, cx, cz };
+    }
+
+    // Muestreo filtrado (kernel 5x5 gaussiano en altura/ángulo): superficie de placa forjada lisa, sin abolladuras del binning
+    function sampleProfileSmooth(profile, vNorm, angle) {
+      let rs = 0, xs = 0, zs = 0, ws = 0;
+      for (let i = -2; i <= 2; i++) {
+        for (let j = -2; j <= 2; j++) {
+          const w = Math.exp(-(i * i + j * j) * 0.35);
+          const sm = sampleProfileAt(profile, Math.max(0, Math.min(1, vNorm + i * 0.035)), angle + j * 0.085);
+          rs += sm.radius * w; xs += sm.cx * w; zs += sm.cz * w; ws += w;
+        }
+      }
+      return { radius: rs / ws, cx: xs / ws, cz: zs / ws };
     }
 
     function evaluateWindowCutoutSDF(windowCutout, angle, localNormY) {
@@ -3532,7 +3549,24 @@
 
             const midR = THREE.MathUtils.lerp(rWaist, rChest, chestArch);
             // Convergencia progresiva hacia el cuello para que no quede abierta ni despegada
-            const baseFittedR = THREE.MathUtils.lerp(midR, rNeck, neckArch);
+            const blendR = THREE.MathUtils.lerp(midR, rNeck, neckArch);
+
+            // Muestreo continuo del contorno real (pecho, pendiente del trapecio, espalda) con envolvente
+            // convexa vertical: la placa puentea los surcos (bajo pectoral, esternón) en lugar de hundirse en ellos.
+            const yLo = Math.max(0.0, sampleY - 0.10);
+            const yHi = Math.min(1.0, sampleY + 0.10);
+            const sMid = sampleProfileSmooth(profile, sampleY, angle);
+            const sLo = sampleProfileSmooth(profile, yLo, angle);
+            const sHi = sampleProfileSmooth(profile, yHi, angle);
+            const bridgeR = Math.max(sMid.radius, 0.5 * (sLo.radius + sHi.radius));
+            const clearance = 1.022 + 0.016 * frontAlign + 0.016 * flankAlign + 0.010 * backAlign;
+            const directR = bridgeR * clearance + avgRadius * 0.012;
+            // En el tercio superior manda el contorno real (trapecio); abajo se conserva el ajuste clásico
+            const shoulderZone = THREE.MathUtils.smoothstep(sampleY, 0.55, 0.80);
+            const followW = THREE.MathUtils.lerp(0.45, 1.0, shoulderZone);
+            const baseFittedR = THREE.MathUtils.lerp(Math.max(blendR, directR * 0.985), directR, followW);
+            cx = THREE.MathUtils.lerp(cx, sMid.cx, shoulderZone);
+            cz = THREE.MathUtils.lerp(cz, sMid.cz, shoulderZone);
 
             // Domo pectoral moderado y pegado al personaje en el centro (sin crear cámara de aire vacía)
             const domeCurve = Math.sin(Math.pow(chestArch, 0.9) * (1.0 - neckArch * 0.75) * Math.PI);
@@ -6595,6 +6629,318 @@
     /* =========================================================================
        7. ENSAMBLAJE DE TODAS LAS PIEZAS DE ARMADURA DE PALADÍN
        ========================================================================= */
+    /* =========================================================================
+       7b. ESPALDARONES INTEGRADOS DEL PETO (CUBREN EL DELTOIDES · ESTÉTICA LINEAGE II)
+       Cúpula abombada sobre el hombro + láminas escalonadas que bajan por el brazo,
+       con canto biselado, ribete dorado enrollado, guarda-cuello alzada, púas y gema.
+       Se anclan al hueso del brazo superior para seguir las animaciones.
+       ========================================================================= */
+
+    // Placa gruesa genérica a partir de una superficie paramétrica surf(u, v) -> Vector3 (cara exterior).
+    // refCenter indica "dentro" para orientar normales; wrapU cierra la placa en u (cúpulas).
+    function createArmorPlatePatch(surf, opts = {}) {
+      const {
+        uSegs = 36, vSegs = 14, thickness = 0.006, refCenter = new THREE.Vector3(),
+        wrapU = false, edgeRound = 0.55
+      } = opts;
+      const cols = uSegs + 1, rows = vSegs + 1;
+      const outer = [], nrm = [];
+      const eps = 1e-3;
+      const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
+      for (let j = 0; j < rows; j++) {
+        const v = j / vSegs;
+        for (let i = 0; i < cols; i++) {
+          const u = wrapU ? (i % uSegs) / uSegs : i / uSegs;
+          const p = surf(u, v);
+          const du = tmpA.copy(surf(Math.min(1, u + eps), v)).sub(surf(Math.max(0, u - eps), v));
+          const dv = tmpB.copy(surf(u, Math.min(1, v + eps))).sub(surf(u, Math.max(0, v - eps)));
+          let n = new THREE.Vector3().crossVectors(du, dv);
+          if (n.lengthSq() < 1e-14) n.copy(p).sub(refCenter);
+          n.normalize();
+          if (n.dot(tmpA.copy(p).sub(refCenter)) < 0) n.negate();
+          outer.push(p); nrm.push(n);
+        }
+      }
+      const total = cols * rows;
+      const pos = new Float32Array(total * 2 * 3);
+      const uv = new Float32Array(total * 2 * 2);
+      for (let j = 0; j < rows; j++) {
+        for (let i = 0; i < cols; i++) {
+          const k = j * cols + i;
+          const v = j / vSegs, u = i / uSegs;
+          // Canto redondeado: la cara exterior baja hacia el borde para que la chapa parezca forjada y no un cartón
+          const dV = Math.min(v, 1 - v) * vSegs;
+          const dU = wrapU ? 99 : Math.min(u, 1 - u) * uSegs;
+          const ramp = Math.min(1, Math.min(dV, dU) / 1.6);
+          const o = outer[k], n = nrm[k];
+          const outT = thickness * (edgeRound + (1 - edgeRound) * ramp);
+          pos[k * 3] = o.x + n.x * outT * 0.5; pos[k * 3 + 1] = o.y + n.y * outT * 0.5; pos[k * 3 + 2] = o.z + n.z * outT * 0.5;
+          const q = (total + k) * 3;
+          pos[q] = o.x - n.x * outT * 0.5; pos[q + 1] = o.y - n.y * outT * 0.5; pos[q + 2] = o.z - n.z * outT * 0.5;
+          uv[k * 2] = u; uv[k * 2 + 1] = v; uv[(total + k) * 2] = u; uv[(total + k) * 2 + 1] = v;
+        }
+      }
+      // Orientación de los triángulos: comprobar el primer quad no degenerado contra la normal exterior
+      let flip = false;
+      for (let j = 0; j < vSegs && j < 4; j++) {
+        const a = outer[j * cols + 1], b = outer[j * cols + 2], d = outer[(j + 1) * cols + 2];
+        const fn = new THREE.Vector3().crossVectors(tmpA.copy(b).sub(a), tmpB.copy(d).sub(a));
+        if (fn.lengthSq() > 1e-14) { flip = fn.dot(nrm[j * cols + 1]) < 0; break; }
+      }
+      const idx = [];
+      const quad = (a, b, c, d, inv) => {
+        if (inv !== flip) idx.push(a, d, b, a, c, d); else idx.push(a, b, d, a, d, c);
+      };
+      for (let j = 0; j < vSegs; j++) {
+        for (let i = 0; i < uSegs; i++) {
+          const a = j * cols + i, b = a + 1, c = a + cols, d = c + 1;
+          quad(a, b, c, d, false);
+          quad(total + a, total + b, total + c, total + d, true);
+        }
+      }
+      // Paredes del canto (une cara exterior e interior)
+      const wall = (k0, k1, inv) => quad(k0, k1, total + k0, total + k1, inv);
+      for (let i = 0; i < uSegs; i++) {
+        wall(i, i + 1, true);
+        wall(vSegs * cols + i, vSegs * cols + i + 1, false);
+      }
+      if (!wrapU) {
+        for (let j = 0; j < vSegs; j++) {
+          wall(j * cols, (j + 1) * cols, false);
+          wall(j * cols + uSegs, (j + 1) * cols + uSegs, true);
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      geo.userData.outer = outer;
+      geo.userData.normals = nrm;
+      geo.userData.cols = cols;
+      geo.userData.rows = rows;
+      return geo;
+    }
+
+    // Ribete enrollado (tubo) que sigue una fila de la placa: el borde dorado típico de Lineage II
+    function createRolledRimAlongRow(plateGeo, row, radius, opts = {}) {
+      const { closed = false, outward = 0.6, uFrom = 0, uTo = 1 } = opts;
+      const { outer, normals, cols } = plateGeo.userData;
+      const pts = [];
+      const i0 = Math.round(uFrom * (cols - 1)), i1 = Math.round(uTo * (cols - 1));
+      const last = closed ? i1 - 1 : i1;
+      for (let i = i0; i <= last; i++) {
+        const k = row * cols + i;
+        pts.push(outer[k].clone().addScaledVector(normals[k], radius * outward));
+      }
+      if (pts.length < 2) return null;
+      const curve = new THREE.CatmullRomCurve3(pts, closed, 'centripetal');
+      return new THREE.TubeGeometry(curve, Math.max(20, Math.round(pts.length * 1.25)), radius, 6, closed);
+    }
+
+    function getSpaulderStyleForTorso(torsoType, cfg, isWideClavicleWrap) {
+      const isL2 = torsoType >= 10 || torsoType === 5;
+      const fold = cfg.foldStyle || 'ogee_conopial';
+      let edge = 'round';
+      if (fold === 'swallow_tail' || fold === 'triple_v' || fold === 'inverted_v_notch') edge = 'pointed';
+      else if (fold === 'scalloped' || fold === 'foliate') edge = 'scalloped';
+      else if (fold === 'ogee_conopial') edge = 'ogee';
+      const spiky = cfg.chestContour === 'draconic_ribs_relief' || cfg.chestContour === 'strident_prow' || torsoType === 3;
+      return {
+        lames: isL2 ? 3 : 2,
+        edge,
+        scale: isL2 ? 1.12 : 1.0,
+        haute: isWideClavicleWrap || torsoType === 1 || torsoType === 2,
+        spikes: spiky,
+        gem: isL2 || cfg.windowCutout !== 'none' || torsoType === 4,
+        flare: isL2 ? 0.34 : 0.24
+      };
+    }
+
+    // Perfil del borde inferior de cada placa según el estilo (0 en los laterales, 1 en el centro exterior)
+    function spaulderEdgeDrop(edge, w) {
+      const c = Math.max(0, Math.cos(w));
+      if (edge === 'pointed') return Math.pow(c, 6.0) * 0.55 + Math.pow(c, 1.5) * 0.25;
+      if (edge === 'scalloped') return (0.5 + 0.5 * Math.cos(w * 5.0)) * 0.22 * (0.4 + 0.6 * c) + c * 0.12;
+      if (edge === 'ogee') return Math.pow(c, 3.0) * 0.38 + 0.10 * Math.pow(c, 0.8);
+      return Math.pow(c, 1.4) * 0.18;
+    }
+
+    function buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, mats) {
+      const { mainMat, trimMat, glowMat } = mats;
+      const st = getSpaulderStyleForTorso(torsoType, cfg, isWideClavicleWrap);
+      const hasPauldron = STATE.equipment.shoulders > 0;
+      const tBulk = STATE.fit.torsoScale;
+      const charBox = getCharacterWorldBox();
+      const charH = Math.max(0.5, charBox.max.y - charBox.min.y);
+      let gemMat = null;
+      try { gemMat = getFacetedGemMaterial(torsoType >= 15 ? 'sapphire' : (torsoType === 4 || torsoType === 14 ? 'emerald' : 'ruby'), 'torso'); } catch (e) { gemMat = glowMat; }
+
+      ['l', 'r'].forEach(side => {
+        const sgn = side === 'l' ? 1 : -1;
+        const socket = side === 'l' ? armorSockets.shouldersL : armorSockets.shouldersR;
+        const upBone = findBoneFlexible(side === 'l' ? ['UpperArm_L', 'LeftArm', 'mixamorigLeftArm'] : ['UpperArm_R', 'RightArm', 'mixamorigRightArm']);
+        const foreBone = findBoneFlexible(side === 'l' ? ['Forearm_L', 'LeftForeArm', 'mixamorigLeftForeArm'] : ['Forearm_R', 'RightForeArm', 'mixamorigRightForeArm']);
+        if (!socket) return;
+
+        const sPos = new THREE.Vector3(), ePos = new THREE.Vector3();
+        if (upBone && foreBone) {
+          upBone.getWorldPosition(sPos);
+          foreBone.getWorldPosition(ePos);
+        } else {
+          const tBox = getWorldBoxOfParts(['torso']);
+          if (!tBox) return;
+          const tSz = tBox.getSize(new THREE.Vector3());
+          const tC = tBox.getCenter(new THREE.Vector3());
+          sPos.set(tC.x + sgn * tSz.x * 0.42, tBox.max.y - 0.05, tC.z);
+          ePos.copy(sPos).add(new THREE.Vector3(sgn * 0.16, -0.24, 0));
+        }
+        const armLen = Math.max(0.12, sPos.distanceTo(ePos));
+        const axisDown = new THREE.Vector3().subVectors(ePos, sPos).normalize();
+        const q = orientAlongAxis(axisDown);
+        const qInv = q.clone().invert();
+
+        // Radio del deltoides medido en la malla real del brazo (marco local alineado con el hueso)
+        let rd = 0.068 * (charH / 1.75);
+        const arms = getMeshesByAnatomy(['upperarm_' + side]);
+        if (arms.length && !arms[0].userData.isMultiZone) {
+          const g = arms[0].geometry;
+          if (!g.boundingBox) g.computeBoundingBox();
+          const sz = g.boundingBox.getSize(new THREE.Vector3());
+          const ws = new THREE.Vector3(); arms[0].getWorldScale(ws);
+          const meas = Math.max(sz.x * ws.x, sz.z * ws.z) * 0.5;
+          if (meas > 0.02 && meas < 0.2) rd = meas;
+        }
+        // Sin hombreras del slot, el espaldarón del peto es la pieza protagonista: más ancho (silueta en V de Lineage II)
+        rd *= st.scale * tBulk * (STATE.fit.shoulderSize || 1.0) * (hasPauldron ? 0.94 : 1.14);
+        const capScale = 1.0;
+
+        // Marco del brazo: Y sube por el eje hacia el hombro, X·sgn = cara externa (deltoides), Z = frente
+        const Y = new THREE.Vector3(0, 1, 0), Xo = new THREE.Vector3(sgn, 0, 0), Z = new THREE.Vector3(0, 0, 1);
+        const upL = new THREE.Vector3(sgn * Math.sin(0.30), Math.cos(0.30), 0).applyQuaternion(qInv);
+        let tau = Math.atan2(upL.x * sgn, upL.y);
+        tau = THREE.MathUtils.clamp(tau, 0.30, 1.30);
+        const P = Y.clone().multiplyScalar(Math.cos(tau)).addScaledVector(Xo, Math.sin(tau));
+        const Q = Xo.clone().multiplyScalar(Math.cos(tau)).addScaledVector(Y, -Math.sin(tau));
+        const worldUpL = new THREE.Vector3(0, 1, 0).applyQuaternion(qInv);
+
+        const group = new THREE.Group();
+        group.name = `PetoSpaulder_${side}`;
+        const thick = 0.0065 * (charH / 1.75);
+        const rimR = 0.0042 * (charH / 1.75) * st.scale;
+
+        // 1. CÚPULA (cop) abombada sobre el hombro
+        const Rc = rd * 1.52 * capScale;
+        const Cc = Xo.clone().multiplyScalar(rd * 0.24).addScaledVector(Y, -rd * 0.12);
+        const psiMax = (w) => {
+          const c = Math.cos(w);
+          const out = Math.pow(Math.max(0, c), 1.3), inn = Math.pow(Math.max(0, -c), 1.3);
+          return 1.20 + 0.42 * out - 0.24 * inn + spaulderEdgeDrop(st.edge, w) * 0.60;
+        };
+        const capSurf = (u, v) => {
+          const w = u * Math.PI * 2 - Math.PI;
+          const psi = v * psiMax(w);
+          const sp = Math.sin(psi), cp = Math.cos(psi);
+          const lip = Math.pow(v, 6.0) * st.flare * 0.35; // labio acampanado del borde
+          const ridge = Math.pow(Math.max(0, Math.cos(w)), 18.0) * Math.sin(Math.min(1, v * 1.2) * Math.PI) * 0.06;
+          const r = 1.0 + lip + ridge;
+          return Cc.clone()
+            .addScaledVector(P, Rc * 0.86 * cp * r)
+            .addScaledVector(Q, Rc * 1.08 * Math.cos(w) * sp * r)
+            .addScaledVector(Z, Rc * 1.00 * Math.sin(w) * sp * r);
+        };
+        const capGeo = createArmorPlatePatch(capSurf, { uSegs: 48, vSegs: 16, thickness: thick, refCenter: Cc, wrapU: true });
+        group.add(new THREE.Mesh(capGeo, mainMat));
+        const capRim = createRolledRimAlongRow(capGeo, capGeo.userData.rows - 1, rimR * 1.25, { closed: true });
+        if (capRim) group.add(new THREE.Mesh(capRim, trimMat));
+        // Segundo ribete interior (doble filete dorado)
+        const capRim2 = createRolledRimAlongRow(capGeo, capGeo.userData.rows - 4, rimR * 0.55, { closed: true, outward: 1.4 });
+        if (capRim2) group.add(new THREE.Mesh(capRim2, trimMat));
+
+        // 2. LÁMINAS ESCALONADAS que bajan por el brazo (metidas bajo la cúpula, cada una más acampanada)
+        const spanW = Math.PI * 0.64;
+        for (let k = 0; k < st.lames; k++) {
+          const yTop = -rd * (0.40 + k * 0.48);
+          const yBot = -rd * (1.08 + k * 0.50);
+          const baseR = rd * (1.14 + k * 0.04);
+          const lameSurf = (u, v) => {
+            const w = (u * 2 - 1) * spanW;
+            const drop = spaulderEdgeDrop(st.edge, w) * rd * 0.55;
+            const y = THREE.MathUtils.lerp(yTop, yBot - drop, v);
+            const flare = 1.0 + Math.pow(v, 1.6) * st.flare;
+            const ridge = Math.pow(Math.max(0, Math.cos(w)), 14.0) * 0.05;
+            const r = baseR * (flare + ridge) * (1.0 + 0.06 * Math.max(0, Math.cos(w)));
+            return new THREE.Vector3(0, y, 0)
+              .addScaledVector(Xo, Math.cos(w) * r)
+              .addScaledVector(Z, Math.sin(w) * r * 0.97);
+          };
+          const lGeo = createArmorPlatePatch(lameSurf, { uSegs: 32, vSegs: 8, thickness: thick * 0.9, refCenter: new THREE.Vector3(0, (yTop + yBot) * 0.5, 0) });
+          group.add(new THREE.Mesh(lGeo, (st.lames === 3 && k === 1) ? trimMat : mainMat));
+          const lRim = createRolledRimAlongRow(lGeo, lGeo.userData.rows - 1, rimR);
+          if (lRim) group.add(new THREE.Mesh(lRim, trimMat));
+
+          // Remaches dorados en la línea de articulación
+          [-0.55, 0.0, 0.55].forEach(fr => {
+            const w = fr * spanW;
+            const p = lameSurf(0.5 + fr * 0.5, 0.22);
+            const riv = new THREE.Mesh(new THREE.SphereGeometry(rimR * 0.95, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
+            riv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(Math.cos(w) * sgn, 0, Math.sin(w)));
+            riv.position.copy(p).addScaledVector(new THREE.Vector3(Math.cos(w) * sgn, 0, Math.sin(w)), thick * 0.6);
+            group.add(riv);
+          });
+
+          if (st.spikes) {
+            const tip = lameSurf(0.5, 0.75);
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(rimR * 1.9, rd * (0.62 - k * 0.12), 10), trimMat);
+            const dir = Xo.clone().multiplyScalar(0.80).addScaledVector(Y, 0.45).normalize();
+            spike.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+            spike.position.copy(tip).addScaledVector(dir, rd * (0.62 - k * 0.12) * 0.45);
+            group.add(spike);
+          }
+        }
+
+        // 3. GUARDA-CUELLO ALZADA (haute-piece) sobre el canto interior de la cúpula
+        if (st.haute) {
+          const hH = rd * (st.scale > 1.05 ? 1.25 : 0.95);
+          const hW = 1.05;
+          const outwardDir = Xo.clone().projectOnPlane(worldUpL).normalize();
+          const hauteSurf = (u, v) => {
+            const w = Math.PI + (u * 2 - 1) * hW;
+            const base = capSurf((w + Math.PI) / (Math.PI * 2), 0.80);
+            const crown = st.edge === 'pointed' ? Math.pow(Math.cos((u * 2 - 1) * Math.PI * 0.5), 3.0) * 0.55 : Math.cos((u * 2 - 1) * Math.PI * 0.5) * 0.30;
+            const hh = hH * (0.55 + crown) * v;
+            return base.addScaledVector(worldUpL, hh).addScaledVector(outwardDir, Math.pow(v, 2.0) * hH * 0.38);
+          };
+          const hGeo = createArmorPlatePatch(hauteSurf, { uSegs: 24, vSegs: 8, thickness: thick, refCenter: Cc.clone().addScaledVector(Xo, -rd * 3.0) });
+          group.add(new THREE.Mesh(hGeo, trimMat));
+          const hRim = createRolledRimAlongRow(hGeo, hGeo.userData.rows - 1, rimR * 0.9);
+          if (hRim) group.add(new THREE.Mesh(hRim, trimMat));
+        }
+
+        // 4. GEMA FACETADA con engaste dorado en la cara externa de la cúpula
+        if (st.gem) {
+          const gp = capSurf(0.5, 0.42);
+          const gn = gp.clone().sub(Cc).normalize();
+          const gem = new THREE.Mesh(new THREE.OctahedronGeometry(rd * 0.20, 0), gemMat);
+          gem.scale.set(0.9, 1.25, 0.55);
+          gem.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), gn);
+          gem.position.copy(gp).addScaledVector(gn, thick * 1.2);
+          group.add(gem);
+          const bezel = new THREE.Mesh(new THREE.TorusGeometry(rd * 0.22, rimR * 0.9, 8, 28), trimMat);
+          bezel.quaternion.copy(gem.quaternion);
+          bezel.scale.set(0.9, 1.2, 1.0);
+          bezel.position.copy(gp).addScaledVector(gn, thick * 0.6);
+          group.add(bezel);
+        }
+
+        group.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; if (n.geometry) n.geometry.userData = {}; } });
+        const exp = STATE.fit.explodedView || 0;
+        const wp = sPos.clone();
+        if (exp > 0.001) wp.add(new THREE.Vector3(sgn * 0.22 * exp, 0.08 * exp, 0));
+        attachOrnamentWorld(socket, group, wp, q, 'torso');
+      });
+    }
+
     function buildAllFittedArmor() {
       clearAllArmorShells();
 
@@ -7277,26 +7623,8 @@
           });
         }
 
-        // 6. EXTENSIÓN PARCIAL DEL PETO SOBRE EL HOMBRO SUPERIOR Y PALETILLA (incluso sin hombreras equipadas)
-        if (isWideClavicleWrap) {
-          ['upperarm_l', 'upperarm_r'].forEach(partName => {
-            getMeshesByAnatomy([partName]).forEach(aMesh => {
-              createFormFittedShell(aMesh, trimMat, {
-                targetPart: partName,
-                slotName: 'torso',
-                thicknessRatio: 0.026 * tBulk,
-                yMin: 0.72,
-                yMax: 1.00,
-                flareTop: 0.07,
-                vPointBottom: 0.12,
-                foldStyle: 'swallow_tail',
-                foldDepth: 0.10,
-                ridgeCenterZ: 0.14,
-                bevelRadius: 0.008
-              });
-            });
-          });
-        }
+        // 6. ESPALDARONES INTEGRADOS DEL PETO: cúpula + láminas que cubren el deltoides (todos los petos)
+        buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
       }
 
       /* === BRAZALES Y GUANTELETES ESCULPIDOS CON BISEL === */
@@ -10511,6 +10839,12 @@
       }
 
       document.getElementById('btn-download-html').addEventListener('click', downloadSelfHTML);
+      const bLight = document.getElementById('btn-download-light-glb');
+      if (bLight) bLight.addEventListener('click', () => exportLightweightGLB(false));
+      const bLightC = document.getElementById('btn-export-light-char-glb');
+      if (bLightC) bLightC.addEventListener('click', () => exportLightweightGLB(false));
+      const bLightA = document.getElementById('btn-export-light-armor-glb');
+      if (bLightA) bLightA.addEventListener('click', () => exportLightweightGLB(true));
       document.getElementById('btn-snapshot').addEventListener('click', takeSnapshot);
       document.getElementById('btn-reset-cam').addEventListener('click', () => switchCameraView('full'));
       document.getElementById('btn-undress-all').addEventListener('click', () => {
@@ -10725,10 +11059,10 @@
         const exportClips = (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0)
           ? gltfClips
           : (window.CreadorHumano ? window.CreadorHumano.bakeAllGameAnimationClips(30) : []);
-        exporter.parse(mannequinRoot, function (r) {
+        runWithCleanUserData(mannequinRoot, () => exporter.parse(mannequinRoot, function (r) {
           saveArrayBuffer(r, `Personaje_Armadura_Unificada.glb`);
           showToast(`¡Personaje + Armadura (.GLB) con ${exportClips.length} animaciones!`);
-        }, { binary: true, animations: exportClips });
+        }, { binary: true, animations: exportClips }));
         return;
       }
 
@@ -10755,6 +11089,7 @@
         });
       });
 
+      exportGroup.traverse(n => { n.userData = {}; if (n.geometry) n.geometry.userData = {}; });
       exporter.parse(exportGroup, function (r) {
         saveArrayBuffer(r, `Pieza_${slotName}_Suave.glb`);
         showToast(`¡${slotName.toUpperCase()} exportado con éxito!`);
@@ -10766,6 +11101,513 @@
           }
         });
       }, { binary: true });
+    }
+
+    /* =========================================================================
+       11b. EXPORTACIÓN GLB LIGERA
+       - Limpia userData (antes se colaban ~190 MB de metadatos internos en el .glb)
+       - Fusiona mallas por hueso + material (pocas draw calls), suelda vértices
+       - Texturas únicas reescaladas y en JPEG, animaciones a 15 fps
+       - Conserva la jerarquía de huesos para que las animaciones sigan funcionando
+       ========================================================================= */
+    function runWithCleanUserData(root, fn) {
+      const saved = [];
+      const clean = (obj) => { if (obj && obj.userData && Object.keys(obj.userData).length) { saved.push([obj, obj.userData]); obj.userData = {}; } };
+      root.traverse(n => {
+        clean(n);
+        if (n.geometry) clean(n.geometry);
+        if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(clean);
+      });
+      try { return fn(); } finally { saved.forEach(([o, u]) => { o.userData = u; }); }
+    }
+
+    function isNodeVisibleChain(n, stopAt) {
+      let p = n;
+      while (p && p !== stopAt.parent) { if (!p.visible) return false; p = p.parent; }
+      return true;
+    }
+
+    function getLightExportClips(fps) {
+      if (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0) return gltfClips;
+      if (window.CreadorHumano && mannequinRoot && mannequinRoot.userData.isCreadorNative) {
+        try { return window.CreadorHumano.bakeAllGameAnimationClips(fps); } catch (e) { console.warn(e); }
+      }
+      return [];
+    }
+
+    function buildLightweightExportScene(opts = {}) {
+      const { armorOnly = false, maxTex = 512, clips = [], simplifyRatio = 1.0, simplifyError = 0.003 } = opts;
+      const root = mannequinRoot;
+      root.updateMatrixWorld(true);
+
+      // Nodos a conservar: raíz + objetivos de las pistas de animación + todos sus ancestros
+      const targets = new Set();
+      clips.forEach(c => c.tracks.forEach(t => targets.add(t.name.split('.')[0])));
+      const keep = new Set([root]);
+      root.traverse(n => {
+        if (targets.has(n.name)) { let p = n; while (p && p !== root.parent) { keep.add(p); p = p.parent; } }
+      });
+
+      const map = new Map();
+      const outRoot = new THREE.Group();
+      outRoot.name = root.name || 'Personaje';
+      outRoot.position.copy(root.position); outRoot.quaternion.copy(root.quaternion); outRoot.scale.copy(root.scale);
+      map.set(root, outRoot);
+      const buildTree = (src, dst) => {
+        src.children.forEach(c => {
+          if (!keep.has(c)) return;
+          const g = new THREE.Group();
+          g.name = c.name; g.position.copy(c.position); g.quaternion.copy(c.quaternion); g.scale.copy(c.scale);
+          dst.add(g); map.set(c, g); buildTree(c, g);
+        });
+      };
+      buildTree(root, outRoot);
+
+      // ¿Pertenece la malla a la armadura (o al arma)?
+      const armorRoots = new Set(generatedArmorShells);
+      (slotArmorMeshes.weapon || []).forEach(o => armorRoots.add(o));
+      const isArmorMesh = (n) => {
+        let p = n;
+        while (p && p !== root) { if (armorRoots.has(p) || (p.userData && p.userData.isArmorShell)) return true; p = p.parent; }
+        return false;
+      };
+
+      // Texturas: una sola copia por imagen + repetición, reescalada y en JPEG
+      const imgIds = new Map(); let imgCounter = 0;
+      const imgId = (img) => { if (!img) return 'none'; if (!imgIds.has(img)) imgIds.set(img, ++imgCounter); return imgIds.get(img); };
+      const texCache = new Map();
+      const lightTex = (tex, isColor) => {
+        if (!tex || !tex.image) return null;
+        const key = imgId(tex.image) + '|' + tex.repeat.x.toFixed(3) + '|' + tex.repeat.y.toFixed(3);
+        if (texCache.has(key)) return texCache.get(key);
+        let out = null;
+        try {
+          const img = tex.image;
+          const w = img.width, h = img.height;
+          if (w && h) {
+            const s = Math.min(1, maxTex / Math.max(w, h));
+            const c = document.createElement('canvas');
+            c.width = Math.max(4, Math.round(w * s)); c.height = Math.max(4, Math.round(h * s));
+            const ctx = c.getContext('2d');
+            if (img.data) {
+              const tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+              const id = tmp.getContext('2d').createImageData(w, h);
+              const src = img.data; const stride = src.length / (w * h);
+              for (let i = 0, j = 0; i < w * h; i++, j += stride) {
+                id.data[i * 4] = src[j]; id.data[i * 4 + 1] = src[j + 1] ?? src[j]; id.data[i * 4 + 2] = src[j + 2] ?? src[j]; id.data[i * 4 + 3] = 255;
+              }
+              tmp.getContext('2d').putImageData(id, 0, 0);
+              ctx.drawImage(tmp, 0, 0, c.width, c.height);
+            } else {
+              ctx.drawImage(img, 0, 0, c.width, c.height);
+            }
+            out = new THREE.CanvasTexture(c);
+            out.format = THREE.RGBFormat; // => JPEG en GLTFExporter
+            out.wrapS = tex.wrapS; out.wrapT = tex.wrapT;
+            out.repeat.copy(tex.repeat); out.offset.copy(tex.offset);
+            out.flipY = tex.flipY;
+            if (isColor) out.encoding = tex.encoding;
+          }
+        } catch (e) { console.warn('Textura omitida en exportación ligera', e); out = null; }
+        texCache.set(key, out);
+        return out;
+      };
+
+      // Materiales deduplicados
+      const matCache = new Map();
+      const hairColor = () => {
+        try {
+          const u = hairUniforms || {};
+          const a = (u.uRootColor || u.uColorRoot || u.uBaseColor || {}).value;
+          const b = (u.uTipColor || u.uColorTip || {}).value;
+          if (a && a.isColor && b && b.isColor) return a.clone().lerp(b, 0.5);
+          if (a && a.isColor) return a.clone();
+        } catch (e) { }
+        return new THREE.Color(0x3b2a1a);
+      };
+      // Cabello: se hornea el degradado raíz->punta y la máscara de fibras en un PNG con alfa (modo MASK)
+      const hairTexCache = new Map();
+      const bakeHairTexture = (m) => {
+        const u = m.uniforms || {};
+        const am = u.uAlphaMap && u.uAlphaMap.value;
+        if (!am || !am.image || !(u.uUseAlpha && u.uUseAlpha.value > 0.5)) return null;
+        const root = (u.uColorRoot && u.uColorRoot.value) || new THREE.Color(0x180d07);
+        const tip = (u.uColorTip && u.uColorTip.value) || new THREE.Color(0x6b3e23);
+        const key = imgId(am.image) + root.getHexString() + tip.getHexString();
+        if (hairTexCache.has(key)) return hairTexCache.get(key);
+        let out = null;
+        try {
+          const W = 256, H = 512;
+          const c = document.createElement('canvas'); c.width = W; c.height = H;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(am.image, 0, 0, W, H);
+          const id = ctx.getImageData(0, 0, W, H);
+          // La app renderiza en espacio lineal sin gamma: el valor mostrado = valor del color, así que se guarda tal cual
+          const toS = (x) => Math.round(255 * Math.min(1, Math.max(0, x)));
+          for (let y = 0; y < H; y++) {
+            // Fila 0 del lienzo = v=1 (flipY), igual que en el shader original
+            const v = am.flipY !== false ? 1 - y / (H - 1) : y / (H - 1);
+            const t = Math.pow(v, 0.95);
+            const ao = (THREE.MathUtils.smoothstep(v, 0.0, 0.22) * 0.68 + 0.32);
+            for (let x = 0; x < W; x++) {
+              const i = (y * W + x) * 4;
+              const lum = (0.72 + 0.38 * id.data[i] / 255) * ao;
+              id.data[i] = toS((root.r + (tip.r - root.r) * t) * lum);
+              id.data[i + 1] = toS((root.g + (tip.g - root.g) * t) * lum);
+              id.data[i + 2] = toS((root.b + (tip.b - root.b) * t) * lum);
+            }
+          }
+          ctx.putImageData(id, 0, 0);
+          out = new THREE.CanvasTexture(c);
+          out.flipY = am.flipY; out.wrapS = THREE.ClampToEdgeWrapping; out.wrapT = THREE.ClampToEdgeWrapping;
+          out.encoding = THREE.sRGBEncoding;
+        } catch (e) { console.warn('No se pudo hornear el cabello', e); }
+        hairTexCache.set(key, out);
+        return out;
+      };
+      const lightMat = (m) => {
+        if (!m) return null;
+        if (m.visible === false) return null;
+        if (m.isShaderMaterial) {
+          const u = m.uniforms || {};
+          const hTex = bakeHairTexture(m);
+          const root = (u.uColorRoot && u.uColorRoot.value) || hairColor();
+          const tip = (u.uColorTip && u.uColorTip.value) || root;
+          const key = 'hair|' + (hTex ? hTex.uuid : root.getHexString() + tip.getHexString());
+          if (matCache.has(key)) return matCache.get(key);
+          const hm = new THREE.MeshStandardMaterial({
+            name: 'Cabello_' + matCache.size,
+            color: hTex ? 0xffffff : root.clone().lerp(tip, 0.5).convertSRGBToLinear(),
+            map: hTex, roughness: 0.55, metalness: 0.0, side: THREE.DoubleSide,
+            alphaTest: hTex ? Math.max(0.2, (u.uAlphaCutoff && u.uAlphaCutoff.value) || 0.2) : 0
+          });
+          matCache.set(key, hm);
+          return hm;
+        }
+        const isStd = m.isMeshStandardMaterial;
+        const color = m.color ? m.color : (m.isShaderMaterial ? hairColor() : new THREE.Color(0x888888));
+        const metal = isStd ? m.metalness : 0.0;
+        const rough = isStd ? m.roughness : 0.7;
+        const em = m.emissive ? m.emissive.getHexString() + ':' + (m.emissiveIntensity || 1).toFixed(2) : '0';
+        const key = [m.isShaderMaterial ? 'hair' : 'std', color.getHexString(), metal.toFixed(2), rough.toFixed(2), em,
+          m.map ? imgId(m.map.image) + ':' + m.map.repeat.x.toFixed(2) : '-', m.normalMap ? imgId(m.normalMap.image) + ':' + m.normalMap.repeat.x.toFixed(2) : '-',
+          m.transparent ? (m.opacity || 1).toFixed(2) : '1', m.side, m.vertexColors ? 'vc' : ''].join('|');
+        if (matCache.has(key)) return matCache.get(key);
+        const nm = new THREE.MeshStandardMaterial({
+          name: (m.name || (m.isShaderMaterial ? 'Cabello' : 'Material')) + '_' + matCache.size,
+          // El visor de la app no aplica gamma sRGB: convertir para que en Blender/Unity/three se vea igual
+          color: color.clone().convertSRGBToLinear(), metalness: metal, roughness: rough,
+          map: m.map ? lightTex(m.map, true) : null,
+          normalMap: m.normalMap ? lightTex(m.normalMap, false) : null,
+          side: m.side,
+          vertexColors: !!m.vertexColors,
+          transparent: !!m.transparent && (m.opacity ?? 1) < 0.999,
+          opacity: m.opacity ?? 1
+        });
+        if (m.normalMap && m.normalScale) nm.normalScale.copy(m.normalScale);
+        if (m.emissive) { nm.emissive.copy(m.emissive).convertSRGBToLinear(); nm.emissiveIntensity = Math.min(1, m.emissiveIntensity ?? 1); }
+        matCache.set(key, nm);
+        return nm;
+      };
+
+      // Acumuladores de geometría por (nodo conservado, material)
+      const buckets = new Map();
+      const inv = new THREE.Matrix4(), rel = new THREE.Matrix4(), nmat = new THREE.Matrix3();
+      const v = new THREE.Vector3(), nv = new THREE.Vector3();
+      const s2l = (c) => (c < 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+      const addGeometry = (node, mat, geo, relM, start, count) => {
+        const bk = node.uuid + '|' + mat.uuid;
+        if (!buckets.has(bk)) buckets.set(bk, { node, mat, pos: [], nor: [], uv: [], col: [], idx: [] });
+        const b = buckets.get(bk);
+        const pos = geo.attributes.position; const nor = geo.attributes.normal; const uv = geo.attributes.uv;
+        const colA = mat.vertexColors ? geo.attributes.color : null;
+        nmat.getNormalMatrix(relM);
+        const flip = relM.determinant() < 0;
+        const index = geo.index;
+        const triCount = Math.floor(count / 3);
+        const remap = new Map();
+        const vert = (i) => {
+          if (remap.has(i)) return remap.get(i);
+          v.fromBufferAttribute(pos, i).applyMatrix4(relM);
+          if (nor) nv.fromBufferAttribute(nor, i).applyMatrix3(nmat).normalize(); else nv.set(0, 1, 0);
+          const id = b.pos.length / 3;
+          b.pos.push(v.x, v.y, v.z); b.nor.push(nv.x, nv.y, nv.z);
+          if (uv) b.uv.push(uv.getX(i), uv.getY(i)); else b.uv.push(0, 0);
+          if (mat.vertexColors) { if (colA) b.col.push(s2l(colA.getX(i)), s2l(colA.getY(i)), s2l(colA.getZ(i))); else b.col.push(1, 1, 1); }
+          remap.set(i, id);
+          return id;
+        };
+        for (let t = 0; t < triCount; t++) {
+          const k = start + t * 3;
+          const a = index ? index.getX(k) : k, bb = index ? index.getX(k + 1) : k + 1, c = index ? index.getX(k + 2) : k + 2;
+          const ia = vert(a), ib = vert(bb), ic = vert(c);
+          if (flip) b.idx.push(ia, ic, ib); else b.idx.push(ia, ib, ic);
+        }
+      };
+
+      root.traverse(n => {
+        if (!n.isMesh || !n.geometry || !n.geometry.attributes.position) return;
+        if (!isNodeVisibleChain(n, root)) return;
+        if (armorOnly && !isArmorMesh(n)) return;
+        let a = n.parent;
+        while (a && !keep.has(a)) a = a.parent;
+        if (!a) a = root;
+        const dst = map.get(a);
+        inv.copy(a.matrixWorld).invert();
+        rel.multiplyMatrices(inv, n.matrixWorld);
+        let geo = n.geometry;
+        if (!geo.attributes.normal) { geo = geo.clone(); geo.computeVertexNormals(); }
+        const total = geo.index ? geo.index.count : geo.attributes.position.count;
+        const mats = Array.isArray(n.material) ? n.material : [n.material];
+        const instCount = n.isInstancedMesh ? Math.min(n.count, 4000) : 1;
+        const im = new THREE.Matrix4(), relI = new THREE.Matrix4();
+        for (let ii = 0; ii < instCount; ii++) {
+          if (n.isInstancedMesh) { n.getMatrixAt(ii, im); relI.multiplyMatrices(rel, im); } else relI.copy(rel);
+          if (Array.isArray(n.material) && geo.groups.length) {
+            geo.groups.forEach(gr => {
+              const lm = lightMat(mats[gr.materialIndex]);
+              if (lm) addGeometry(dst, lm, geo, relI, gr.start, Math.min(gr.count, total - gr.start));
+            });
+          } else {
+            const lm = lightMat(mats[0]);
+            if (lm) addGeometry(dst, lm, geo, relI, 0, total);
+          }
+        }
+      });
+
+      // Soldar vértices duplicados (misma posición/normal/uv) y crear las mallas finales
+      let triTotal = 0;
+      buckets.forEach((b, key) => {
+        if (b.idx.length === 0) return;
+        const weld = new Map(); const P = [], N = [], U = [], C = [], remap = new Int32Array(b.pos.length / 3);
+        const hasC = b.col.length > 0;
+        for (let i = 0; i < b.pos.length / 3; i++) {
+          const k = Math.round(b.pos[i * 3] * 1e4) + ',' + Math.round(b.pos[i * 3 + 1] * 1e4) + ',' + Math.round(b.pos[i * 3 + 2] * 1e4) + ',' +
+            Math.round(b.nor[i * 3] * 50) + ',' + Math.round(b.nor[i * 3 + 1] * 50) + ',' + Math.round(b.nor[i * 3 + 2] * 50) + ',' +
+            Math.round(b.uv[i * 2] * 512) + ',' + Math.round(b.uv[i * 2 + 1] * 512) +
+            (hasC ? ',' + Math.round(b.col[i * 3] * 255) + ',' + Math.round(b.col[i * 3 + 1] * 255) + ',' + Math.round(b.col[i * 3 + 2] * 255) : '');
+          let id = weld.get(k);
+          if (id === undefined) {
+            id = P.length / 3; weld.set(k, id);
+            P.push(b.pos[i * 3], b.pos[i * 3 + 1], b.pos[i * 3 + 2]);
+            N.push(b.nor[i * 3], b.nor[i * 3 + 1], b.nor[i * 3 + 2]);
+            U.push(b.uv[i * 2], b.uv[i * 2 + 1]);
+            if (hasC) C.push(b.col[i * 3], b.col[i * 3 + 1], b.col[i * 3 + 2]);
+          }
+          remap[i] = id;
+        }
+        const idx = [];
+        for (let i = 0; i < b.idx.length; i += 3) {
+          const a = remap[b.idx[i]], c1 = remap[b.idx[i + 1]], c2 = remap[b.idx[i + 2]];
+          if (a !== c1 && c1 !== c2 && a !== c2) idx.push(a, c1, c2);
+        }
+        let finalIdx = idx, fP = P, fN = N, fU = U, fC = C;
+        // Simplificación con meshoptimizer (bordes y costuras UV bloqueados para no deformar las placas)
+        const MS = window.MeshoptSimplifier;
+        if (simplifyRatio < 0.999 && MS && MS.supported !== false && idx.length > 600) {
+          try {
+            const target = Math.max(300, Math.floor(idx.length * simplifyRatio / 3) * 3);
+            const res = MS.simplify(new Uint32Array(idx), new Float32Array(P), 3, target, simplifyError, ['LockBorder']);
+            const sIdx = res[0];
+            if (sIdx && sIdx.length >= 3) {
+              const used = new Int32Array(P.length / 3).fill(-1);
+              const nP = [], nN = [], nU = [], nC = [], nI = new Array(sIdx.length);
+              for (let i = 0; i < sIdx.length; i++) {
+                const o = sIdx[i];
+                if (used[o] < 0) {
+                  used[o] = nP.length / 3;
+                  nP.push(P[o * 3], P[o * 3 + 1], P[o * 3 + 2]); nN.push(N[o * 3], N[o * 3 + 1], N[o * 3 + 2]); nU.push(U[o * 2], U[o * 2 + 1]);
+                  if (hasC) nC.push(C[o * 3], C[o * 3 + 1], C[o * 3 + 2]);
+                }
+                nI[i] = used[o];
+              }
+              finalIdx = nI; fP = nP; fN = nN; fU = nU; fC = nC;
+            }
+          } catch (e) { console.warn('Simplificación omitida', e); }
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(fP, 3));
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(fN, 3));
+        if (b.mat.map || b.mat.normalMap) g.setAttribute('uv', new THREE.Float32BufferAttribute(fU, 2));
+        if (hasC) g.setAttribute('color', new THREE.Float32BufferAttribute(fC, 3));
+        g.setIndex(fP.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(finalIdx, 1) : new THREE.Uint16BufferAttribute(finalIdx, 1));
+        triTotal += finalIdx.length / 3;
+        const mesh = new THREE.Mesh(g, b.mat);
+        mesh.name = (b.node.name || 'Nodo') + '_' + (b.mat.name || 'mat');
+        b.node.add(mesh);
+      });
+      return { scene: outRoot, triangles: triTotal, materials: matCache.size, textures: texCache.size };
+    }
+
+    // Post-proceso KHR_mesh_quantization: POSITION -> int16 (escala/traslación en el nodo), NORMAL -> int8, UV -> uint16.
+    // Reduce ~45 % los datos de vértices; compatible con three.js, Blender, Babylon, Godot y Unity (glTFast).
+    function quantizeGLBBuffer(glb) {
+      try {
+        const dv = new DataView(glb);
+        if (dv.getUint32(0, true) !== 0x46546C67) return glb;
+        const jsonLen = dv.getUint32(12, true);
+        const json = JSON.parse(new TextDecoder().decode(new Uint8Array(glb, 20, jsonLen)));
+        const binHeader = 20 + jsonLen;
+        const binLen = dv.getUint32(binHeader, true);
+        const bin = new Uint8Array(glb, binHeader + 8, binLen);
+        const views = json.bufferViews.map(bv => bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength));
+        const viewStride = json.bufferViews.map(bv => bv.byteStride || 0);
+        const viewUsers = new Map();
+        json.accessors.forEach((a, i) => { if (a.bufferView !== undefined) viewUsers.set(a.bufferView, (viewUsers.get(a.bufferView) || 0) + 1); });
+        const readFloats = (acc) => {
+          const comps = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[acc.type];
+          const src = views[acc.bufferView];
+          const stride = viewStride[acc.bufferView] || comps * 4;
+          const out = new Float32Array(acc.count * comps);
+          const ddv = new DataView(src.buffer, src.byteOffset + (acc.byteOffset || 0));
+          for (let i = 0; i < acc.count; i++) for (let c = 0; c < comps; c++) out[i * comps + c] = ddv.getFloat32(i * stride + c * 4, true);
+          return out;
+        };
+        const done = new Set();
+        let changed = false;
+        json.meshes.forEach((mesh, mi) => {
+          const nodes = json.nodes.filter(n => n.mesh === mi);
+          if (nodes.length !== 1) return;
+          const node = nodes[0];
+          const attrsList = mesh.primitives.map(p => p.attributes);
+          // Caja común de todas las primitivas de la malla (una sola transformación por nodo)
+          let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+          for (const at of attrsList) {
+            const a = json.accessors[at.POSITION];
+            if (!a || a.componentType !== 5126 || !a.min || viewUsers.get(a.bufferView) !== 1) return;
+            for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], a.min[c]); mx[c] = Math.max(mx[c], a.max[c]); }
+          }
+          const center = [0, 1, 2].map(c => (mn[c] + mx[c]) * 0.5);
+          const half = Math.max(1e-6, ...[0, 1, 2].map(c => (mx[c] - mn[c]) * 0.5));
+          const scale = half / 32767;
+          for (const at of attrsList) {
+            // POSITION (SHORT sin normalizar, stride 8)
+            const pi = at.POSITION;
+            if (!done.has(pi)) {
+              const a = json.accessors[pi];
+              const f = readFloats(a);
+              const buf = new ArrayBuffer(a.count * 8); const o = new DataView(buf);
+              const qmin = [32767, 32767, 32767], qmax = [-32767, -32767, -32767];
+              for (let i = 0; i < a.count; i++) for (let c = 0; c < 3; c++) {
+                const q = Math.max(-32767, Math.min(32767, Math.round((f[i * 3 + c] - center[c]) / scale)));
+                o.setInt16(i * 8 + c * 2, q, true);
+                if (q < qmin[c]) qmin[c] = q; if (q > qmax[c]) qmax[c] = q;
+              }
+              views[a.bufferView] = new Uint8Array(buf); viewStride[a.bufferView] = 8;
+              a.componentType = 5122; a.normalized = false; a.min = qmin; a.max = qmax; delete a.byteOffset;
+              done.add(pi);
+            }
+            // NORMAL (BYTE normalizado, stride 4)
+            const ni = at.NORMAL;
+            if (ni !== undefined && !done.has(ni)) {
+              const a = json.accessors[ni];
+              if (a.componentType === 5126 && viewUsers.get(a.bufferView) === 1) {
+                const f = readFloats(a);
+                const buf = new ArrayBuffer(a.count * 4); const o = new DataView(buf);
+                for (let i = 0; i < a.count; i++) for (let c = 0; c < 3; c++) o.setInt8(i * 4 + c, Math.max(-127, Math.min(127, Math.round(f[i * 3 + c] * 127))));
+                views[a.bufferView] = new Uint8Array(buf); viewStride[a.bufferView] = 4;
+                a.componentType = 5120; a.normalized = true; delete a.min; delete a.max; delete a.byteOffset;
+              }
+              done.add(ni);
+            }
+            // TEXCOORD_0 (UNSIGNED_SHORT normalizado si está en [0,1])
+            const ui = at.TEXCOORD_0;
+            if (ui !== undefined && !done.has(ui)) {
+              const a = json.accessors[ui];
+              if (a.componentType === 5126 && viewUsers.get(a.bufferView) === 1) {
+                const f = readFloats(a);
+                let ok = true; for (let i = 0; i < f.length; i++) if (f[i] < -1e-4 || f[i] > 1.0001) { ok = false; break; }
+                if (ok) {
+                  const buf = new ArrayBuffer(a.count * 4); const o = new DataView(buf);
+                  for (let i = 0; i < f.length; i++) o.setUint16(i * 2, Math.round(Math.max(0, Math.min(1, f[i])) * 65535), true);
+                  views[a.bufferView] = new Uint8Array(buf); viewStride[a.bufferView] = 0;
+                  a.componentType = 5123; a.normalized = true; delete a.min; delete a.max; delete a.byteOffset;
+                }
+              }
+              done.add(ui);
+            }
+          }
+          // Transformación de decuantización en el nodo de la malla (escala uniforme: no altera las normales)
+          const hasTRS = node.matrix || node.rotation || (node.scale && node.scale.some(v => Math.abs(v - 1) > 1e-6)) || (node.translation && node.translation.some(v => Math.abs(v) > 1e-9));
+          if (hasTRS) {
+            const child = { name: (node.name || 'mesh') + '_q', mesh: mi, translation: center, scale: [scale, scale, scale] };
+            delete node.mesh;
+            json.nodes.push(child);
+            node.children = (node.children || []).concat([json.nodes.length - 1]);
+          } else {
+            node.translation = center; node.scale = [scale, scale, scale];
+          }
+          changed = true;
+        });
+        if (!changed) return glb;
+        // Reconstruir el BIN con alineación a 4 bytes
+        let total = 0;
+        const offs = views.map(v => { const o = total; total += Math.ceil(v.byteLength / 4) * 4; return o; });
+        const newBin = new Uint8Array(total);
+        views.forEach((v, i) => {
+          newBin.set(v, offs[i]);
+          const bv = json.bufferViews[i];
+          bv.byteOffset = offs[i]; bv.byteLength = v.byteLength;
+          if (viewStride[i]) bv.byteStride = viewStride[i]; else delete bv.byteStride;
+        });
+        json.buffers[0].byteLength = total;
+        json.extensionsUsed = Array.from(new Set([...(json.extensionsUsed || []), 'KHR_mesh_quantization']));
+        json.extensionsRequired = Array.from(new Set([...(json.extensionsRequired || []), 'KHR_mesh_quantization']));
+        let jsonStr = JSON.stringify(json);
+        while (jsonStr.length % 4) jsonStr += ' ';
+        const jsonBytes = new TextEncoder().encode(jsonStr);
+        const out = new ArrayBuffer(12 + 8 + jsonBytes.length + 8 + total);
+        const od = new DataView(out);
+        od.setUint32(0, 0x46546C67, true); od.setUint32(4, 2, true); od.setUint32(8, out.byteLength, true);
+        od.setUint32(12, jsonBytes.length, true); od.setUint32(16, 0x4E4F534A, true);
+        new Uint8Array(out, 20, jsonBytes.length).set(jsonBytes);
+        const bo = 20 + jsonBytes.length;
+        od.setUint32(bo, total, true); od.setUint32(bo + 4, 0x004E4942, true);
+        new Uint8Array(out, bo + 8, total).set(newBin);
+        return out;
+      } catch (e) {
+        console.warn('Cuantización omitida', e);
+        return glb;
+      }
+    }
+
+    let meshoptLoadPromise = null;
+    function loadMeshoptSimplifier() {
+      if (window.MeshoptSimplifier) return window.MeshoptSimplifier.ready.then(() => window.MeshoptSimplifier).catch(() => null);
+      if (!meshoptLoadPromise) {
+        meshoptLoadPromise = new Promise((resolve) => {
+          const sc = document.createElement('script');
+          sc.src = 'https://cdn.jsdelivr.net/npm/meshoptimizer@0.20.0/meshopt_simplifier.js';
+          sc.onload = () => { if (window.MeshoptSimplifier) window.MeshoptSimplifier.ready.then(() => resolve(window.MeshoptSimplifier)).catch(() => resolve(null)); else resolve(null); };
+          sc.onerror = () => resolve(null);
+          document.head.appendChild(sc);
+          setTimeout(() => resolve(window.MeshoptSimplifier || null), 8000);
+        });
+      }
+      return meshoptLoadPromise;
+    }
+
+    function exportLightweightGLB(armorOnly = false) {
+      if (typeof THREE.GLTFExporter === 'undefined' || !mannequinRoot) { showToast("Exportador no disponible"); return; }
+      showToast("Preparando GLB ligero…");
+      loadMeshoptSimplifier().then((MS) => {
+        try {
+          if (typeof restoreBindPose === 'function') restoreBindPose();
+          const clips = getLightExportClips(15);
+          const built = buildLightweightExportScene({ armorOnly, maxTex: 512, clips, simplifyRatio: MS ? 0.5 : 1.0, simplifyError: 0.0025 });
+          const exporter = new THREE.GLTFExporter();
+          exporter.parse(built.scene, (rawGlb) => {
+            const glb = quantizeGLBBuffer(rawGlb);
+            const mb = (glb.byteLength / (1024 * 1024)).toFixed(2);
+            saveArrayBuffer(glb, armorOnly ? `Armadura_Ligera_${Date.now()}.glb` : `Personaje_Armadura_Ligero_${Date.now()}.glb`);
+            showToast(`GLB ligero: ${mb} MB · ${Math.round(built.triangles / 1000)}k triángulos · ${clips.length} animaciones`);
+            built.scene.traverse(n => { if (n.isMesh) n.geometry.dispose(); });
+          }, { binary: true, animations: clips, maxTextureSize: 512 });
+        } catch (err) {
+          console.error(err);
+          showToast("Error al exportar GLB ligero");
+        }
+      });
     }
 
     function saveArrayBuffer(buffer, filename) {
@@ -11016,9 +11858,11 @@ function buildSculptedTorsoGeometry(torsoCfg) {
     [0.18, 0.168 * hw],  // Caderas / cresta ilíaca
     [0.38, 0.138 * ww],  // Cintura estrecha (umbilical)
     [0.56, 0.162 * ((ww + cw) * 0.5)], // Costillas inferiores / serratos
-    [0.76, 0.188 * cw],  // Pecho / dorsal ancho
-    [0.88, 0.172 * cw],  // Línea clavicular / hombros
-    [0.96, 0.082 * torsoCfg.neckWidth], // Pendiente de trapecios hacia el cuello
+    [0.74, 0.187 * cw],  // Pecho / dorsal ancho
+    [0.84, 0.183 * cw],  // Línea axilar / inserción del deltoides
+    [0.90, 0.158 * cw],  // Acromion: inicio de la pendiente del trapecio
+    [0.945, 0.118 * ((cw + torsoCfg.neckWidth) * 0.5)], // Trapecio inclinado (sin meseta plana)
+    [0.978, 0.080 * torsoCfg.neckWidth], // Base del cuello
     [1.0, 0.002],
   ];
 
@@ -11029,7 +11873,8 @@ function buildSculptedTorsoGeometry(torsoCfg) {
     // El torso humano es más ancho en X que profundo en Z, con transición suave
     scaleX: (t) => {
       const shoulderFlare = THREE.MathUtils.smoothstep(t, 0.36, 0.84) * 0.12;
-      const trapSlope = t > 0.88 ? THREE.MathUtils.smoothstep(t, 0.88, 1.0) * 0.08 : 0;
+      // El trapecio estrecha más en X que en Z para formar la pendiente hombro -> cuello
+      const trapSlope = THREE.MathUtils.smoothstep(t, 0.86, 1.0) * 0.10;
       return 1.12 + shoulderFlare - trapSlope;
     },
     scaleZ: (t) => {
@@ -11057,14 +11902,20 @@ function buildSculptedTorsoGeometry(torsoCfg) {
         const midline = Math.exp(-Math.pow(absX / 0.026, 2)) * midlineEnv;
         dz -= midline * (0.005 + mDef * 0.010);
 
-        // Placas pectorales anchas e integradas con transición C2 continua (sin escalón brusco en t=0.58)
-        if (t >= 0.50 && t <= 0.88) {
-          const pecU = (t - 0.50) / 0.38;
-          const pecVert = 0.5 - 0.5 * Math.cos(pecU * Math.PI * 2);
+        // Pectorales heroicos: borde inferior definido, masa alta y fundido suave hacia la clavícula
+        if (t >= 0.56 && t <= 0.92) {
+          const pecLow = THREE.MathUtils.smoothstep(t, 0.57, 0.67);
+          const pecHigh = 1.0 - THREE.MathUtils.smoothstep(t, 0.74, 0.91);
+          const pecVert = pecLow * pecHigh;
           const pecLat =
-            Math.exp(-Math.pow((absX - 0.085 * cw) / (0.075 * cw), 2)) *
-            THREE.MathUtils.smoothstep(absX, 0.012, 0.045 * cw);
-          dz += pecVert * pecLat * (0.007 + mDef * 0.015) * cd;
+            Math.exp(-Math.pow((absX - 0.088 * cw) / (0.080 * cw), 2)) *
+            THREE.MathUtils.smoothstep(absX, 0.010, 0.040 * cw);
+          dz += pecVert * pecLat * (0.010 + mDef * 0.020) * cd;
+        }
+        // Clavículas / parte alta del pecho ligeramente adelantadas (soporte del gorjal)
+        if (t > 0.84 && t < 0.98) {
+          const clavEnv = Math.sin(((t - 0.84) / 0.14) * Math.PI);
+          dz += clavEnv * Math.exp(-Math.pow((absX - 0.07 * cw) / (0.06 * cw), 2)) * 0.004;
         }
 
         // Recto abdominal continuo con transición suave
@@ -15539,9 +16390,9 @@ function resetCharacter() {
         const exportClips = (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0)
           ? gltfClips
           : (window.CreadorHumano ? window.CreadorHumano.bakeAllGameAnimationClips(30) : []);
-        exporter.parse(mannequinRoot, function (glbBuffer) {
+        runWithCleanUserData(mannequinRoot, () => exporter.parse(mannequinRoot, function (glbBuffer) {
           saveArrayBuffer(glbBuffer, `CreadorHumano_${archetype}_${Date.now()}.glb`);
-        }, { binary: true, animations: exportClips });
+        }, { binary: true, animations: exportClips }));
       }
 
       cachedCharBox = null;
