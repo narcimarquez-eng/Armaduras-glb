@@ -4092,6 +4092,103 @@
        ========================================================================= */
 
     /* === 1. CINTURÓN ANATÓMICO + TABARDO HERÁLDICO COLGANTE DE PALADÍN === */
+    /* =========================================================================
+       6a. HEBILLA ORNAMENTADA DEL CINTURÓN (L2)
+       Placa con forma (escudo, medallón, rectángulo, rombo) abombada, moldura dorada,
+       gema central con diamantes y adornos según el modelo (rayos, alas, púas, tachones).
+       ========================================================================= */
+    const BELT_BUCKLE_DESIGNS = {
+      1: { shape: 'shield',  extra: 'sun',    gem: 'topaz' },
+      2: { shape: 'round',   extra: 'laurel', gem: 'sapphire' },
+      3: { shape: 'rect',    extra: 'studs',  gem: null },
+      4: { shape: 'shield',  extra: 'spikes', gem: 'amethyst' },
+      5: { shape: 'rect',    extra: 'fleur',  gem: 'sapphire' },
+      6: { shape: 'diamond', extra: 'wings',  gem: 'ruby' },
+      7: { shape: 'round',   extra: 'studs',  gem: 'ruby' }
+    };
+
+    function addBeltBuckle(group, center, size, beltType, mats) {
+      const d = BELT_BUCKLE_DESIGNS[beltType] || BELT_BUCKLE_DESIGNS[1];
+      const { mainMat, trimMat, glowMat } = mats;
+      let gemMat = glowMat, dmMat = glowMat;
+      try { if (d.gem) gemMat = getFacetedGemMaterial(d.gem, 'belt'); dmMat = getFacetedGemMaterial('diamond', 'belt'); } catch (e) { }
+      const W = size * 1.7, H = size * 1.55;
+      const widthAt = (v) => {
+        if (d.shape === 'shield') return v < 0.45 ? Math.pow(Math.max(0, v / 0.45), 0.65) : 1 - 0.08 * Math.pow((v - 0.45) / 0.55, 2);
+        if (d.shape === 'round') return Math.sqrt(Math.max(0, 1 - Math.pow(v * 2 - 1, 2)));
+        if (d.shape === 'diamond') return Math.max(0.02, 1 - Math.abs(v * 2 - 1));
+        return 1;
+      };
+      const surf = (u, v) => {
+        const s = u * 2 - 1;
+        const w = widthAt(v) * W * 0.5;
+        const bulge = (1 - s * s) * Math.sin(Math.max(0.0001, v) * Math.PI) * size * 0.18;
+        return new THREE.Vector3(center.x + s * w, center.y + (v - 0.5) * H, center.z + bulge);
+      };
+      const g = createArmorPlatePatch(surf, { uSegs: 20, vSegs: 20, thickness: size * 0.10, refCenter: center.clone().add(new THREE.Vector3(0, 0, -size)) });
+      group.add(new THREE.Mesh(g, trimMat));
+      // Moldura del contorno
+      const outline = [];
+      for (let i = 0; i <= 16; i++) outline.push(surf(1, i / 16));
+      for (let i = 16; i >= 0; i--) outline.push(surf(i / 16, 1));
+      for (let i = 16; i >= 0; i--) outline.push(surf(0, i / 16));
+      if (d.shape === 'rect') for (let i = 0; i <= 16; i++) outline.push(surf(i / 16, 0));
+      const ol = outline.map(p => p.clone().add(new THREE.Vector3(0, 0, size * 0.06)));
+      group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ol, true, 'centripetal'), 80, size * 0.07, 6, true), mainMat));
+      // Panel interior en plata
+      const inner = (u, v) => surf(0.5 + (u - 0.5) * 0.72, 0.5 + (v - 0.5) * 0.72).add(new THREE.Vector3(0, 0, size * 0.05));
+      group.add(new THREE.Mesh(createArmorPlatePatch(inner, { uSegs: 14, vSegs: 14, thickness: size * 0.05, refCenter: center.clone().add(new THREE.Vector3(0, 0, -size)) }), mainMat));
+      const front = surf(0.5, 0.52).add(new THREE.Vector3(0, 0, size * 0.10));
+      if (d.gem) addFacetedJewel(group, front, new THREE.Vector3(0, 0, 1), size * 0.32, gemMat, trimMat, dmMat, 8);
+
+      if (d.extra === 'sun') {
+        for (let r = 0; r < 12; r++) {
+          const a = (r / 12) * Math.PI * 2;
+          const ray = new THREE.Mesh(new THREE.ConeGeometry(size * 0.06, size * (r % 2 ? 0.30 : 0.48), 4), trimMat);
+          const dir = new THREE.Vector3(Math.cos(a), Math.sin(a), 0);
+          ray.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+          ray.position.copy(front).addScaledVector(dir, size * (0.58 + (r % 2 ? 0.12 : 0.20)));
+          group.add(ray);
+        }
+      } else if (d.extra === 'wings' || d.extra === 'laurel') {
+        [-1, 1].forEach(sd => {
+          for (let f = 0; f < 3; f++) {
+            const blade = new THREE.Mesh(createBeveledCuttingPlate({
+              width: size * (d.extra === 'laurel' ? 0.30 : 0.36), length: size * (1.45 - f * 0.25), thickness: size * 0.05,
+              bevel: 0.34, ridge: size * 0.04, curveArch: 0.14, sweepX: sd * 0.18, sharpness: d.extra === 'laurel' ? 1.2 : 1.8
+            }), f === 1 ? mainMat : trimMat);
+            blade.position.set(center.x + sd * W * 0.42, center.y + (f - 1) * size * 0.30, center.z + size * 0.02);
+            blade.rotation.set(0, 0, -sd * (1.15 + f * 0.32));
+            group.add(blade);
+          }
+        });
+      } else if (d.extra === 'spikes') {
+        [[0, 1], [-0.7, 0.75], [0.7, 0.75]].forEach(([sx, sy]) => {
+          const sp = new THREE.Mesh(new THREE.ConeGeometry(size * 0.08, size * 0.45, 6), trimMat);
+          sp.position.set(center.x + sx * W * 0.45, center.y + sy * H * 0.55, center.z + size * 0.05);
+          sp.rotation.z = -sx * 0.6;
+          group.add(sp);
+        });
+      } else if (d.extra === 'fleur') {
+        [-1, 0, 1].forEach(k => {
+          const leaf = new THREE.Mesh(new THREE.OctahedronGeometry(size * 0.16, 0), trimMat);
+          leaf.scale.set(0.5, 1.4, 0.4);
+          leaf.position.copy(front).add(new THREE.Vector3(k * size * 0.22, size * (0.40 - Math.abs(k) * 0.12), 0.004));
+          leaf.rotation.z = -k * 0.5;
+          group.add(leaf);
+        });
+      }
+      if (d.extra === 'studs' || d.shape === 'rect') {
+        for (let i = 0; i < 10; i++) {
+          const t = i / 10;
+          const u = t < 0.5 ? 0.08 : 0.92, v = 0.15 + (t < 0.5 ? t : t - 0.5) * 1.4;
+          const st = new THREE.Mesh(new THREE.SphereGeometry(size * 0.06, 8, 6), trimMat);
+          st.position.copy(surf(u, Math.min(0.9, v))).add(new THREE.Vector3(0, 0, size * 0.08));
+          group.add(st);
+        }
+      }
+    }
+
     function buildArticulatedBelt() {
       const beltType = STATE.equipment.belt;
       if (beltType === 0) return;
@@ -4109,11 +4206,21 @@
 
       const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
       let shellsCreated = 0;
+      // Todas las bandas del cinturón llevan ribete dorado en los cantos
+      const beltShells = [];
+      // Con peto equipado el cinturón se ciñe POR FUERA del borde inferior del peto
+      const overPeto = STATE.equipment.torso > 0 ? 0.075 * bScale : 0.0;
+      const fitBelt = (mesh, mat, opts) => {
+        const o2 = Object.assign({}, opts, { thicknessRatio: (opts.thicknessRatio || 0.09) + overPeto });
+        const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * bScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, o2));
+        if (sh) beltShells.push(sh);
+        return sh;
+      };
 
       pelvisMeshes.forEach(pMesh => {
         if (beltType === 1) {
           // Faldar de placas con punta en V frontal estilo Paladín Solar
-          const s1 = createFormFittedShell(pMesh, mainMat, {
+          const s1 = fitBelt(pMesh, mainMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.088 * bScale,
             yMin: 0.48, yMax: 0.96,
@@ -4122,14 +4229,14 @@
             ridgeCenterZ: 0.09,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.104 * bScale,
             yMin: 0.80, yMax: 0.96,
             vPointBottom: 0.10,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.102 * bScale,
             yMin: 0.46, yMax: 0.62,
@@ -4140,7 +4247,7 @@
 
         } else if (beltType === 2) {
           // Cinturón Real + Faldón Acolchado con cenefa dorada
-          const s1 = createFormFittedShell(pMesh, clothMat, {
+          const s1 = fitBelt(pMesh, clothMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.082 * bScale,
             yMin: 0.38, yMax: 0.96,
@@ -4148,14 +4255,14 @@
             vPointBottom: 0.12,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.102 * bScale,
             yMin: 0.78, yMax: 0.96,
             vPointBottom: 0.08,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.098 * bScale,
             yMin: 0.38, yMax: 0.52,
@@ -4166,13 +4273,13 @@
 
         } else if (beltType === 3) {
           // Correa de Comandante Pesada
-          const s1 = createFormFittedShell(pMesh, clothMat, {
+          const s1 = fitBelt(pMesh, clothMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.084 * bScale,
             yMin: 0.52, yMax: 0.95,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.102 * bScale,
             yMin: 0.62, yMax: 0.86,
@@ -4183,7 +4290,7 @@
 
         } else if (beltType === 4) {
           // Cinturón Gótico con Gema Central y Punta en V
-          const s1 = createFormFittedShell(pMesh, mainMat, {
+          const s1 = fitBelt(pMesh, mainMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.090 * bScale,
             yMin: 0.50, yMax: 0.96,
@@ -4192,7 +4299,7 @@
             vPointBottom: 0.16,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.106 * bScale,
             yMin: 0.68, yMax: 0.88,
@@ -4203,7 +4310,7 @@
 
         } else if (beltType === 5) {
           // Fajín Élfico con Faldar Real Biselado
-          const s1 = createFormFittedShell(pMesh, clothMat, {
+          const s1 = fitBelt(pMesh, clothMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.082 * bScale,
             yMin: 0.34, yMax: 0.98,
@@ -4211,7 +4318,7 @@
             vPointBottom: 0.14,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.098 * bScale,
             yMin: 0.34, yMax: 0.50,
@@ -4219,7 +4326,7 @@
             vPointBottom: 0.14,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.098 * bScale,
             yMin: 0.82, yMax: 0.98,
@@ -4230,7 +4337,7 @@
 
         } else if (beltType === 6) {
           // Cinturón Dinastía Celestial con Cenefa Conopial Biselada (L2)
-          const s1 = createFormFittedShell(pMesh, mainMat, {
+          const s1 = fitBelt(pMesh, mainMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.084 * bScale,
             yMin: 0.44, yMax: 0.98,
@@ -4239,14 +4346,14 @@
             ridgeCenterZ: 0.10,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.098 * bScale,
             yMin: 0.82, yMax: 0.98,
             foldStyle: 'ogee_conopial', foldDepth: 0.08,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.098 * bScale,
             yMin: 0.42, yMax: 0.58,
@@ -4257,7 +4364,7 @@
 
         } else if (beltType === 7) {
           // Cinturón de Brigantina Tachonada con Faldar Biselado Completo (D&D)
-          const s1 = createFormFittedShell(pMesh, mainMat, {
+          const s1 = fitBelt(pMesh, mainMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.086 * bScale,
             yMin: 0.40, yMax: 0.98,
@@ -4266,14 +4373,14 @@
             ridgeCenterZ: 0.08,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.100 * bScale,
             yMin: 0.82, yMax: 0.98,
             vPointBottom: 0.08,
             offsetY: bOffY, offsetZ: bOffZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitBelt(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'belt',
             thicknessRatio: 0.100 * bScale,
             yMin: 0.38, yMax: 0.54,
@@ -4285,6 +4392,13 @@
       });
 
       // 2. Hebilla Heráldica 3D + Tabardo Colgante (Banner frontal entre las escarcelas como en la imagen de referencia)
+      // Tachones dorados alrededor de la banda principal (dejando libre la hebilla)
+      if (beltShells[0] && beltShells[0].geometry.userData.grid && beltShells[0].geometry.userData.grid.isFullWrap) {
+        const studs = [];
+        for (let u = 0.04; u < 0.97; u += 0.05) if (Math.abs(u - 0.5) > 0.10) studs.push([u, 0.70]);
+        addShellRivets(beltShells[0], studs, 0.0034 * bScale, trimMat);
+      }
+
       const pelvisBox = getWorldBoxOfParts(['pelvis']);
       if (!pelvisBox) return;
 
@@ -4292,8 +4406,18 @@
       const pCenter = pelvisBox.getCenter(new THREE.Vector3());
       const waistW = Math.min(pSize.x, 0.42) * 0.50 * bScale;
       const beltH = Math.max(0.048, pSize.y * 0.28) * bScale;
-      const frontSurfaceZ = (pelvisBox.max.z - pCenter.z) + 0.016 * bScale + bOffZ;
-      const buckleY = (pSize.y * 0.20) + bOffY;
+      let frontSurfaceZ = (pelvisBox.max.z - pCenter.z) + 0.016 * bScale + bOffZ;
+      let buckleY = (pSize.y * 0.20) + bOffY;
+      // Hebilla sobre la superficie real de la banda principal
+      if (beltShells[0] && beltShells[0].geometry.userData.grid && beltShells[0].geometry.userData.grid.isFullWrap) {
+        beltShells[0].updateMatrixWorld(true);
+        const fp = shellPointAt(beltShells[0], 0.5, 0.62, 0.002);
+        if (fp) {
+          const w = beltShells[0].localToWorld(fp.p.clone());
+          frontSurfaceZ = w.z - pCenter.z;
+          buckleY = w.y - pCenter.y;
+        }
+      }
 
       const beltGroup = new THREE.Group();
       beltGroup.name = 'Belt_Buckle_And_Tabard';
@@ -4336,6 +4460,14 @@
         });
 
         // Remates inferiores con variedad de pliegues según el tipo de cinturón
+        // Joya bordada en el tabardo y orla dorada
+        {
+          let tabGem = glowMat, tabDm = glowMat;
+          try { tabGem = getFacetedGemMaterial(beltType === 6 ? 'emerald' : (beltType === 2 ? 'sapphire' : 'ruby'), 'belt'); tabDm = getFacetedGemMaterial('diamond', 'belt'); } catch (e) { }
+          addFacetedJewel(beltGroup, new THREE.Vector3(0, tabardTopY - tabardLen * 0.36, frontSurfaceZ + 0.008 * bScale), new THREE.Vector3(0, 0, 1), tabardW * 0.12, tabGem, trimMat, tabDm, 6);
+          const hemPts = []; for (let i = 0; i <= 12; i++) { const x = (i / 12 - 0.5) * tabardW * 0.92; hemPts.push(new THREE.Vector3(x, tabardTopY - tabardLen * 0.94, frontSurfaceZ + 0.004)); }
+          beltGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemPts), 24, 0.0025 * bScale, 6, false), trimMat));
+        }
         if (beltType === 1 || beltType === 2) {
           // Tipo 1 & 2: Punta en V gótica con cenefa dorada y cruz heráldica
           const tipSize = tabardW * 0.707;
@@ -4387,56 +4519,8 @@
         }
       }
 
-      // Hebilla Esculpida 3D según estilo de cinturón
-      if (beltType === 1) {
-        // Hebilla Solar con Sol Radiante
-        const shieldPlate = new THREE.Mesh(new THREE.CylinderGeometry(beltH * 0.62, beltH * 0.42, 0.020, 6), trimMat);
-        shieldPlate.rotation.x = Math.PI / 2;
-        shieldPlate.position.set(0, buckleY, frontSurfaceZ + 0.004);
-        beltGroup.add(shieldPlate);
-
-        const sunCore = new THREE.Mesh(new THREE.SphereGeometry(beltH * 0.28, 16, 16), glowMat);
-        sunCore.scale.set(1, 1, 0.45);
-        sunCore.position.set(0, buckleY, frontSurfaceZ + 0.014);
-        beltGroup.add(sunCore);
-      } else if (beltType === 2) {
-        // Medallón Real de la Alianza
-        const medallion = new THREE.Mesh(new THREE.CylinderGeometry(beltH * 0.58, beltH * 0.58, 0.022, 24), trimMat);
-        medallion.rotation.x = Math.PI / 2;
-        medallion.position.set(0, buckleY, frontSurfaceZ + 0.004);
-        beltGroup.add(medallion);
-
-        const innerLion = new THREE.Mesh(new THREE.OctahedronGeometry(beltH * 0.32), mainMat);
-        innerLion.scale.set(1.1, 1.1, 0.5);
-        innerLion.position.set(0, buckleY, frontSurfaceZ + 0.014);
-        beltGroup.add(innerLion);
-      } else if (beltType === 3) {
-        const heavyBuckle = new THREE.Mesh(new THREE.BoxGeometry(waistW * 0.42, beltH * 0.92, 0.024), trimMat);
-        heavyBuckle.position.set(0, buckleY, frontSurfaceZ + 0.004);
-        beltGroup.add(heavyBuckle);
-      } else if (beltType === 4) {
-        // Engaste Gótico con Gema
-        const setting = new THREE.Mesh(new THREE.CylinderGeometry(beltH * 0.56, beltH * 0.62, 0.022, 8), trimMat);
-        setting.rotation.x = Math.PI / 2;
-        setting.position.set(0, buckleY, frontSurfaceZ + 0.004);
-        beltGroup.add(setting);
-
-        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(beltH * 0.36), glowMat);
-        gem.scale.set(0.85, 1.15, 0.55);
-        gem.position.set(0, buckleY, frontSurfaceZ + 0.015);
-        beltGroup.add(gem);
-      } else if (beltType === 5) {
-        // Broche Élfico en Diamante
-        const royalClasp = new THREE.Mesh(new THREE.OctahedronGeometry(beltH * 0.55), trimMat);
-        royalClasp.scale.set(1.25, 0.85, 0.45);
-        royalClasp.position.set(0, buckleY, frontSurfaceZ + 0.005);
-        beltGroup.add(royalClasp);
-
-        const elvenGem = new THREE.Mesh(new THREE.OctahedronGeometry(beltH * 0.28), glowMat);
-        elvenGem.scale.set(0.8, 1.2, 0.5);
-        elvenGem.position.set(0, buckleY, frontSurfaceZ + 0.016);
-        beltGroup.add(elvenGem);
-      }
+      // Hebilla ornamentada (L2) con gema y adornos según el modelo
+      addBeltBuckle(beltGroup, new THREE.Vector3(0, buckleY, frontSurfaceZ + 0.008 * bScale), beltH * 0.85, beltType, { mainMat, trimMat, glowMat });
 
       attachOrnamentWorld(armorSockets.belt, beltGroup, pCenter, new THREE.Quaternion(), 'belt');
     }
@@ -4459,7 +4543,20 @@
       const offZ = STATE.fit.tassetOffsetZ;
 
       const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
-      const halfSpanAngle = Math.min(Math.PI * 0.46, 0.68 * tWidth);
+      const halfSpanAngle = Math.min(Math.PI * 0.50, 0.84 * tWidth);
+      let tasGem = glowMat, tasDm = glowMat;
+      try { tasGem = getFacetedGemMaterial(tassetType === 6 ? 'ruby' : (tassetType === 4 ? 'emerald' : (tassetType === 2 ? 'amethyst' : 'sapphire')), 'tassets'); tasDm = getFacetedGemMaterial('diamond', 'tassets'); } catch (e) { }
+      // Cada placa: ribete dorado; las placas principales del muslo llevan cresta y remaches
+      let sideMainShells = [];
+      const fitTas = (mesh, mat, opts) => {
+        const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * tScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, opts));
+        if (sh && mat !== trimMat && opts.targetPart && opts.targetPart.startsWith('thigh')) {
+          addShellRelief(sh, t => [0.5, 0.10 + 0.82 * t], 0.0026 * tScale, trimMat, 14);
+          addShellRivets(sh, [[0.18, 0.86], [0.5, 0.90], [0.82, 0.86]], 0.0034 * tScale, trimMat);
+          sideMainShells.push({ sh, yMin: opts.yMin, yMax: opts.yMax });
+        }
+        return sh;
+      };
 
       ['l', 'r'].forEach(side => {
         const sgn = side === 'l' ? 1 : -1;
@@ -4474,14 +4571,15 @@
         const thAngleMin = thAngleCenter - halfSpanAngle * 1.12;
         const thAngleMax = thAngleCenter + halfSpanAngle * 1.12;
 
-        const thighSpanRatio = Math.min(0.75, 0.44 * tLen);
-        const thBotY = Math.max(0.20, 1.0 - thighSpanRatio);
-        const baseThick = 0.032 * tScale;
-        const flareAmt = 0.09 * tFlare;
+        // Escarcelas colgantes: más largas, separadas del muslo y acampanadas hacia fuera
+        const thighSpanRatio = Math.min(0.80, 0.60 * tLen);
+        const thBotY = Math.max(0.18, 1.0 - thighSpanRatio);
+        const baseThick = 0.066 * tScale;
+        const flareAmt = 0.24 * tFlare;
 
         // Placa superior de cadera con reborde dorado
         pelvisMeshes.forEach(pMesh => {
-          createFormFittedShell(pMesh, mainMat, {
+          fitTas(pMesh, mainMat, {
             targetPart: 'pelvis', slotName: 'tassets',
             thicknessRatio: baseThick * 1.04,
             yMin: 0.04, yMax: 0.48,
@@ -4490,7 +4588,7 @@
             vPointBottom: 0.10,
             offsetY: offY, offsetZ: offZ
           });
-          createFormFittedShell(pMesh, trimMat, {
+          fitTas(pMesh, trimMat, {
             targetPart: 'pelvis', slotName: 'tassets',
             thicknessRatio: baseThick * 1.16,
             yMin: 0.02, yMax: 0.16,
@@ -4510,7 +4608,7 @@
             for (let l = 0; l < lames; l++) {
               const lMax = 1.0 - l * step * 0.80;
               const lMin = Math.max(thBotY, lMax - step * 1.12);
-              createFormFittedShell(thMesh, mainMat, {
+              fitTas(thMesh, mainMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.02 + l * 0.05),
                 yMin: lMin, yMax: lMax,
@@ -4520,7 +4618,7 @@
                 foldStyle: 'scalloped', foldWaves: 3.0, foldDepth: 0.12, fluteCount: 3,
                 offsetY: offY, offsetZ: offZ
               });
-              createFormFittedShell(thMesh, trimMat, {
+              fitTas(thMesh, trimMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.14 + l * 0.05),
                 yMin: lMin, yMax: lMin + step * 0.30,
@@ -4532,7 +4630,7 @@
             }
           } else if (tassetType === 2) {
             // 2. Escarcela Gótica Abisal con Cola de Golondrina (doble punta y 5 acanaladuras afiladas)
-            createFormFittedShell(thMesh, mainMat, {
+            fitTas(thMesh, mainMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.08,
               yMin: thBotY, yMax: 1.0,
@@ -4542,7 +4640,7 @@
               foldStyle: 'swallow_tail', foldDepth: 0.18, fluteCount: 5, fluteDepth: 0.018,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.22,
               yMin: thBotY, yMax: thBotY + 0.16,
@@ -4553,7 +4651,7 @@
             });
           } else if (tassetType === 3) {
             // 3. Placas de Justa Pesada / Lamelar Escalonado (4 láminas superpuestas)
-            createFormFittedShell(thMesh, mainMat, {
+            fitTas(thMesh, mainMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.12,
               yMin: thBotY, yMax: 1.0,
@@ -4563,14 +4661,14 @@
               foldStyle: 'stepped', steppedLames: 4, fluteCount: 2,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.24,
               yMin: 0.84, yMax: 1.0,
               angleMin: thAngleMin, angleMax: thAngleMax,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.24,
               yMin: thBotY, yMax: thBotY + 0.15,
@@ -4585,7 +4683,7 @@
             for (let b = 0; b < bands; b++) {
               const bMax = 1.0 - b * bStep * 0.84;
               const bMin = Math.max(thBotY, bMax - bStep * 1.08);
-              createFormFittedShell(thMesh, b % 2 === 0 ? mainMat : trimMat, {
+              fitTas(thMesh, b % 2 === 0 ? mainMat : trimMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.04 + b * 0.05),
                 yMin: bMin, yMax: bMax,
@@ -4597,7 +4695,7 @@
             }
           } else if (tassetType === 5) {
             // 5. Escarcela Real con Arco Conopial (accolade trébol gótico y rondel)
-            createFormFittedShell(thMesh, mainMat, {
+            fitTas(thMesh, mainMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.08,
               yMin: thBotY, yMax: 1.0,
@@ -4607,14 +4705,14 @@
               foldStyle: 'ogee_conopial', foldDepth: 0.16, fluteCount: 3,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.22,
               yMin: 0.82, yMax: 1.0,
               angleMin: thAngleMin, angleMax: thAngleMax,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.22,
               yMin: thBotY, yMax: thBotY + 0.15,
@@ -4625,7 +4723,7 @@
             });
           } else if (tassetType === 6) {
             // 6. Dinastía Celestial Aladas (L2): Abanico de plumas triples con ensanchamiento lateral
-            createFormFittedShell(thMesh, mainMat, {
+            fitTas(thMesh, mainMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.08,
               yMin: thBotY, yMax: 1.0,
@@ -4635,7 +4733,7 @@
               foldStyle: 'foliate', foldWaves: 3.0, foldDepth: 0.16, fluteCount: 4, fluteDepth: 0.016,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.22,
               yMin: thBotY, yMax: thBotY + 0.18,
@@ -4651,7 +4749,7 @@
             for (let sc = 0; sc < scTiers; sc++) {
               const scMax = 1.0 - sc * scStep * 0.82;
               const scMin = Math.max(thBotY, scMax - scStep * 1.14);
-              createFormFittedShell(thMesh, sc % 2 === 0 ? mainMat : glowMat, {
+              fitTas(thMesh, sc % 2 === 0 ? mainMat : glowMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.06 + sc * 0.06),
                 yMin: scMin, yMax: scMax,
@@ -4664,7 +4762,7 @@
             }
           } else if (tassetType === 8) {
             // 8. Tablillas Splint Mail (D&D): Varillas verticales de acero acanaladas con bandas de sujeción
-            createFormFittedShell(thMesh, mainMat, {
+            fitTas(thMesh, mainMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.10,
               yMin: thBotY, yMax: 1.0,
@@ -4673,7 +4771,7 @@
               foldStyle: 'stepped', steppedLames: 3, fluteCount: 6, fluteDepth: 0.018,
               offsetY: offY, offsetZ: offZ
             });
-            createFormFittedShell(thMesh, trimMat, {
+            fitTas(thMesh, trimMat, {
               targetPart: thighPart, slotName: 'tassets',
               thicknessRatio: baseThick * 1.22,
               yMin: thBotY, yMax: thBotY + 0.12,
@@ -4685,6 +4783,39 @@
         });
 
         // Hebilla / Rondel de sujeción en la articulación superior de la escarcela
+        // Escarcelas traseras (culera) en los modelos de gala
+        if (tassetType === 2 || tassetType === 6 || tassetType === 7 || tassetType === 8) {
+          thighMeshes.forEach(thMesh => {
+            const bc = sgn * Math.PI * 0.80;
+            fitTas(thMesh, mainMat, {
+              targetPart: thighPart, slotName: 'tassets', thicknessRatio: baseThick * 1.10,
+              yMin: Math.min(0.9, thBotY + 0.08), yMax: 1.0, angleMin: bc - halfSpanAngle * 0.85, angleMax: bc + halfSpanAngle * 0.85,
+              flareBottom: flareAmt, vPointBottom: 0.10, foldStyle: 'swallow_tail', foldDepth: 0.10, offsetY: offY, offsetZ: offZ
+            });
+          });
+        }
+        // Gema principal en la placa superior y joya colgante en la punta de la placa más baja
+        if (sideMainShells.length) {
+          const front = sideMainShells.filter(e => e.front !== false);
+          const top = sideMainShells.reduce((a2, b2) => (b2.yMax > a2.yMax ? b2 : a2));
+          const low = sideMainShells.reduce((a2, b2) => (b2.yMin < a2.yMin ? b2 : a2));
+          addShellJewel(top.sh, 0.5, 0.72, 0.0095 * tScale, tasGem, trimMat, tasDm, 6);
+          const tip = shellPointAt(low.sh, 0.5, 0.0, 0.002);
+          if (tip) {
+            const drop = new THREE.Group();
+            const cap = new THREE.Mesh(new THREE.ConeGeometry(0.008 * tScale, 0.012 * tScale, 6), trimMat);
+            cap.rotation.x = Math.PI; cap.position.set(0, -0.004 * tScale, 0);
+            drop.add(cap);
+            const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.010 * tScale, 0), tasGem);
+            gem.scale.set(0.8, 1.5, 0.8); gem.position.set(0, -0.020 * tScale, 0);
+            drop.add(gem);
+            drop.position.copy(tip.p);
+            drop.traverse(n => { if (n.isMesh) n.userData.isArmorShell = true; });
+            low.sh.add(drop);
+          }
+        }
+        sideMainShells = [];
+
         const thBox = getWorldBoxOfParts([thighPart]);
         const socket = sgn === 1 ? armorSockets.tassetL : armorSockets.tassetR;
         if (thBox && socket) {
@@ -12571,6 +12702,8 @@
        MOTOR INTEGRADO: CREADOR GEMINI HUMANO 1.0 (PROCEDURAL + ITEMS + CHARACTER)
        ========================================================================= */
     window.CreadorHumano = (function(THREE) {
+// Proporciones heroicas humanas (~7,5 cabezas, piernas ≈ 53 % de la altura, figura esbelta)
+const BODY_PROPORTIONS = { leg: 1.15, legThick: 0.93, torso: 0.96, head: 0.90 };
       
 /**
  * Crea una geometría orgánica de revolución (LatheGeometry) con sección transversal elíptica
@@ -12662,7 +12795,7 @@ function createMuscleBellyGeometry(length, maxRadius, flattenZ = 0.65, peakT = 0
  * con surco espinal posterior, línea alba frontal y forma en V dorsal.
  */
 function buildSculptedTorsoGeometry(torsoCfg) {
-  const h = 0.62 * torsoCfg.height;
+  const h = 0.62 * torsoCfg.height * BODY_PROPORTIONS.torso;
   const cw = torsoCfg.chestWidth;
   const ww = torsoCfg.waistWidth;
   const hw = torsoCfg.hipWidth ?? 1.0;
@@ -16030,11 +16163,14 @@ function rebuildCharacter() {
   const pose = POSES[c.items.pose] || POSES.apose;
 
   // Dimensiones maestras conectadas
-  const torsoH = 0.62 * c.torso.height;
-  const upperArmLen = 0.28 * c.brazos.length;
-  const forearmLen = 0.26 * c.brazos.length;
-  const thighLen = 0.42 * c.piernas.length;
-  const shinLen = 0.40 * c.piernas.length;
+  // Los niños conservan su cabeza proporcionalmente más grande
+  const isAdultBody = (c.piernas.length ?? 1) >= 0.88;
+  const torsoH = 0.62 * c.torso.height * BODY_PROPORTIONS.torso;
+  const upperArmLen = 0.28 * c.brazos.length * 1.04;
+  const forearmLen = 0.26 * c.brazos.length * 1.04;
+  const thighLen = 0.42 * c.piernas.length * BODY_PROPORTIONS.leg;
+  const shinLen = 0.40 * c.piernas.length * BODY_PROPORTIONS.leg;
+  const headK = isAdultBody ? BODY_PROPORTIONS.head : 1.0;
 
   // ==========================================================================
   // 1. ESTRUCTURA JERÁRQUICA DE ESQUELETO (PIVOTES CONECTADOS)
@@ -16054,6 +16190,7 @@ function rebuildCharacter() {
 
   const neckLen = 0.11;
   rig.head.position.set(0, neckLen * 0.72, 0.008);
+  rig.head.scale.setScalar(headK); // cabeza, cara, cabello y coronas escalan juntos
   rig.neck.add(rig.head);
 
   // Brazos Izquierdo (+X) y Derecho (-X)
@@ -16255,7 +16392,7 @@ function rebuildCharacter() {
   // ==========================================================================
   // 5. EXTREMIDADES INFERIORES (MUSLO Y PIERNA CONTINUOS CON RODILLA Y PIE)
   // ==========================================================================
-  const legThick = c.piernas.thickness;
+  const legThick = c.piernas.thickness * BODY_PROPORTIONS.legThick;
   const calfFactor = c.piernas.calfSize ?? 1.0;
 
   ['L', 'R'].forEach((side) => {
