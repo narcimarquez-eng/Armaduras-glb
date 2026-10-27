@@ -776,7 +776,7 @@
         { name: 'Corona Dracónica con Cuernos (L2)', shortName: 'Dracónica', icon: 'flame' },
         { name: 'Corona Astral con Halo de Rayos (L2)', shortName: 'Astral', icon: 'sun' },
         { name: 'Visera Solar con Nasal y Alas', shortName: 'Visera Solar', icon: 'shield' },
-        { name: 'Visera Dracónica (Antifaz Enjoyado)', shortName: 'Antifaz', icon: 'eye' },
+        { name: 'Visera Dracónica con Cuernos y Ala Dentada', shortName: 'Visera Drac.', icon: 'flame' },
         { name: 'Visera de Cristal Arcano con Aletas', shortName: 'Cristal', icon: 'gem' }
       ],
       shoulders: [
@@ -3270,8 +3270,8 @@
         return Math.min(d1, d2);
       } else if (windowCutout === 'eye_slits') {
         // Aberturas almendradas para los ojos (antifaz), ligeramente rasgadas hacia arriba
-        const ex = (ax - 0.42) / 0.21;
-        const ey = (localNormY - 0.50 - (ax - 0.42) * 0.35) / 0.30;
+        const ex = (ax - 0.40) / 0.19;
+        const ey = (localNormY - 0.46 - (ax - 0.40) * 0.55) / 0.22;
         return Math.sqrt(ex * ex + ey * ey) - 1.0;
       } else if (windowCutout === 'vertical_split') {
         return Math.max(ax / 0.075 - 1.0, Math.abs(localNormY - 0.55) / 0.27 - 1.0);
@@ -6742,11 +6742,7 @@
 
         } else if (bootType === 3) {
           // Comandante: Hebillas laterales dobles biseladas
-          [-groundDepth * 0.12, collarH * 0.40].forEach(yPos => {
-            const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.008 * lBulk, 0.018 * lBulk, 0.022 * lBulk), glowMat);
-            buckle.position.set(sgn * (ankleW * 0.58), yPos, 0.008 * lBulk);
-            group.add(buckle);
-          });
+          // (las hebillas se sustituyen por rodelas de tobillo más abajo)
 
         } else if (bootType === 4) {
           // Dinastía Celestial: Aletas aladas biseladas en el tobillo exterior + Gema
@@ -6853,7 +6849,7 @@
             [-1, 1].forEach(xs => {
               const rondel = new THREE.Mesh(new THREE.CylinderGeometry(0.020 * lBulk, 0.022 * lBulk, 0.005 * lBulk, 20), trimMat);
               rondel.rotation.z = Math.PI / 2;
-              rondel.position.set(xs * (ankleW * 0.66), collarH * 0.30, -backHeelDist * 0.05);
+              rondel.position.set(xs * (ankleW * 0.635), collarH * 0.64, -backHeelDist * 0.08);
               group.add(rondel);
               const rg = new THREE.Mesh(new THREE.OctahedronGeometry(0.0075 * lBulk, 0), gemB);
               rg.position.copy(rondel.position).add(new THREE.Vector3(xs * 0.004 * lBulk, 0, 0));
@@ -7402,6 +7398,27 @@
       group.add(new THREE.Mesh(g, mat));
     }
 
+    // Ala de visera: placa que sale del canto inferior de la frontalera y se proyecta hacia delante sobre los ojos
+    function addVisorBrim(group, hi, opts, mat, rimMat) {
+      const { v, span = 1.0, depth = 0.34, droop = 0.05, out = 0, edge = 'round' } = opts;
+      const R = hi.avgR;
+      const surf = (u, t) => {
+        const s = u * 2 - 1;
+        const a = s * span;
+        const fr = Math.cos(s * Math.PI * 0.5);
+        let reach = depth * (0.25 + 0.75 * Math.pow(fr, 0.8));
+        if (edge === 'pointed') reach *= 1 + 0.45 * Math.pow(fr, 8);
+        else if (edge === 'serrated') reach *= 1 + 0.18 * Math.pow(Math.abs(Math.cos(s * Math.PI * 3.5)), 4) + 0.30 * Math.pow(fr, 8);
+        const base = hi.point(v, a, out);
+        return base.addScaledVector(hi.dir(a), t * reach * R).addScaledVector(hi.up, -t * t * droop * R);
+      };
+      const g = createArmorPlatePatch(surf, { uSegs: 30, vSegs: 6, thickness: 0.0035, refCenter: hi.point(v, 0, -R * 0.5).addScaledVector(hi.up, R * 0.8) });
+      group.add(new THREE.Mesh(g, mat));
+      const rimG = createRolledRimAlongRow(g, g.userData.rows - 1, 0.0019);
+      if (rimG) group.add(new THREE.Mesh(rimG, rimMat));
+      return surf;
+    }
+
     const HEADPIECE_DESIGNS = {
       1: { kind: 'crown',   name: 'Corona Real',         tines: 'all',   count: 8,  shape: 'fleur', h: 0.30, gem: 'ruby',     center: 'sapphire' },
       2: { kind: 'crown',   name: 'Diadema Dinastía',    tines: 'front', count: 5,  shape: 'blade', h: 0.42, gem: 'ruby',     center: 'ruby', wings: true },
@@ -7436,7 +7453,7 @@
       group.position.copy(hMesh.position); group.rotation.copy(hMesh.rotation); group.scale.copy(hMesh.scale);
 
       if (d.kind === 'crown') {
-        const bandLo = Math.min(0.86, eyeV + 0.16), bandHi = Math.min(0.94, eyeV + 0.27);
+        const bandLo = Math.min(0.88, eyeV + 0.205), bandHi = Math.min(0.95, eyeV + 0.275);
         createFormFittedShell(hMesh, trimMat, {
           targetPart: 'head', slotName: 'helmet', thicknessRatio: thickR, yMin: bandLo, yMax: bandHi,
           vPointBottom: helmType === 2 || helmType === 4 ? 0.07 : 0.03, ridgeCenterZ: 0.08, bevelRadius: 0.006, offsetY: offY,
@@ -7471,8 +7488,8 @@
           addCrownTine(group, hi, { a: tn.a, v0: vTop - 0.01, out, h, w, shape: d.shape, lean: helmType === 5 ? 0.30 : 0.16 }, trimMat, tipMat);
         });
         // Joya central frontal
-        const fp = hi.point(bandLo + (bandHi - bandLo) * 0.5 + offY, 0, out + 0.002);
-        addFacetedJewel(group, fp, hi.dir(0), R * 0.085 * hBulk, centerMat, trimMat, diamondMat, 8);
+        const fp = hi.point(bandLo + (bandHi - bandLo) * 0.55 + offY, 0, out + 0.006);
+        addFacetedJewel(group, fp, hi.dir(0), R * 0.11 * hBulk, centerMat, trimMat, diamondMat, 8);
 
         if (d.wings) {
           // Alas de la Dinastía: tres plumas de acero barridas hacia atrás desde cada sien
@@ -7526,39 +7543,36 @@
           bevelRadius: 0.004, offsetY: offY, edgeRim: 0.0018 * hBulk, frameMaterial: trimMat
         });
         const out = hairOut * 0.35;
-        if (d.style === 'brow') {
-          // Visera solar: placa de frente con nasal y alas en las sienes
-          createFormFittedShell(hMesh, mainMat, {
-            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.07 * hBulk, yMin: eyeV + 0.07, yMax: Math.min(0.95, eyeV + 0.30),
-            angleMin: -1.30, angleMax: 1.30, vPointBottom: 0.06, archTop: 0.05, ridgeCenterZ: 0.10, foldStyle: 'upward_arch', foldDepth: 0.05,
-            bevelRadius: 0.006, offsetY: offY, edgeRim: 0.0022 * hBulk, frameMaterial: trimMat
+        if (d.style === 'brow' || d.style === 'mask') {
+          // Visera: frontalera alta + ala proyectada sobre los ojos (el rostro queda visible)
+          const draconic = d.style === 'mask';
+          const vBand = Math.min(0.90, eyeV + 0.135);
+          createFormFittedShell(hMesh, draconic ? mainMat : trimMat, {
+            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.06 * hBulk, yMin: vBand, yMax: Math.min(0.94, vBand + 0.075),
+            angleMin: -1.15, angleMax: 1.15, vPointBottom: 0.0, archTop: draconic ? 0.08 : 0.10, ridgeCenterZ: 0.12,
+            foldStyle: draconic ? 'triple_v' : 'ogee_conopial', foldDepth: 0.0,
+            bevelRadius: 0.004, offsetY: offY, edgeRim: 0.0015 * hBulk, frameMaterial: draconic ? trimMat : mainMat
           });
-          createFormFittedShell(hMesh, trimMat, {
-            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.09 * hBulk, yMin: eyeV - 0.17, yMax: eyeV + 0.10,
-            angleMin: -0.11, angleMax: 0.11, vPointBottom: 0.04, ridgeCenterZ: 0.20, bevelRadius: 0.003, offsetY: offY
-          });
-          const fp = hi.point(eyeV + 0.19 + offY, 0, R * 0.09);
+          addVisorBrim(group, hi, { v: vBand + offY + 0.004, span: 1.05, depth: draconic ? 0.30 : 0.36, droop: 0.06, out: R * 0.06, edge: draconic ? 'serrated' : 'pointed' }, draconic ? trimMat : mainMat, draconic ? mainMat : trimMat);
+          const fp = hi.point(vBand + 0.045 + offY, 0, R * 0.075);
           addFacetedJewel(group, fp, hi.dir(0), R * 0.09 * hBulk, centerMat, trimMat, diamondMat, 8);
-          [-1, 1].forEach(sg => {
-            for (let f = 0; f < 2; f++) {
-              addCrownTine(group, hi, { a: sg * (1.15 + f * 0.16), v0: eyeV + 0.10 + offY, out: R * 0.08, h: R * (0.50 - f * 0.12) * hBulk, w: 0.24, shape: 'blade', lean: 0.65 }, trimMat, null);
+          if (draconic) {
+            [-1, 1].forEach(sg => {
+              const p0 = hi.point(vBand + 0.06 + offY, sg * 0.80, R * 0.06);
+              const dr = hi.dir(sg * 0.80), back = hi.dir(sg * 2.3);
+              addCurvedHorn(group, [p0, p0.clone().addScaledVector(hi.up, R * 0.30).addScaledVector(dr, R * 0.10), p0.clone().addScaledVector(hi.up, R * 0.55).addScaledVector(back, R * 0.45), p0.clone().addScaledVector(hi.up, R * 0.62).addScaledVector(back, R * 0.85)], R * 0.08 * hBulk, trimMat);
+            });
+            for (let k = -2; k <= 2; k++) {
+              if (k === 0) continue;
+              addCrownTine(group, hi, { a: k * 0.32, v0: vBand + 0.07 + offY, out: R * 0.07, h: R * (0.20 - Math.abs(k) * 0.03) * hBulk, w: 0.16, shape: 'blade', lean: 0.25 }, trimMat, null);
             }
-          });
-        } else if (d.style === 'mask') {
-          // Antifaz dracónico: cubre los ojos con calados enmarcados en oro y diamantes, puntas en las mejillas
-          createFormFittedShell(hMesh, mainMat, {
-            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.075 * hBulk, yMin: eyeV - 0.09, yMax: eyeV + 0.13,
-            angleMin: -1.35, angleMax: 1.35, windowCutout: 'eye_slits', vPointBottom: 0.0, foldStyle: 'swallow_tail', foldDepth: 0.06,
-            archTop: 0.06, ridgeCenterZ: 0.12, bevelRadius: 0.005, offsetY: offY,
-            windowFrame: true, edgeRim: 0.0016 * hBulk, frameMaterial: trimMat, frameGemMaterial: diamondMat, accentGemMaterial: centerMat
-          });
-          [-1, 1].forEach(sg => {
-            const p0 = hi.point(eyeV + 0.12 + offY, sg * 0.85, R * 0.07);
-            const dr = hi.dir(sg * 0.85), back = hi.dir(sg * 2.3);
-            addCurvedHorn(group, [p0, p0.clone().addScaledVector(hi.up, R * 0.25).addScaledVector(dr, R * 0.08), p0.clone().addScaledVector(hi.up, R * 0.42).addScaledVector(back, R * 0.40)], R * 0.07 * hBulk, trimMat);
-          });
-          const fp = hi.point(eyeV + 0.16 + offY, 0, R * 0.09);
-          addFacetedJewel(group, fp, hi.dir(0), R * 0.07 * hBulk, centerMat, trimMat, diamondMat, 6);
+          } else {
+            [-1, 1].forEach(sg => {
+              for (let f = 0; f < 2; f++) {
+                addCrownTine(group, hi, { a: sg * (1.12 + f * 0.16), v0: vBand + 0.02 + offY, out: R * 0.08, h: R * (0.52 - f * 0.12) * hBulk, w: 0.24, shape: 'blade', lean: 0.65 }, trimMat, null);
+              }
+            });
+          }
         } else {
           // Visera de cristal: banda translúcida luminosa sobre los ojos con marco dorado y aletas
           const crystalMat = new THREE.MeshStandardMaterial({
@@ -7630,10 +7644,10 @@
         g.name = `Gauntlet_${side}`;
 
         // 1. PLACA DORSAL abombada que envuelve el dorso y los cantos de la mano
-        const rx = 0.027 * S, rz = 0.046 * S;
+        const rx = 0.032 * S, rz = 0.052 * S;
         const dorsal = (u, v) => {
           const th = (u * 2 - 1) * 1.85;
-          const y = THREE.MathUtils.lerp(0.006, -0.068, v);
+          const y = THREE.MathUtils.lerp(0.008, -0.072, v);
           const knuckleLobes = Math.pow(Math.abs(Math.cos(u * Math.PI * 4)), 3) * 0.006 * Math.pow(v, 6);
           const dome = 1 + 0.22 * Math.pow(Math.max(0, Math.cos(th)), 2) * Math.sin(v * Math.PI) + (d.ridge ? 0.12 * Math.pow(Math.max(0, Math.cos(th)), 30) : 0);
           return new THREE.Vector3(dir * Math.cos(th) * rx * dome, y - knuckleLobes, Math.sin(th) * rz * (1 + 0.05 * Math.sin(v * Math.PI)));
@@ -7671,7 +7685,7 @@
         addFacetedJewel(g, new THREE.Vector3(dir * rx * 1.24, -0.030 * S, 0), Xd.clone(), 0.0075 * S, gemMat, trimMat, diamondMat, d.knuckle === 'gems' ? 6 : 4);
 
         // 2. PUÑO ACAMPANADO alrededor de la muñeca, con lengüeta alzada en el dorso
-        const wrx = 0.030 * S, wrz = 0.044 * S, cuffH = 0.062 * S * d.cuffH;
+        const wrx = 0.035 * S, wrz = 0.051 * S, cuffH = 0.078 * S * d.cuffH;
         const cuff = (u, v) => {
           const th = u * Math.PI * 2 - Math.PI; // 0 = dorso
           const c = Math.max(0, Math.cos(th));
@@ -7719,7 +7733,7 @@
           const r = Math.max(sz.x, sz.z) * 0.5;
           const isDistal = m.parent && m.parent.parent && m.parent.parent !== hand && m.parent.parent.parent === hand;
           const half = sz.y * 0.5;
-          const pr = r * 1.55;
+          const pr = r * 1.85;
           const lame = (u, v) => {
             const th = (u * 2 - 1) * 1.9;
             const y = THREE.MathUtils.lerp(half * 0.92, -half * 1.02, v);
@@ -7727,7 +7741,7 @@
             if (isDistal) rr *= 1 - 0.55 * Math.pow(Math.max(0, (v - 0.55) / 0.45), 2); // remate de la punta
             return new THREE.Vector3(dir * Math.cos(th) * rr, y, Math.sin(th) * rr);
           };
-          const lg = createArmorPlatePatch(lame, { uSegs: 12, vSegs: 6, thickness: 0.0016 * S, refCenter: new THREE.Vector3() });
+          const lg = createArmorPlatePatch(lame, { uSegs: 12, vSegs: 6, thickness: 0.0020 * S, refCenter: new THREE.Vector3() });
           const lm = new THREE.Group();
           lm.name = 'GauntletFingerLame';
           lm.add(new THREE.Mesh(lg, mainMat));
