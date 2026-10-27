@@ -3893,6 +3893,7 @@
       shellGeo.setAttribute('uv', new THREE.Float32BufferAttribute(outUVs, 2));
       shellGeo.setIndex(indices);
       shellGeo.computeVertexNormals();
+      shellGeo.userData.grid = { cols, uSegs, vSegs, isFullWrap };
 
       if (isFullWrap) {
         const normAttr = shellGeo.attributes.normal;
@@ -4715,205 +4716,214 @@
     }
 
     /* === 3. MUSLERAS & QUIJOTES (CUISSES) CON NERVIO CENTRAL Y BISEL DORADO === */
+    /* =========================================================================
+       6c. RELIEVES SOBRE PLACAS AJUSTADAS + MUSLERAS Y RODILLERAS (L2)
+       ========================================================================= */
+    // Punto y normal exterior de una placa ajustada en coordenadas de rejilla (u: 0..1 alrededor, v: 0 abajo .. 1 arriba)
+    function shellPointAt(shellMesh, uf, vf, lift = 0) {
+      if (!shellMesh || !shellMesh.geometry) return null;
+      const g = shellMesh.geometry, gr = g.userData.grid;
+      if (!gr) return null;
+      const pos = g.attributes.position, nor = g.attributes.normal;
+      const fu = THREE.MathUtils.clamp(uf, 0, 1) * gr.uSegs, fv = THREE.MathUtils.clamp(vf, 0, 1) * gr.vSegs;
+      const iu = Math.min(gr.uSegs - 1, Math.floor(fu)), iv = Math.min(gr.vSegs - 1, Math.floor(fv));
+      const tu = fu - iu, tv = fv - iv;
+      const idx = (a, b) => b * gr.cols + a;
+      const P = new THREE.Vector3(), N = new THREE.Vector3(), tmp = new THREE.Vector3();
+      [[iu, iv, (1 - tu) * (1 - tv)], [iu + 1, iv, tu * (1 - tv)], [iu, iv + 1, (1 - tu) * tv], [iu + 1, iv + 1, tu * tv]].forEach(([a, b, w]) => {
+        P.addScaledVector(tmp.fromBufferAttribute(pos, idx(a, b)), w);
+        N.addScaledVector(tmp.fromBufferAttribute(nor, idx(a, b)), w);
+      });
+      if (!g.boundingBox) g.computeBoundingBox();
+      const c = g.boundingBox.getCenter(new THREE.Vector3());
+      const radial = P.clone().sub(c); radial.y = 0;
+      N.normalize();
+      if (N.dot(radial) < 0) N.negate();
+      return { p: P.addScaledVector(N, lift), n: N };
+    }
+
+    // Tubo dorado en relieve que sigue una curva (u(t), v(t)) sobre la placa
+    function addShellRelief(shellMesh, curveFn, radius, mat, samples = 18, lift = null) {
+      if (!shellMesh) return;
+      const pts = [];
+      for (let i = 0; i <= samples; i++) {
+        const [u, v] = curveFn(i / samples);
+        const sp = shellPointAt(shellMesh, u, v, lift === null ? radius * 0.9 : lift);
+        if (sp) pts.push(sp.p);
+      }
+      if (pts.length < 3) return;
+      const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), samples * 3, radius, 6, false), mat);
+      m.userData.isArmorShell = true;
+      shellMesh.add(m);
+    }
+
+    function addShellJewel(shellMesh, u, v, size, gemMat, bezelMat, diamondMat, ring = 6) {
+      const sp = shellPointAt(shellMesh, u, v, size * 0.3);
+      if (!sp) return;
+      const holder = new THREE.Group();
+      addFacetedJewel(holder, sp.p, sp.n, size, gemMat, bezelMat, diamondMat, ring);
+      holder.traverse(n => { if (n.isMesh) n.userData.isArmorShell = true; });
+      shellMesh.add(holder);
+    }
+
+    function addShellRivets(shellMesh, pointsUV, r, mat) {
+      pointsUV.forEach(([u, v]) => {
+        const sp = shellPointAt(shellMesh, u, v, r * 0.2);
+        if (!sp) return;
+        const rv = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), mat);
+        rv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), sp.n);
+        rv.position.copy(sp.p);
+        rv.userData.isArmorShell = true;
+        shellMesh.add(rv);
+      });
+    }
+
+    // Catálogo de musleras: placa principal + láminas articuladas hacia la rodilla + relieves
+    const CUISSE_DESIGNS = {
+      1: { fold: 'ogee_conopial', lames: 2, relief: 'frame',    gem: 'topaz',    flareTop: 0.08 },
+      2: { fold: 'swallow_tail',  lames: 3, relief: 'chevron',  gem: 'amethyst', flareTop: 0.10, flutes: 3, spikes: true },
+      3: { fold: 'v_point',       lames: 3, relief: 'bands',    gem: null,       flareTop: 0.06, rivets: true },
+      4: { fold: 'foliate',       lames: 2, relief: 'vine',     gem: 'emerald',  flareTop: 0.08, flutes: 5 },
+      5: { fold: 'scalloped',     lames: 2, relief: 'fleur',    gem: 'sapphire', flareTop: 0.14 },
+      6: { fold: 'swallow_tail',  lames: 3, relief: 'filigree', gem: 'ruby',     flareTop: 0.10, fins: true },
+      7: { fold: 'swallow_tail',  lames: 5, relief: 'lamellar', gem: 'ruby',     flareTop: 0.06, rivets: true }
+    };
+
     function buildArticulatedCuisses() {
       const cuissesType = STATE.equipment.cuisses;
       if (cuissesType === 0) return;
-
       currentBuildingSlot = 'cuisses';
       const mainMat = getPBRMaterial('primary');
       const trimMat = getPBRMaterial('trim');
-      const clothMat = getPBRMaterial('cloth');
+      const glowMat = getGlowMaterial();
+      const d = CUISSE_DESIGNS[cuissesType] || CUISSE_DESIGNS[1];
+      let gemMat = glowMat, dmMat = glowMat;
+      try { if (d.gem) gemMat = getFacetedGemMaterial(d.gem, 'cuisses'); dmMat = getFacetedGemMaterial('diamond', 'cuisses'); } catch (e) { }
 
       const cBulk = STATE.fit.cuissesScale;
       const cLen = STATE.fit.cuissesLength;
       const cRidge = STATE.fit.cuissesRidge;
       const cOffY = STATE.fit.cuissesOffsetY;
+      const rim = 0.0026;
 
       ['thigh_l', 'thigh_r'].forEach(partName => {
-        const thighMeshes = getMeshesByAnatomy([partName]);
-        thighMeshes.forEach(thMesh => {
-          const yTop = Math.min(0.96, 0.92 * cLen);
-          const yBot = Math.max(0.12, 0.18 / cLen);
+        const isL = partName.endsWith('_l');
+        const outerU = isL ? 0.75 : 0.25; // u de la cara externa del muslo (rejilla de placa completa)
+        getMeshesByAnatomy([partName]).forEach(thMesh => {
+          const yTop = Math.min(0.97, 0.94 * cLen);
+          const yBot = Math.max(0.10, 0.16 / cLen);
+          const lameH = d.relief === 'lamellar' ? (yTop - yBot) / d.lames : 0.085;
+          const plateBot = d.relief === 'lamellar' ? yBot : yBot + d.lames * lameH * 0.82;
 
-          if (cuissesType === 1) {
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.028 * cBulk,
-              yMin: yBot, yMax: yTop,
-              ridgeCenterZ: 0.12 * cRidge,
-              vPointBottom: 0.09,
-              foldStyle: 'ogee_conopial', foldDepth: 0.06,
-              offsetY: cOffY, bevelRadius: 0.008
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.034 * cBulk,
-              yMin: yBot, yMax: yBot + 0.14,
-              vPointBottom: 0.09,
-              foldStyle: 'ogee_conopial', foldDepth: 0.06,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.034 * cBulk,
-              yMin: yTop - 0.12, yMax: yTop,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
+          // 1. Placa principal (o primera banda lamelar) con ribete dorado en todos los cantos
+          const mainPlate = createFormFittedShell(thMesh, mainMat, {
+            targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.040 * cBulk,
+            yMin: d.relief === 'lamellar' ? yTop - lameH * 1.15 : plateBot, yMax: yTop,
+            ridgeCenterZ: 0.24 * cRidge, flareTop: d.flareTop, vPointBottom: 0.10,
+            foldStyle: d.fold, foldDepth: 0.06, fluteCount: d.flutes || 0, fluteDepth: 0.010,
+            offsetY: cOffY, bevelRadius: 0.008, edgeRim: rim * cBulk, frameMaterial: trimMat
+          });
+          // Faja superior dorada acampanada
+          createFormFittedShell(thMesh, trimMat, {
+            targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.050 * cBulk,
+            yMin: yTop - 0.07, yMax: yTop + 0.01, flareTop: d.flareTop * 1.2, archTop: 0.04,
+            offsetY: cOffY, bevelRadius: 0.006, edgeRim: rim * 0.8 * cBulk, frameMaterial: mainMat
+          });
 
-          } else if (cuissesType === 2) {
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.029 * cBulk,
-              yMin: yBot, yMax: yTop,
-              ridgeCenterZ: 0.16 * cRidge,
-              flareTop: 0.06,
-              vPointBottom: 0.11,
-              fluteCount: 3, fluteDepth: 0.009,
-              foldStyle: 'swallow_tail', foldDepth: 0.07,
-              offsetY: cOffY, bevelRadius: 0.008
+          // 2. Láminas articuladas hacia la rodilla (cada una por encima de la siguiente)
+          const lameCount = d.relief === 'lamellar' ? d.lames - 1 : d.lames;
+          for (let i = 0; i < lameCount; i++) {
+            const top = (d.relief === 'lamellar' ? yTop - lameH * (i + 1) : plateBot) - (d.relief === 'lamellar' ? 0 : i * lameH * 0.82) + lameH * 0.20;
+            const bot = top - lameH;
+            const lame = createFormFittedShell(thMesh, (i % 2 === 0 && d.relief !== 'lamellar') ? trimMat : mainMat, {
+              targetPart: partName, slotName: 'cuisses', thicknessRatio: (0.046 - i * 0.003) * cBulk,
+              yMin: Math.max(0.02, bot), yMax: top, vPointBottom: 0.07, ridgeCenterZ: 0.14 * cRidge,
+              foldStyle: d.fold, foldDepth: 0.04, flareBottom: 0.05,
+              offsetY: cOffY, bevelRadius: 0.006, edgeRim: rim * 0.9 * cBulk, frameMaterial: (i % 2 === 0 && d.relief !== 'lamellar') ? mainMat : trimMat
             });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.035 * cBulk,
-              yMin: yTop - 0.14, yMax: yTop,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.035 * cBulk,
-              yMin: yBot, yMax: yBot + 0.14,
-              vPointBottom: 0.11,
-              foldStyle: 'swallow_tail', foldDepth: 0.07,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
+            if (lame && (d.rivets || d.relief === 'lamellar')) addShellRivets(lame, [0.30, 0.40, 0.5, 0.60, 0.70].map(u => [u, 0.62]), 0.0028 * cBulk, trimMat);
+          }
 
-          } else if (cuissesType === 3) {
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.030 * cBulk,
-              yMin: yBot, yMax: yTop,
-              ridgeCenterZ: 0.10 * cRidge,
-              offsetY: cOffY, flareBottom: 0.05, bevelRadius: 0.008
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.035 * cBulk,
-              yMin: (yBot + yTop) * 0.44, yMax: (yBot + yTop) * 0.56,
-              vPointBottom: 0.08,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-
-          } else if (cuissesType === 4) {
-            createFormFittedShell(thMesh, clothMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.022 * cBulk,
-              yMin: yBot, yMax: yTop,
-              offsetY: cOffY, bevelRadius: 0.006
-            });
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.029 * cBulk,
-              yMin: yBot + 0.06, yMax: yTop - 0.06,
-              ridgeCenterZ: 0.11 * cRidge,
-              vPointBottom: 0.09,
-              foldStyle: 'foliate', foldWaves: 3.0, foldDepth: 0.08,
-              offsetY: cOffY, bevelRadius: 0.008
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.034 * cBulk,
-              yMin: yBot + 0.06, yMax: yBot + 0.18,
-              vPointBottom: 0.09,
-              foldStyle: 'foliate', foldWaves: 3.0, foldDepth: 0.08,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-
-          } else if (cuissesType === 5) {
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.029 * cBulk,
-              yMin: yBot, yMax: yTop,
-              flareTop: 0.06, flareBottom: 0.05,
-              ridgeCenterZ: 0.14 * cRidge,
-              vPointBottom: 0.10,
-              foldStyle: 'scalloped', foldWaves: 3.0, foldDepth: 0.07,
-              offsetY: cOffY, bevelRadius: 0.008
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.034 * cBulk,
-              yMin: yTop - 0.13, yMax: yTop,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.034 * cBulk,
-              yMin: yBot, yMax: yBot + 0.14,
-              vPointBottom: 0.10,
-              foldStyle: 'scalloped', foldWaves: 3.0, foldDepth: 0.07,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-
-          } else if (cuissesType === 6) {
-            // 6. Quijotes Triskele Celta con Relieve Anular y Bisel
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.029 * cBulk,
-              yMin: yBot, yMax: yTop,
-              ridgeCenterZ: 0.13 * cRidge,
-              vPointBottom: 0.08,
-              foldStyle: 'ogee_conopial', foldDepth: 0.07,
-              offsetY: cOffY, bevelRadius: 0.008
-            });
-            createFormFittedShell(thMesh, trimMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.034 * cBulk,
-              yMin: (yBot + yTop) * 0.38, yMax: (yBot + yTop) * 0.64,
-              angleMin: -0.55, angleMax: 0.55,
-              ridgeCenterZ: 0.15 * cRidge,
-              vPointBottom: 0.08, archTop: 0.08,
-              offsetY: cOffY, bevelRadius: 0.007
-            });
-
-          } else if (cuissesType === 7) {
-            // 7. Quijotes de Escamas de Dragón & Puntera Angular Biselada
-            createFormFittedShell(thMesh, mainMat, {
-              targetPart: partName, slotName: 'cuisses',
-              thicknessRatio: 0.030 * cBulk,
-              yMin: yBot, yMax: yTop,
-              ridgeCenterZ: 0.17 * cRidge,
-              vPointBottom: 0.12,
-              foldStyle: 'swallow_tail', foldDepth: 0.09,
-              offsetY: cOffY, bevelRadius: 0.009
-            });
-            [yBot + 0.02, (yBot + yTop) * 0.46].forEach(yBand => {
-              createFormFittedShell(thMesh, trimMat, {
-                targetPart: partName, slotName: 'cuisses',
-                thicknessRatio: 0.035 * cBulk,
-                yMin: yBand, yMax: yBand + 0.13,
-                ridgeCenterZ: 0.18 * cRidge,
-                vPointBottom: 0.11,
-                foldStyle: 'swallow_tail', foldDepth: 0.08,
-                offsetY: cOffY, bevelRadius: 0.007
+          // 3. Relieves en la placa principal
+          if (mainPlate) {
+            const R = 0.0030 * cBulk;
+            // Cresta central dorada a todo lo largo de la placa
+            addShellRelief(mainPlate, t => [0.5, 0.06 + 0.88 * t], R * 1.1, trimMat, 20);
+            if (d.relief === 'frame') {
+              addShellRivets(mainPlate, [[0.38, 0.22], [0.62, 0.22], [0.38, 0.86], [0.62, 0.86]], 0.0042 * cBulk, trimMat);
+              addShellRelief(mainPlate, t => [0.38 + 0.24 * t, 0.22], R, trimMat);
+              addShellRelief(mainPlate, t => [0.38 + 0.24 * t, 0.86], R, trimMat);
+              addShellRelief(mainPlate, t => [0.38, 0.22 + 0.64 * t], R, trimMat);
+              addShellRelief(mainPlate, t => [0.62, 0.22 + 0.64 * t], R, trimMat);
+            } else if (d.relief === 'chevron') {
+              [0.30, 0.55, 0.80].forEach(v0 => addShellRelief(mainPlate, t => [0.36 + 0.28 * t, v0 + 0.10 * Math.abs(t * 2 - 1)], R, trimMat));
+            } else if (d.relief === 'bands') {
+              [0.33, 0.66].forEach(v0 => addShellRelief(mainPlate, t => [0.30 + 0.40 * t, v0], R * 1.4, trimMat));
+            } else if (d.relief === 'vine') {
+              addShellRelief(mainPlate, t => [0.5 + 0.08 * Math.sin(t * Math.PI * 3), 0.12 + 0.78 * t], R, trimMat, 24);
+              [0.3, 0.55, 0.8].forEach(v0 => [-1, 1].forEach(sd => addShellRelief(mainPlate, t => [0.5 + sd * (0.02 + 0.10 * t), v0 + 0.06 * t], R * 0.8, trimMat, 8)));
+            } else if (d.relief === 'fleur') {
+              addShellRelief(mainPlate, t => [0.5, 0.18 + 0.66 * t], R * 1.2, trimMat);
+              [-1, 1].forEach(sd => addShellRelief(mainPlate, t => [0.5 + sd * 0.11 * Math.sin(t * Math.PI), 0.52 + 0.30 * t], R, trimMat, 14));
+            } else if (d.relief === 'filigree') {
+              [-1, 1].forEach(sd => addShellRelief(mainPlate, t => [0.5 + sd * (0.05 + 0.09 * Math.sin(t * Math.PI * 2.4)), 0.12 + 0.76 * t], R, trimMat, 26));
+            } else if (d.relief === 'lamellar') {
+              addShellRivets(mainPlate, [0.32, 0.41, 0.5, 0.59, 0.68].map(u => [u, 0.45]), 0.0028 * cBulk, trimMat);
+            }
+            if (d.gem) addShellJewel(mainPlate, 0.5, d.relief === 'lamellar' ? 0.55 : 0.62, 0.0105 * cBulk, gemMat, trimMat, dmMat, 6);
+            if (d.spikes) {
+              [0.35, 0.65].forEach(v => {
+                const sp = shellPointAt(mainPlate, outerU, v, 0.002);
+                if (!sp) return;
+                const cone = new THREE.Mesh(new THREE.ConeGeometry(0.006 * cBulk, 0.030 * cBulk, 6), trimMat);
+                cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), sp.n.clone().add(new THREE.Vector3(0, 0.35, 0)).normalize());
+                cone.position.copy(sp.p).addScaledVector(sp.n, 0.012 * cBulk);
+                cone.userData.isArmorShell = true;
+                mainPlate.add(cone);
               });
-            });
+            }
+            if (d.fins) {
+              // Aletas de cadera (Dinastía): tres hojas barridas hacia atrás en la cara externa
+              for (let f = 0; f < 3; f++) {
+                const sp = shellPointAt(mainPlate, outerU, 0.80 - f * 0.12, 0.003);
+                if (!sp) continue;
+                const fin = new THREE.Mesh(createBeveledCuttingPlate({ width: (0.026 - f * 0.004) * cBulk, length: (0.11 - f * 0.018) * cBulk, thickness: 0.0028, bevel: 0.34, ridge: 0.004, curveArch: 0.16, sweepX: -0.20, sharpness: 1.8 }), f === 1 ? mainMat : trimMat);
+                fin.position.copy(sp.p);
+                fin.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), sp.n);
+                fin.rotateZ((isL ? -1 : 1) * (0.9 + f * 0.15));
+                fin.userData.isArmorShell = true;
+                mainPlate.add(fin);
+              }
+            }
           }
         });
       });
     }
 
-    /* === 4. RODILLERAS ANATÓMICAS (POLEYNS) ESCULPIDAS CON PUNTAS, ALETAS Y BISELES === */
+    // Catálogo de rodilleras (poleyns): cúpula + alerón lateral + láminas + gema
+    const POLEYN_DESIGNS = {
+      1: { cop: 'round',   wing: 'fan',     lames: 2, gem: 'topaz',    ridge: true },
+      2: { cop: 'faceted', wing: 'fan',     lames: 2, gem: 'sapphire', ridge: true, wingScale: 1.25 },
+      3: { cop: 'pointed', wing: 'blades',  lames: 2, gem: 'ruby',     spike: true },
+      4: { cop: 'round',   wing: 'fan',     lames: 3, gem: null,       rivets: true },
+      5: { cop: 'almond',  wing: 'leaf',    lames: 2, gem: 'emerald',  ridge: true },
+      6: { cop: 'double',  wing: 'feather', lames: 2, gem: 'ruby',     ridge: true },
+      7: { cop: 'faceted', wing: 'blades',  lames: 3, gem: 'ruby',     scales: true }
+    };
+
     function buildArticulatedKnees() {
       const kneeType = STATE.equipment.knees;
       if (kneeType === 0) return;
-
       currentBuildingSlot = 'knees';
       const mainMat = getPBRMaterial('primary');
       const trimMat = getPBRMaterial('trim');
       const glowMat = getGlowMaterial();
+      const d = POLEYN_DESIGNS[kneeType] || POLEYN_DESIGNS[1];
+      let gemMat = glowMat, dmMat = glowMat;
+      try { if (d.gem) gemMat = getFacetedGemMaterial(d.gem, 'knees'); dmMat = getFacetedGemMaterial('diamond', 'knees'); } catch (e) { }
 
       const kScale = STATE.fit.kneeScale;
-      const kWing = STATE.fit.kneeWingSize;
+      const kWing = STATE.fit.kneeWingSize * (d.wingScale || 1.0);
       const offY = STATE.fit.kneeOffsetY;
       const offZ = STATE.fit.kneeOffsetZ;
 
@@ -4923,165 +4933,155 @@
         const shinPart = 'shin_' + side;
         const thighPart = 'thigh_' + side;
 
-        const thighMeshes = getMeshesByAnatomy([thighPart]);
-        const shinMeshes = getMeshesByAnatomy([shinPart]);
-
-        thighMeshes.forEach(thMesh => {
+        // Placas de unión con el muslo y la espinilla, con ribete dorado
+        getMeshesByAnatomy([thighPart]).forEach(thMesh => {
           createFormFittedShell(thMesh, mainMat, {
-            targetPart: thighPart, slotName: 'knees',
-            thicknessRatio: 0.032 * kScale,
-            yMin: 0.0, yMax: 0.18,
-            angleMin: -1.65, angleMax: 1.65,
-            flareBottom: 0.06,
-            ridgeCenterZ: 0.14,
-            vPointBottom: 0.08,
-            bevelRadius: 0.008,
-            offsetY: offY, offsetZ: offZ
-          });
-          createFormFittedShell(thMesh, trimMat, {
-            targetPart: thighPart, slotName: 'knees',
-            thicknessRatio: 0.037 * kScale,
-            yMin: 0.0, yMax: 0.09,
-            angleMin: -1.55, angleMax: 1.55,
-            vPointBottom: 0.08,
-            bevelRadius: 0.007,
-            offsetY: offY, offsetZ: offZ
+            targetPart: thighPart, slotName: 'knees', thicknessRatio: 0.050 * kScale, yMin: 0.0, yMax: 0.17,
+            angleMin: -1.70, angleMax: 1.70, flareBottom: 0.06, ridgeCenterZ: 0.14, vPointBottom: 0.08,
+            bevelRadius: 0.008, offsetY: offY, offsetZ: offZ, edgeRim: 0.0024 * kScale, frameMaterial: trimMat
           });
         });
-
-        shinMeshes.forEach(shMesh => {
+        getMeshesByAnatomy([shinPart]).forEach(shMesh => {
           createFormFittedShell(shMesh, mainMat, {
-            targetPart: shinPart, slotName: 'knees',
-            thicknessRatio: 0.032 * kScale,
-            yMin: 0.80, yMax: 1.0,
-            angleMin: -1.65, angleMax: 1.65,
-            flareTop: 0.06,
-            ridgeCenterZ: 0.14,
-            vPointBottom: 0.10,
-            bevelRadius: 0.008,
-            offsetY: offY, offsetZ: offZ
-          });
-          createFormFittedShell(shMesh, trimMat, {
-            targetPart: shinPart, slotName: 'knees',
-            thicknessRatio: 0.037 * kScale,
-            yMin: 0.80, yMax: 0.90,
-            angleMin: -1.55, angleMax: 1.55,
-            vPointBottom: 0.10,
-            bevelRadius: 0.007,
-            offsetY: offY, offsetZ: offZ
+            targetPart: shinPart, slotName: 'knees', thicknessRatio: 0.050 * kScale, yMin: 0.80, yMax: 1.0,
+            angleMin: -1.70, angleMax: 1.70, flareTop: 0.06, ridgeCenterZ: 0.14, vPointBottom: 0.10,
+            bevelRadius: 0.008, offsetY: offY, offsetZ: offZ, edgeRim: 0.0024 * kScale, frameMaterial: trimMat
           });
         });
 
         const shinBox = getWorldBoxOfParts([shinPart]);
         const thighBox = getWorldBoxOfParts([thighPart]);
         const refBox = shinBox || thighBox;
-        if (!refBox) return;
-
+        if (!refBox || !socket) return;
         const shinBone = findBoneFlexible(side === 'l' ? ['Shin_L', 'LeftLeg', 'LowerLeg_L', 'mixamorigLeftLeg', 'Calf_L', 'shin_L'] : ['Shin_R', 'RightLeg', 'LowerLeg_R', 'mixamorigRightLeg', 'Calf_R', 'shin_R']);
         const thighBone = findBoneFlexible(side === 'l' ? ['Thigh_L', 'LeftUpLeg', 'UpLeg_L', 'mixamorigLeftUpLeg', 'thigh_L'] : ['Thigh_R', 'RightUpLeg', 'UpLeg_R', 'mixamorigRightUpLeg', 'thigh_R']);
-
         const bCenter = refBox.getCenter(new THREE.Vector3());
         const bSize = refBox.getSize(new THREE.Vector3());
         const legThickness = Math.max(0.075, Math.min(bSize.x, bSize.z));
-
         const kneePos = new THREE.Vector3();
         let legAxisDown = new THREE.Vector3(0, -1, 0);
-
         if (shinBone) {
           shinBone.getWorldPosition(kneePos);
-          if (thighBone) {
-            const tp = new THREE.Vector3();
-            thighBone.getWorldPosition(tp);
-            legAxisDown.subVectors(kneePos, tp).normalize();
-          }
-          const surfaceZ = Math.max(kneePos.z + legThickness * 0.46, refBox.max.z - 0.005);
-          kneePos.z = surfaceZ;
+          if (thighBone) { const tp = new THREE.Vector3(); thighBone.getWorldPosition(tp); legAxisDown.subVectors(kneePos, tp).normalize(); }
+          kneePos.z = Math.max(kneePos.z + legThickness * 0.46, refBox.max.z - 0.005);
         } else {
           const jointY = shinBox && thighBox ? (shinBox.max.y + thighBox.min.y) * 0.5 : (shinBox ? shinBox.max.y : thighBox.min.y);
           kneePos.set(bCenter.x, jointY, refBox.max.z - 0.004);
         }
-
         const q = orientAlongAxis(legAxisDown);
         const group = new THREE.Group();
         group.name = `KneePoleyn_${side}`;
 
-        const baseRadius = Math.max(0.046, legThickness * 0.50) * kScale;
-        const kneeZ = (baseRadius * 0.16) + offZ;
-        const kneeY = offY;
+        const R = Math.max(0.050, legThickness * 0.56) * kScale; // cúpula más grande que la rodilla
+        const legR = legThickness * 0.50;
+        const cz = offZ - legR * 0.15;                          // centro de la cúpula
+        const cy = offY;
+        const thick = 0.0050 * kScale, rimR = 0.0028 * kScale;
+        const Xo = new THREE.Vector3(sgn, 0, 0);
 
-        if (kneeType === 1 || kneeType === 6) {
-          // Copa Solar / Celta con Cresta Biselada y Escudete en Diamante
-          const dome = new THREE.Mesh(new THREE.SphereGeometry(baseRadius, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.52), mainMat);
-          dome.rotation.x = Math.PI / 2;
-          dome.scale.set(1.02, 1.24, 0.72);
-          dome.position.set(0, kneeY, kneeZ);
-          group.add(dome);
+        // 1. CÚPULA (copa) de la rodilla
+        const facetN = d.cop === 'faceted' ? 8 : 0;
+        const rawCop = (w, v, s = 1) => {
+          const psi = v * 1.28;
+          let r = R * s;
+          if (d.cop === 'pointed') r *= 1 + 0.45 * Math.pow(Math.cos(psi * 0.78), 6) * (1 - v * 0.2);
+          if (d.cop === 'almond') r *= 1 + 0.10 * Math.pow(Math.abs(Math.sin(w)), 2) * Math.sin(v * Math.PI);
+          const lip = Math.pow(v, 6) * 0.10;
+          const ridge = d.ridge ? Math.pow(Math.abs(Math.sin(w)), 40) * 0.06 * Math.sin(Math.min(1, v * 1.2) * Math.PI) : 0;
+          const rr = r * (1 + lip + ridge);
+          return new THREE.Vector3(Math.cos(w) * Math.sin(psi) * rr * 1.00, cy + Math.sin(w) * Math.sin(psi) * rr * 1.22 * (d.cop === 'almond' ? 1.15 : 1), cz + Math.cos(psi) * rr * 0.62);
+        };
+        const copSurf = (s) => (u, v) => {
+          const w = u * Math.PI * 2;
+          if (!facetN) return rawCop(w, v, s);
+          const st = (Math.PI * 2) / facetN, k = Math.floor(w / st);
+          return rawCop(k * st, v, s).lerp(rawCop((k + 1) * st, v, s), (w - k * st) / st);
+        };
+        const cg = createArmorPlatePatch(copSurf(1), { uSegs: facetN ? 48 : 40, vSegs: 12, thickness: thick, refCenter: new THREE.Vector3(0, cy, cz - R) , wrapU: true });
+        group.add(new THREE.Mesh(cg, mainMat));
+        const cr = createRolledRimAlongRow(cg, cg.userData.rows - 1, rimR * 1.3, { closed: true });
+        if (cr) group.add(new THREE.Mesh(cr, trimMat));
+        const cr2 = createRolledRimAlongRow(cg, cg.userData.rows - 4, rimR * 0.6, { closed: true, outward: 1.4 });
+        if (cr2) group.add(new THREE.Mesh(cr2, trimMat));
+        if (d.cop === 'double') {
+          const tg = createArmorPlatePatch((u, v) => copSurf(1.08)(u, v * 0.55), { uSegs: 36, vSegs: 8, thickness: thick, refCenter: new THREE.Vector3(0, cy, cz - R), wrapU: true });
+          group.add(new THREE.Mesh(tg, trimMat));
+          const tr = createRolledRimAlongRow(tg, tg.userData.rows - 1, rimR, { closed: true });
+          if (tr) group.add(new THREE.Mesh(tr, mainMat));
+        }
+        if (d.ridge) {
+          const pts = []; for (let i = 0; i <= 14; i++) { const v = (i / 14) * 2 - 1; pts.push(copSurf(1.03)(v > 0 ? 0.25 : 0.75, Math.abs(v) * 0.92)); }
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, rimR * 0.9, 6, false), trimMat));
+        }
 
-          const crest = new THREE.Mesh(new THREE.BoxGeometry(0.012 * kScale, baseRadius * 1.55, 0.020 * kScale), trimMat);
-          crest.position.set(0, kneeY, kneeZ + baseRadius * 0.62);
-          group.add(crest);
-
-          const diamond = new THREE.Mesh(new THREE.OctahedronGeometry(baseRadius * 0.34), kneeType === 6 ? glowMat : trimMat);
-          diamond.scale.set(0.88, 1.32, 0.45);
-          diamond.position.set(0, kneeY, kneeZ + baseRadius * 0.72);
-          group.add(diamond);
-
-        } else if (kneeType === 2 || kneeType === 7) {
-          // Poleyn Gótico / Dragón con Aleta Lateral Biselada
-          const dome = new THREE.Mesh(new THREE.ConeGeometry(baseRadius, baseRadius * 1.30, 6), mainMat);
-          dome.rotation.x = Math.PI / 2;
-          dome.scale.set(1.02, 1.24, 0.66);
-          dome.position.set(0, kneeY, kneeZ);
-          group.add(dome);
-
-          const wingArc = Math.PI * 0.70;
-          const wingStart = (sgn * Math.PI * 0.5) - wingArc * 0.5;
-          const wingGeo = new THREE.CylinderGeometry(baseRadius * 1.02 * kWing, baseRadius * 0.70 * kWing, 0.010, 16, 1, false, wingStart, wingArc);
-          const wingMesh = new THREE.Mesh(wingGeo, trimMat);
-          wingMesh.position.set(sgn * baseRadius * 0.40 * kWing, kneeY, kneeZ - baseRadius * 0.12);
-          wingMesh.rotation.z = sgn * 0.18;
-          group.add(wingMesh);
-
-          const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.012 * kScale, baseRadius * 1.44, 0.022 * kScale), trimMat);
-          ridge.position.set(0, kneeY, kneeZ + baseRadius * 0.58);
-          group.add(ridge);
-
-        } else if (kneeType === 3) {
-          // Rodillera Facetada en Punta Diamante Biselada
-          const cone = new THREE.Mesh(new THREE.ConeGeometry(baseRadius * 0.94, baseRadius * 1.38, 4), mainMat);
-          cone.rotation.x = Math.PI / 2;
-          cone.rotation.z = Math.PI / 4;
-          cone.position.set(0, kneeY, kneeZ);
-          group.add(cone);
-
-          const gem = new THREE.Mesh(new THREE.OctahedronGeometry(baseRadius * 0.30), glowMat);
-          gem.position.set(0, kneeY, kneeZ + baseRadius * 0.76);
-          group.add(gem);
-
-        } else if (kneeType === 4) {
-          for (let l = -1; l <= 1; l++) {
-            const lR = baseRadius * (0.98 - Math.abs(l) * 0.14);
-            const lame = new THREE.Mesh(new THREE.SphereGeometry(lR, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.48), l === 0 ? mainMat : trimMat);
-            lame.rotation.x = Math.PI / 2;
-            lame.scale.set(1.02, 1.15, 0.65);
-            lame.position.set(0, kneeY + (l * baseRadius * 0.32), kneeZ - Math.abs(l) * 0.008);
-            group.add(lame);
+        // 2. ALERÓN LATERAL en la cara externa de la rodilla
+        const wingC = new THREE.Vector3(sgn * R * 0.72, cy, cz - R * 0.35);
+        if (d.wing === 'fan' || d.wing === 'leaf') {
+          const fan = (u, v) => {
+            const a = (u * 2 - 1) * 1.15; // abanico vertical
+            const reach = R * kWing * (0.55 + 0.75 * v) * (d.wing === 'leaf' ? (1 - 0.35 * Math.abs(u * 2 - 1)) : 1);
+            const scal = d.wing === 'fan' ? 1 + 0.08 * Math.pow(Math.abs(Math.cos(a * 4.5)), 3) * Math.pow(v, 3) : 1;
+            return wingC.clone().add(new THREE.Vector3(sgn * Math.cos(a) * reach * 0.55 * scal, Math.sin(a) * reach * scal, -Math.cos(a) * reach * 0.62 * scal * v));
+          };
+          const fg = createArmorPlatePatch(fan, { uSegs: 26, vSegs: 8, thickness: thick * 0.9, refCenter: wingC.clone().addScaledVector(Xo, -R) });
+          group.add(new THREE.Mesh(fg, trimMat));
+          const fr = createRolledRimAlongRow(fg, fg.userData.rows - 1, rimR, {});
+          if (fr) group.add(new THREE.Mesh(fr, mainMat));
+          for (let k = 1; k < 6; k++) { // nervios del abanico
+            const pts = []; for (let i = 0; i <= 6; i++) pts.push(fan(k / 6, 0.08 + i / 6 * 0.86).addScaledVector(Xo, thick));
+            group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, rimR * 0.45, 5, false), mainMat));
           }
+        } else {
+          // Hojas cortantes o plumas
+          const n = d.wing === 'feather' ? 4 : 3;
+          for (let f = 0; f < n; f++) {
+            const blade = new THREE.Mesh(createBeveledCuttingPlate({
+              width: R * (d.wing === 'feather' ? 0.34 : 0.42), length: R * kWing * (1.9 - f * 0.25), thickness: 0.0030 * kScale,
+              bevel: 0.36, ridge: 0.004, curveArch: 0.14, sweepX: d.wing === 'feather' ? -0.22 : 0.10, sharpness: 1.85, serrated: d.wing === 'blades' ? 0.06 : 0
+            }), f % 2 ? mainMat : trimMat);
+            blade.position.copy(wingC).addScaledVector(Xo, R * 0.05);
+            blade.rotation.set(0, sgn * Math.PI * 0.5, sgn * (0.35 - f * 0.45));
+            group.add(blade);
+          }
+        }
 
-        } else if (kneeType === 5) {
-          // Garra / Laurel con Púa Frontal Biselada
-          const talon = new THREE.Mesh(new THREE.ConeGeometry(baseRadius * 0.64, baseRadius * 1.65, 6), mainMat);
-          talon.rotation.x = Math.PI / 2 + 0.28;
-          talon.position.set(0, kneeY, kneeZ + baseRadius * 0.38);
-          group.add(talon);
+        // 3. LÁMINAS DE ARTICULACIÓN por encima y por debajo de la cúpula
+        const lameAt = (y0, y1, rScale, mat, pointDown) => {
+          const surf = (u, v) => {
+            const a = (u * 2 - 1) * 1.30;
+            const y = THREE.MathUtils.lerp(y0, y1, v) + (pointDown ? -1 : 1) * Math.pow(Math.cos(a), 6) * R * 0.18 * (pointDown ? v : 1 - v);
+            const r = legR * rScale;
+            return new THREE.Vector3(Math.sin(a) * r, cy + y, cz - legR * 0.85 + Math.cos(a) * r);
+          };
+          const lg = createArmorPlatePatch(surf, { uSegs: 24, vSegs: 5, thickness: thick * 0.85, refCenter: new THREE.Vector3(0, cy + (y0 + y1) * 0.5, cz - legR) });
+          group.add(new THREE.Mesh(lg, mat));
+          const lr = createRolledRimAlongRow(lg, pointDown ? lg.userData.rows - 1 : 0, rimR * 0.8);
+          if (lr) group.add(new THREE.Mesh(lr, trimMat));
+          if (d.rivets) [-0.85, 0.85].forEach(a => {
+            const p = surf(0.5 + a / 2.6, 0.5);
+            const rv = new THREE.Mesh(new THREE.SphereGeometry(rimR * 1.2, 8, 5), trimMat);
+            rv.position.copy(p); group.add(rv);
+          });
+        };
+        for (let i = 0; i < d.lames; i++) {
+          lameAt(R * (0.95 + i * 0.30), R * (1.30 + i * 0.30), 1.22 - i * 0.03, i % 2 ? trimMat : mainMat, false); // hacia el muslo
+          lameAt(-R * (1.30 + i * 0.30), -R * (0.95 + i * 0.30), 1.22 - i * 0.03, i % 2 ? trimMat : mainMat, true); // hacia la espinilla
+        }
 
-          const rim = new THREE.Mesh(new THREE.TorusGeometry(baseRadius * 1.0, 0.008 * kScale, 10, 24), trimMat);
-          rim.position.set(0, kneeY, kneeZ);
-          group.add(rim);
-
-          const rune = new THREE.Mesh(new THREE.OctahedronGeometry(0.015 * kScale), glowMat);
-          rune.position.set(0, kneeY + baseRadius * 0.32, kneeZ + baseRadius * 0.40);
-          group.add(rune);
+        // 4. GEMA / PÚA / ESCAMAS
+        const front = copSurf(1.0)(0, 0.02);
+        if (d.spike) {
+          const sp = new THREE.Mesh(new THREE.ConeGeometry(R * 0.16, R * 0.95, 6), trimMat);
+          sp.rotation.x = Math.PI / 2; sp.position.copy(front).add(new THREE.Vector3(0, 0, R * 0.40));
+          group.add(sp);
+        }
+        if (d.gem) addFacetedJewel(group, front.clone().add(new THREE.Vector3(0, d.spike ? R * 0.42 : 0, 0.002)), new THREE.Vector3(0, 0, 1), R * 0.20, gemMat, trimMat, dmMat, 8);
+        if (d.scales) {
+          for (let i = 0; i < 4; i++) {
+            const sc = new THREE.Mesh(new THREE.ConeGeometry(R * 0.10, R * 0.30, 4), trimMat);
+            sc.rotation.x = 1.0; sc.position.copy(copSurf(1.02)(0.25, 0.25 + i * 0.18)).add(new THREE.Vector3(0, 0, R * 0.04));
+            group.add(sc);
+          }
         }
 
         attachOrnamentWorld(socket, group, kneePos, q, 'knees');
