@@ -4189,6 +4189,139 @@
       }
     }
 
+    // Cuánto sobresale el peto (placas ya construidas) por encima del contorno de la cadera en una franja de alturas.
+    // Devuelve metros en el espacio local de la malla; el cinturón y las escarcelas se separan esa distancia.
+    function measurePetoClearanceOverPelvis(pMesh, vMin, vMax) {
+      if (!pMesh || STATE.equipment.torso === 0) return 0;
+      const zoneDef = ANATOMY_ZONES['pelvis'] || null;
+      const useWorld = Boolean(pMesh.userData.isMultiZone) && zoneDef !== null;
+      const profile = extractAnatomicalProfile(pMesh, 'pelvis', useWorld, zoneDef);
+      if (!profile) return 0;
+      const diffs = [];
+      const v3 = new THREE.Vector3();
+      const toLocal = new THREE.Matrix4();
+      (slotArmorMeshes.torso || []).forEach(obj => {
+        if (!obj.isMesh || !obj.geometry || !obj.userData.isArmorShell || !(obj.name || '').startsWith('Armor_torso_torso')) return;
+        // Las placas comparten transformación con la malla del cuerpo; si no, se convierte por mundo
+        const same = obj.parent === pMesh.parent && obj.position.equals(pMesh.position) && obj.quaternion.equals(pMesh.quaternion);
+        if (!same) { obj.updateMatrixWorld(true); pMesh.updateMatrixWorld(true); toLocal.copy(pMesh.matrixWorld).invert().multiply(obj.matrixWorld); }
+        const pos = obj.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i += 2) {
+          v3.fromBufferAttribute(pos, i);
+          if (!same) v3.applyMatrix4(toLocal);
+          if (profile.useWorldSlice) { pMesh.localToWorld(v3); }
+          const vn = (v3.y - profile.subYMin) / profile.subHeight;
+          if (vn < vMin || vn > vMax) continue;
+          const s0 = sampleProfileAt(profile, Math.max(0, Math.min(1, vn)), 0);
+          const ang = Math.atan2(v3.x - s0.cx, v3.z - s0.cz);
+          const sp = sampleProfileAt(profile, Math.max(0, Math.min(1, vn)), ang);
+          diffs.push(Math.hypot(v3.x - sp.cx, v3.z - sp.cz) - sp.radius);
+        }
+      });
+      if (!diffs.length) return 0;
+      diffs.sort((a, b) => a - b);
+      return Math.max(0, diffs[Math.floor(diffs.length * 0.97)]); // percentil 97: ignora picos aislados
+    }
+
+    // Bandas del cinturón que siguen la ENVOLVENTE EXTERIOR del peto + cuerpo (nunca se hunden ni flotan)
+    function buildEnvelopeBeltBands(pMesh, specs, mats, bScale) {
+      const { mainMat, trimMat } = mats;
+      const zoneDef = ANATOMY_ZONES['pelvis'] || null;
+      const useWorld = Boolean(pMesh.userData.isMultiZone) && zoneDef !== null;
+      const profile = extractAnatomicalProfile(pMesh, 'pelvis', useWorld, zoneDef);
+      if (!profile || !specs.length) return null;
+      const vLo = Math.min(...specs.map(s => s.yMin - (s.vPointBottom || 0))) - 0.06;
+      const vHi = Math.max(...specs.map(s => s.yMax)) + 0.06;
+      const HB = 12, AB = 48;
+      const grid = new Float32Array(HB * AB);
+      const toV = (vn) => Math.max(0, Math.min(HB - 1, Math.round((vn - vLo) / (vHi - vLo) * (HB - 1))));
+      const toA = (a) => ((Math.round(((a + Math.PI) / (Math.PI * 2)) * AB) % AB) + AB) % AB;
+      // Radio del cuerpo como base
+      for (let h = 0; h < HB; h++) for (let k = 0; k < AB; k++) {
+        const vn = vLo + (h / (HB - 1)) * (vHi - vLo);
+        grid[h * AB + k] = sampleProfileAt(profile, Math.max(0, Math.min(1, vn)), -Math.PI + (k / AB) * Math.PI * 2).radius;
+      }
+      // Placas del peto: máximo radio por celda
+      const v3 = new THREE.Vector3();
+      (slotArmorMeshes.torso || []).forEach(obj => {
+        if (!obj.isMesh || !obj.geometry || !(obj.name || '').startsWith('Armor_torso_torso')) return;
+        const pos = obj.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          v3.fromBufferAttribute(pos, i);
+          if (profile.useWorldSlice) pMesh.localToWorld(v3);
+          const vn = (v3.y - profile.subYMin) / profile.subHeight;
+          if (vn < vLo || vn > vHi) continue;
+          const sp = sampleProfileAt(profile, Math.max(0, Math.min(1, vn)), 0);
+          const a = Math.atan2(v3.x - sp.cx, v3.z - sp.cz);
+          const r = Math.hypot(v3.x - sp.cx, v3.z - sp.cz);
+          const idx = toV(vn) * AB + toA(a);
+          if (r > grid[idx]) grid[idx] = r;
+        }
+      });
+      // Suavizado conservando la envolvente
+      for (let pass = 0; pass < 3; pass++) {
+        const cp = new Float32Array(grid);
+        for (let h = 0; h < HB; h++) for (let k = 0; k < AB; k++) {
+          const c = cp[h * AB + k];
+          const n = (cp[h * AB + (k + 1) % AB] + cp[h * AB + (k - 1 + AB) % AB] + cp[Math.min(HB - 1, h + 1) * AB + k] + cp[Math.max(0, h - 1) * AB + k]) / 4;
+          grid[h * AB + k] = Math.max(c * 0.985, c * 0.5 + n * 0.5);
+        }
+      }
+      const envR = (vn, a) => {
+        const hf = Math.max(0, Math.min(HB - 1.001, (vn - vLo) / (vHi - vLo) * (HB - 1)));
+        let af = ((a + Math.PI) / (Math.PI * 2)) * AB; af = ((af % AB) + AB) % AB;
+        const h0 = Math.floor(hf), k0 = Math.floor(af) % AB, k1 = (k0 + 1) % AB, th = hf - h0, ta = af - Math.floor(af);
+        const g = (h, k) => grid[Math.min(HB - 1, h) * AB + k];
+        return (g(h0, k0) * (1 - ta) + g(h0, k1) * ta) * (1 - th) + (g(h0 + 1, k0) * (1 - ta) + g(h0 + 1, k1) * ta) * th;
+      };
+
+      const group = new THREE.Group();
+      group.name = 'BeltEnvelopeBands';
+      group.position.copy(pMesh.position); group.rotation.copy(pMesh.rotation); group.scale.copy(pMesh.scale);
+      const surfs = [];
+      specs.forEach((sp, i) => {
+        const out = (i === 0 ? 0.006 : 0.010) * bScale;
+        const surf = (u, v) => {
+          const a = (u - 0.5) * Math.PI * 2; // u = 0.5 delante
+          const vBot = sp.yMin - (sp.vPointBottom || 0) * Math.pow(Math.max(0, Math.cos(a)), 1.55);
+          const vn = THREE.MathUtils.lerp(vBot, sp.yMax, v);
+          const c = sampleProfileAt(profile, Math.max(0, Math.min(1, vn)), 0);
+          const r = envR(vn, a) + out;
+          const p = new THREE.Vector3(c.cx + Math.sin(a) * r, profile.subYMin + vn * profile.subHeight + (sp.offsetY || 0) * profile.subHeight, c.cz + Math.cos(a) * r + (sp.offsetZ || 0));
+          if (profile.useWorldSlice && profile.worldToLocal) p.applyMatrix4(profile.worldToLocal);
+          return p;
+        };
+        const axis = surf(0.5, 0.5).lerp(surf(0.0, 0.5), 0.5);
+        const g = createArmorPlatePatch(surf, { uSegs: 72, vSegs: 6, thickness: 0.0045 * bScale, refCenter: axis, wrapU: true });
+        group.add(new THREE.Mesh(g, sp.mat));
+        const rimMat = sp.mat === trimMat ? mainMat : trimMat;
+        const r1 = createRolledRimAlongRow(g, 0, 0.0024 * bScale, { closed: true });
+        if (r1) group.add(new THREE.Mesh(r1, rimMat));
+        const r2 = createRolledRimAlongRow(g, g.userData.rows - 1, 0.0024 * bScale, { closed: true });
+        if (r2) group.add(new THREE.Mesh(r2, rimMat));
+        surfs.push(surf);
+      });
+      // Tachones dorados alrededor de la banda principal (libre delante para la hebilla)
+      const main = surfs[0];
+      for (let u = 0.03; u < 0.98; u += 0.045) {
+        if (Math.abs(u - 0.5) < 0.09) continue;
+        const p = main(u, 0.62);
+        const n = new THREE.Vector3(Math.sin((u - 0.5) * Math.PI * 2), 0, Math.cos((u - 0.5) * Math.PI * 2));
+        const st = new THREE.Mesh(new THREE.SphereGeometry(0.0034 * bScale, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
+        st.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+        st.position.copy(p).addScaledVector(n, 0.0025 * bScale);
+        group.add(st);
+      }
+      group.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; n.castShadow = true; n.receiveShadow = true; if (n.geometry) n.geometry.userData = {}; } });
+      if (pMesh.parent) {
+        pMesh.parent.add(group);
+        generatedArmorShells.push(group);
+        slotArmorMeshes.belt.push(group);
+      }
+      group.updateMatrixWorld(true);
+      return { group, frontPoint: (v) => group.localToWorld(main(0.5, v).clone()) };
+    }
+
     function buildArticulatedBelt() {
       const beltType = STATE.equipment.belt;
       if (beltType === 0) return;
@@ -4208,11 +4341,16 @@
       let shellsCreated = 0;
       // Todas las bandas del cinturón llevan ribete dorado en los cantos
       const beltShells = [];
-      // Con peto equipado el cinturón se ciñe POR FUERA del borde inferior del peto
-      const overPeto = STATE.equipment.torso > 0 ? 0.075 * bScale : 0.0;
+      // Con peto equipado, el cinturón se construye sobre la envolvente exterior del peto
+      // (sigue su forma real por encima): así la hebilla y la decoración siempre quedan a la vista
+      const usePetoEnvelope = STATE.equipment.torso > 0 && pelvisMeshes.length > 0;
+      const envSpecs = [];
       const fitBelt = (mesh, mat, opts) => {
-        const o2 = Object.assign({}, opts, { thicknessRatio: (opts.thicknessRatio || 0.09) + overPeto });
-        const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * bScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, o2));
+        if (usePetoEnvelope) {
+          envSpecs.push({ yMin: opts.yMin, yMax: opts.yMax, vPointBottom: opts.vPointBottom || 0, mat, offsetY: opts.offsetY || 0, offsetZ: opts.offsetZ || 0 });
+          return null;
+        }
+        const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * bScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, opts));
         if (sh) beltShells.push(sh);
         return sh;
       };
@@ -4392,6 +4530,8 @@
       });
 
       // 2. Hebilla Heráldica 3D + Tabardo Colgante (Banner frontal entre las escarcelas como en la imagen de referencia)
+      const envBelt = usePetoEnvelope ? buildEnvelopeBeltBands(pelvisMeshes[0], envSpecs, { mainMat, trimMat }, bScale) : null;
+
       // Tachones dorados alrededor de la banda principal (dejando libre la hebilla)
       if (beltShells[0] && beltShells[0].geometry.userData.grid && beltShells[0].geometry.userData.grid.isFullWrap) {
         const studs = [];
@@ -4409,7 +4549,11 @@
       let frontSurfaceZ = (pelvisBox.max.z - pCenter.z) + 0.016 * bScale + bOffZ;
       let buckleY = (pSize.y * 0.20) + bOffY;
       // Hebilla sobre la superficie real de la banda principal
-      if (beltShells[0] && beltShells[0].geometry.userData.grid && beltShells[0].geometry.userData.grid.isFullWrap) {
+      if (envBelt) {
+        const w = envBelt.frontPoint(0.62);
+        frontSurfaceZ = w.z - pCenter.z + 0.004 * bScale;
+        buckleY = w.y - pCenter.y;
+      } else if (beltShells[0] && beltShells[0].geometry.userData.grid && beltShells[0].geometry.userData.grid.isFullWrap) {
         beltShells[0].updateMatrixWorld(true);
         const fp = shellPointAt(beltShells[0], 0.5, 0.62, 0.002);
         if (fp) {
@@ -4548,7 +4692,13 @@
       try { tasGem = getFacetedGemMaterial(tassetType === 6 ? 'ruby' : (tassetType === 4 ? 'emerald' : (tassetType === 2 ? 'amethyst' : 'sapphire')), 'tassets'); tasDm = getFacetedGemMaterial('diamond', 'tassets'); } catch (e) { }
       // Cada placa: ribete dorado; las placas principales del muslo llevan cresta y remaches
       let sideMainShells = [];
+      const tasPetoClear = 0; // las escarcelas cuelgan por debajo del cinturón
       const fitTas = (mesh, mat, opts) => {
+        if (opts.targetPart === 'pelvis' && tasPetoClear > 0) {
+          const prof = extractAnatomicalProfile(mesh, 'pelvis', Boolean(mesh.userData.isMultiZone) && !!ANATOMY_ZONES['pelvis'], ANATOMY_ZONES['pelvis'] || null);
+          const avgR = prof ? prof.avgRadius : 0.15;
+          opts = Object.assign({}, opts, { thicknessRatio: opts.thicknessRatio + (tasPetoClear + 0.004 * tScale) / (avgR * STATE.fit.globalBulk * 0.70) });
+        }
         const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * tScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, opts));
         if (sh && mat !== trimMat && opts.targetPart && opts.targetPart.startsWith('thigh')) {
           addShellRelief(sh, t => [0.5, 0.10 + 0.82 * t], 0.0026 * tScale, trimMat, 14);
