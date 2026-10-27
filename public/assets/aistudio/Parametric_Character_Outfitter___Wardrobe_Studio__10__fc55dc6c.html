@@ -9913,15 +9913,19 @@
     const AR_UP = new THREE.Vector3(0, 1, 0);
     const AR_DOWN = new THREE.Vector3(0, -1, 0);
     const AR_AIM_DIR = new THREE.Vector3(0, -0.03, 1);        // se dispara al frente del personaje
-    // Postura del brazo de la cuerda. Son centímetros, pero deciden si el brazo sale por
-    // fuera de la coraza o se queda enterrado en ella. La articulación sólo se SUBE: llevarla
-    // además hacia afuera o hacia atrás (la retracción escapular real) saca el deltoides por
-    // el espaldar del peto, así que la apertura se consigue con el codo, no moviendo el hueso.
+    // Postura del brazo de la cuerda. Con el cuerpo de costado, la línea de los hombros (y del
+    // arco) atraviesa el tronco: un brazo que la siga queda enterrado en el peto. Se evita con
+    // el codo, que sale hacia el lado del pecho (de ahí cabe la mano en el pómulo sin cruzar el
+    // cuello), y con el arco adelantado mientras se tensa, para que la mano llegue por fuera.
+    // La articulación del hombro sólo se SUBE: llevarla hacia afuera o atrás saca el deltoides
+    // por el espaldar del peto.
     const AR_DRAW = {
       hombroArriba: 0.026,   // la escápula se eleva al tensar
-      codoAlzado:   0.34     // cuánto se alza el codo sobre la horizontal
+      codoAngulo:   2.6,     // dirección del codo, girando desde la espalda (0) por arriba (1,57) hasta el pecho (3,14)
+      giro:         1.45,    // el arquero se pone de costado al objetivo (rad)
+      extensionArco: 0.985,  // extensión del brazo del arco (1 = recto del todo)
+      desvioArco:   0.14     // metros que se adelanta el arco por delante del pecho mientras se tensa
     };
-    const AR_TURN = 1.45;                                     // el arquero se pone de costado al objetivo
 
     function spawnArrowTrail(pos) {
       const mat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -10216,10 +10220,10 @@
       // 1. Estancia de arquero: el cuerpo se pone de costado para que los dos hombros y la
       //    cara queden en el plano de tiro (así el anclaje cae en la mandíbula, no cruzado).
       const pelvis = bonesMap.Pelvis, torso = bonesMap.Torso;
-      if (pelvis) pelvis.rotation.y = -AR_TURN * 0.38;
-      if (torso) torso.rotation.set(0.02, -AR_TURN * 0.62, 0);
-      if (bonesMap.Neck) bonesMap.Neck.rotation.set(0, AR_TURN * 0.30, 0);
-      if (bonesMap.Head) bonesMap.Head.rotation.set(-0.04, AR_TURN * 0.68, 0);
+      if (pelvis) pelvis.rotation.y = -AR_DRAW.giro * 0.38;
+      if (torso) torso.rotation.set(0.02, -AR_DRAW.giro * 0.62, 0);
+      if (bonesMap.Neck) bonesMap.Neck.rotation.set(0, AR_DRAW.giro * 0.30, 0);
+      if (bonesMap.Head) bonesMap.Head.rotation.set(-0.04, AR_DRAW.giro * 0.68, 0);
       const frame = mannequinRoot || torso;
       frame.updateWorldMatrix(true, false);
       const aimW = AR_AIM_DIR.clone().transformDirection(frame.matrixWorld).normalize();
@@ -10228,7 +10232,9 @@
       const reachL = handGripReach('L');
       cL.sh.updateWorldMatrix(true, false);
       const shLW = new THREE.Vector3().setFromMatrixPosition(cL.sh.matrixWorld);
-      const targetL = shLW.clone().addScaledVector(aimW, (cL.L1 + cL.L2 + reachL) * 0.985);
+      const chestFront = new THREE.Vector3(0, 0, 1).transformDirection(torso.matrixWorld).normalize();
+      const targetL = shLW.clone().addScaledVector(aimW, (cL.L1 + cL.L2 + reachL) * AR_DRAW.extensionArco)
+        .addScaledVector(chestFront, AR_DRAW.desvioArco * aim * (1 - smooth01((pull - 0.40) / 0.60)));
       solveArmIK('L', targetL, reachL);
       setElbowPole('L', AR_DOWN);          // codo del arco caído, fuera del paso de la cuerda
       // El arco queda vertical y encarado al objetivo pase lo que pase con el codo
@@ -10251,13 +10257,11 @@
       const drawLocal = AR_BRACE + drawFull * pull;
 
       // 4. Mano de la cuerda: IK hasta el culatín, con el puño vertical para enganchar.
-      //    El codo se lleva hacia la ESPALDA y sólo un poco alto, como tira un arquero: el
-      //    antebrazo pasa por detrás del hombro en vez de cruzar por delante del peto.
-      //    (Hacia atrás en la línea de la flecha no sirve: con la mano en el pómulo esa
-      //    dirección es casi el propio eje hombro-muñeca y el codo acaba donde sea.)
+      //    El pómulo de la cuerda mira hacia el pecho, así que el antebrazo tiene que llegar
+      //    por ese lado: llevar el codo a la espalda hacía atravesar el cuello y el tronco.
       archeryDrawShoulder(aim);
-      const poleDrawW = new THREE.Vector3(0, 0, -1).transformDirection(torso.matrixWorld)
-        .normalize().addScaledVector(AR_UP, AR_DRAW.codoAlzado).normalize();
+      const poleDrawW = new THREE.Vector3(0, 0, -1).transformDirection(torso.matrixWorld)   // espalda
+        .normalize().multiplyScalar(Math.cos(AR_DRAW.codoAngulo)).addScaledVector(AR_UP, Math.sin(AR_DRAW.codoAngulo)).normalize();
       const reachR = handGripReach('R');
       const nockTargetW = rig.bow.localToWorld(new THREE.Vector3(0, 0, -drawLocal));
       // Dos pasadas: la segunda corrige el desfase que deja el giro del brazo, de modo
