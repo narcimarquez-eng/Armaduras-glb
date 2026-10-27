@@ -6343,6 +6343,173 @@
     }
 
     /* === 6. BOTAS & ESCARPES ESCULPIDOS 3D (MALLA CONTINUA LISA CON 6 FORMAS Y BISELES) === */
+    /* =========================================================================
+       6b. ESCARPE ARTICULADO (L2): láminas superpuestas desde el empeine hasta la
+       puntera, talonera, suela perfilada y relieves dorados según el modelo.
+       Marco del tobillo: +Y arriba, +Z hacia la puntera, X lateral.
+       ========================================================================= */
+    const SABATON_DESIGNS = {
+      1: { toe: 'ogive',  lames: 4, relief: 'sun',      gem: 'topaz',    crest: true },
+      2: { toe: 'gothic', lames: 5, relief: 'flutes',   gem: 'amethyst', crest: true, toeSpike: true },
+      3: { toe: 'square', lames: 4, relief: 'bands',    gem: 'sapphire', crest: false, heavyRivets: true },
+      4: { toe: 'almond', lames: 4, relief: 'filigree', gem: 'ruby',     crest: true },
+      5: { toe: 'round',  lames: 3, relief: 'leaves',   gem: 'emerald',  crest: true },
+      6: { toe: 'wedge',  lames: 5, relief: 'chevrons', gem: 'ruby',     crest: true, scales: true }
+    };
+
+    function buildArticulatedSabaton(group, dims, bootType, mats) {
+      const d = SABATON_DESIGNS[bootType] || SABATON_DESIGNS[1];
+      const { mainMat, trimMat, glowMat } = mats;
+      const { L, heel, ground, footW, collarH, k } = dims; // k = escala de miembros
+      let gemMat = glowMat, dmMat = glowMat;
+      try { gemMat = getFacetedGemMaterial(d.gem, 'boots'); dmMat = getFacetedGemMaterial('diamond', 'boots'); } catch (e) { }
+      const thick = 0.0045 * k;
+      const rimR = 0.0026 * k;
+      const zStart = L * 0.04;
+      const Hs = ground + collarH * 0.30;      // altura del empeine junto al tobillo
+      const Wb = footW * 1.08;                 // anchura en la base del pie
+
+      const widthAt = (t) => {
+        let w = Wb * (1.0 - 0.06 * t);
+        if (d.toe === 'gothic') w *= t < 0.45 ? 1 : Math.pow(Math.max(0, 1 - (t - 0.45) / 0.55), 0.85);
+        else if (d.toe === 'square') w *= t < 0.86 ? 1 : Math.sqrt(Math.max(0, 1 - Math.pow((t - 0.86) / 0.14, 2))) * 0.25 + 0.75 * (t < 0.999 ? 1 : 0);
+        else if (d.toe === 'almond') w *= Math.pow(Math.max(0, 1 - Math.pow(t, 2.4)), 0.55);
+        else if (d.toe === 'round') w *= Math.sqrt(Math.max(0, 1 - Math.pow(t, 3.2)));
+        else if (d.toe === 'wedge') w *= Math.max(0.02, 1 - 0.92 * Math.pow(t, 1.7));
+        else w *= Math.pow(Math.max(0, 1 - Math.pow(t, 2.6)), 0.5); // ojiva
+        return Math.max(0.0005, w);
+      };
+      const heightAt = (t) => {
+        const tipH = d.toe === 'gothic' ? 0.16 : (d.toe === 'square' ? 0.42 : 0.30);
+        return Math.max(ground * 0.06, Hs * (1 - (1 - tipH) * Math.pow(t, 1.25)) * (t > 0.97 ? (1 - (t - 0.97) / 0.03 * 0.6) : 1));
+      };
+      // Superficie del pie acorazado: th ∈ [-π/2, π/2] (lado a lado por encima del empeine)
+      const footSurf = (th, t, s = 1.0) => {
+        const z = zStart + t * (L - zStart);
+        const w = widthAt(t) * 0.5 * s;
+        const h = heightAt(t) * s;
+        const c = Math.cos(th);
+        const crestBump = d.crest ? Math.pow(Math.max(0, c), 40) * 0.05 * h : 0;
+        return new THREE.Vector3(Math.sin(th) * w, -ground + (h + crestBump) * Math.pow(Math.max(0, c), 0.7), z + (s - 1) * L * 0.02);
+      };
+
+      // 1. LÁMINAS SUPERPUESTAS (cada una cubre a la siguiente hacia la puntera)
+      const N = d.lames;
+      const lameSurfs = [];
+      for (let i = 0; i < N; i++) {
+        const t0 = Math.max(0, i / N - 0.05), t1 = (i + 1) / N;
+        const sc = 1.0 + 0.035 * (N - 1 - i);
+        const last = i === N - 1;
+        const surf = (u, v) => {
+          const th = (u * 2 - 1) * Math.PI * 0.5;
+          let t = THREE.MathUtils.lerp(t0, last ? 1.0 : t1, v);
+          // borde delantero en punta (estilo de cada modelo) salvo en la puntera
+          if (!last) {
+            const fr = Math.pow(Math.max(0, Math.cos(th)), 3);
+            t += (d.relief === 'chevrons' || d.toe === 'gothic' ? 0.05 : 0.025) * fr * v;
+          }
+          const flare = 1 + 0.05 * Math.pow(v, 2) * (last ? 0 : 1);
+          return footSurf(th, Math.min(1, t), sc * flare);
+        };
+        lameSurfs.push(surf);
+        const g = createArmorPlatePatch(surf, { uSegs: 28, vSegs: last ? 14 : 7, thickness: thick, refCenter: new THREE.Vector3(0, -ground, zStart + (t0 + t1) * 0.5 * L) });
+        group.add(new THREE.Mesh(g, (N >= 4 && i % 2 === 1) ? trimMat : mainMat));
+        if (!last) {
+          const r = createRolledRimAlongRow(g, g.userData.rows - 1, rimR * (d.relief === 'bands' ? 1.5 : 1.0));
+          if (r) group.add(new THREE.Mesh(r, trimMat));
+        }
+        const rTop = createRolledRimAlongRow(g, 0, rimR * 0.7);
+        if (rTop) group.add(new THREE.Mesh(rTop, trimMat));
+        // Remaches laterales en cada articulación
+        [-1, 1].forEach(sd => {
+          const p = surf(0.5 + sd * 0.40, 0.25);
+          const n = p.clone().sub(new THREE.Vector3(0, -ground, p.z)).setZ(0).normalize();
+          const riv = new THREE.Mesh(new THREE.SphereGeometry(rimR * (d.heavyRivets ? 1.6 : 1.1), 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
+          riv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+          riv.position.copy(p).addScaledVector(n, thick * 0.6);
+          group.add(riv);
+        });
+      }
+
+      // 2. TALONERA envolvente
+      const heelSurf = (u, v) => {
+        const ph = Math.PI * 0.5 + u * Math.PI; // de un lado al otro por detrás
+        const y = THREE.MathUtils.lerp(-ground, Hs - ground + collarH * 0.05, v);
+        const rr = 1 + 0.06 * Math.sin(v * Math.PI);
+        return new THREE.Vector3(Math.sin(ph) * Wb * 0.5 * rr, y, Math.cos(ph) * heel * rr + zStart * 0.5);
+      };
+      const hg = createArmorPlatePatch(heelSurf, { uSegs: 22, vSegs: 8, thickness: thick, refCenter: new THREE.Vector3(0, -ground * 0.4, 0) });
+      group.add(new THREE.Mesh(hg, mainMat));
+      const hr = createRolledRimAlongRow(hg, hg.userData.rows - 1, rimR);
+      if (hr) group.add(new THREE.Mesh(hr, trimMat));
+
+      // 3. SUELA PERFILADA (contorno real de la bota en planta) con vira dorada
+      const shape = new THREE.Shape();
+      const zAt = (t) => zStart + t * (L - zStart);
+      shape.moveTo(widthAt(0) * 0.52, zAt(0));
+      for (let i = 1; i <= 24; i++) { const t = i / 24; shape.lineTo(widthAt(t) * 0.52, zAt(t)); }
+      for (let i = 24; i >= 0; i--) { const t = i / 24; shape.lineTo(-widthAt(t) * 0.52, zAt(t)); }
+      for (let i = 0; i <= 12; i++) { const ph = (i / 12) * Math.PI; shape.lineTo(-Math.cos(ph) * Wb * 0.52, zStart * 0.5 - Math.sin(ph) * heel); }
+      const soleGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.011 * k, bevelEnabled: true, bevelThickness: 0.002 * k, bevelSize: 0.002 * k, bevelSegments: 1, curveSegments: 4 });
+      soleGeo.rotateX(Math.PI / 2);
+      soleGeo.translate(0, -ground + 0.009 * k, 0);
+      group.add(new THREE.Mesh(soleGeo, trimMat));
+
+      // 4. RELIEVES según el modelo
+      const tubeAlong = (pts, r, mat) => { if (pts.length < 2) return; group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(12, pts.length * 3), r, 6, false), mat)); };
+      const onTop = (th, t, lift = 1.0) => footSurf(th, t, 1.0 + 0.035 * (N - 1 - Math.min(N - 1, Math.floor(t * N))) + 0.02 * lift);
+      if (d.crest) {
+        const pts = []; for (let i = 0; i <= 20; i++) pts.push(onTop(0, 0.02 + i / 20 * 0.86));
+        tubeAlong(pts, rimR * 0.9, trimMat);
+      }
+      if (d.relief === 'flutes') {
+        [-0.42, 0.42].forEach(th => { const pts = []; for (let i = 0; i <= 16; i++) pts.push(onTop(th, 0.04 + i / 16 * 0.70)); tubeAlong(pts, rimR * 0.6, trimMat); });
+      } else if (d.relief === 'filigree') {
+        [-1, 1].forEach(sd => {
+          const pts = []; for (let i = 0; i <= 18; i++) { const t = 0.06 + i / 18 * 0.70; pts.push(onTop(sd * (0.35 + 0.28 * Math.sin(t * Math.PI * 3.2)), t)); }
+          tubeAlong(pts, rimR * 0.55, trimMat);
+        });
+      } else if (d.relief === 'chevrons') {
+        for (let i = 0; i < N - 1; i++) {
+          const t = (i + 0.55) / N; const pts = [];
+          for (let j = 0; j <= 10; j++) { const th = (j / 10 * 2 - 1) * 1.1; pts.push(onTop(th, t - Math.abs(th) * 0.04)); }
+          tubeAlong(pts, rimR * 0.6, trimMat);
+        }
+      } else if (d.relief === 'sun') {
+        const c0 = 0.80;
+        for (let r = 0; r < 7; r++) { const th = (r / 6 * 2 - 1) * 0.95; tubeAlong([onTop(th * 0.15, c0), onTop(th, c0 - 0.14 - 0.05 * Math.cos(th))], rimR * 0.5, trimMat); }
+      } else if (d.relief === 'leaves') {
+        for (let i = 0; i < 6; i++) {
+          const t = 0.10 + i * 0.12, sd = i % 2 ? 1 : -1;
+          const p = onTop(sd * 0.22, t);
+          const leaf = new THREE.Mesh(new THREE.OctahedronGeometry(0.010 * k, 0), trimMat);
+          leaf.scale.set(0.55, 0.28, 1.5); leaf.rotation.set(-0.35, sd * 0.45, 0);
+          leaf.position.copy(p).add(new THREE.Vector3(0, 0.002 * k, 0));
+          group.add(leaf);
+        }
+      } else if (d.relief === 'bands') {
+        [-1, 1].forEach(sd => { const pts = []; for (let i = 0; i <= 12; i++) pts.push(onTop(sd * 1.25, 0.04 + i / 12 * 0.80)); tubeAlong(pts, rimR * 0.9, trimMat); });
+      }
+      if (d.scales) {
+        for (let i = 0; i < 5; i++) {
+          const t = 0.08 + i * 0.16; const p = onTop(0, t, 1.4);
+          const sc = new THREE.Mesh(new THREE.ConeGeometry(0.008 * k, 0.020 * k, 4), trimMat);
+          sc.rotation.x = 0.9; sc.position.copy(p).add(new THREE.Vector3(0, 0.006 * k, 0));
+          group.add(sc);
+        }
+      }
+      if (d.toeSpike) {
+        const tip = footSurf(0, 0.995);
+        const sp = new THREE.Mesh(new THREE.ConeGeometry(0.006 * k, 0.034 * k, 6), trimMat);
+        sp.rotation.x = Math.PI / 2; sp.position.copy(tip).add(new THREE.Vector3(0, 0.002 * k, 0.014 * k));
+        group.add(sp);
+      }
+      // Gema engastada en la puntera / empeine
+      const gp = onTop(0, d.toe === 'gothic' ? 0.45 : 0.55, 1.8);
+      addFacetedJewel(group, gp, new THREE.Vector3(0, 1, 0.35).normalize(), 0.0085 * k, gemMat, trimMat, dmMat, 6);
+      return { widthAt, heightAt, footSurf };
+    }
+
     function createSculptedSabatonGeometry(opts) {
       const {
         footW = 0.095,
@@ -6653,51 +6820,15 @@
         const sSize = sBox ? sBox.getSize(new THREE.Vector3()) : new THREE.Vector3(0.12 * lBulk, 0.38, 0.12 * lBulk);
 
         // Escarpe sobredimensionado (estética L2): más largo, ancho y alto que el pie para que nunca asome la punta
-        const forwardToeDist = (fBox ? Math.max(0.150, (fBox.max.z - anklePos.z) + 0.016 * lBulk) : (0.175 * lBulk)) * 1.10 + 0.010 * lBulk;
+        const forwardToeDist = (fBox ? Math.max(0.150, (fBox.max.z - anklePos.z) + 0.016 * lBulk) : (0.175 * lBulk)) * 1.22 + 0.012 * lBulk;
         const backHeelDist = (fBox ? Math.max(0.054, (anklePos.z - fBox.min.z) + 0.012 * lBulk) : (0.062 * lBulk)) * 1.14;
         const groundDepth = fBox ? Math.max(0.052, anklePos.y - fBox.min.y) : 0.068;
-        const realFootW = Math.max(0.088, fSize.x) * 1.18 * lBulk;
+        const realFootW = Math.max(0.088, fSize.x) * 1.32 * lBulk;
         const ankleW = Math.max(0.080, sSize.x * 0.86) * 1.14 * lBulk;
         const collarH = Math.max(0.080, groundDepth * bCfg.collarFactor * 1.25);
 
-        // 1. CUERPO ESCULPIDO DEL ESCARPE / BOTA (Malla 3D continua y lisa con bisel de 45°, cero esferas abultadas)
-        const sabatonGeo = createSculptedSabatonGeometry({
-          footW: realFootW,
-          ankleW: ankleW,
-          heelBack: backHeelDist,
-          toeFront: forwardToeDist,
-          groundDepth: groundDepth,
-          collarH: collarH,
-          thickness: 0.0045 * lBulk,
-          bevelSize: 0.0075 * lBulk,
-          toeShape: bCfg.toeShape,
-          ridgeStrength: bCfg.ridgeStrength * lBulk,
-          facetPower: bCfg.facetPower,
-          cuffStyle: bCfg.cuffStyle
-        });
-        const sabatonMesh = new THREE.Mesh(sabatonGeo, mainMat);
-        sabatonMesh.castShadow = true;
-        sabatonMesh.receiveShadow = true;
-        group.add(sabatonMesh);
-
-        // 2. VIROLA Y SUELA PERIMETRAL BISELADA (Beveled Sole Welt)
-        const soleRimGeo = createSculptedSabatonGeometry({
-          footW: realFootW * 1.035,
-          ankleW: realFootW * 0.96,
-          heelBack: backHeelDist * 1.03,
-          toeFront: forwardToeDist * 1.025,
-          groundDepth: groundDepth,
-          collarH: -groundDepth + 0.020 * lBulk,
-          thickness: 0.0054 * lBulk,
-          bevelSize: 0.008 * lBulk,
-          toeShape: bCfg.toeShape,
-          ridgeStrength: bCfg.ridgeStrength * 0.8 * lBulk,
-          facetPower: bCfg.facetPower,
-          cuffStyle: 'v_notch'
-        });
-        const soleRimMesh = new THREE.Mesh(soleRimGeo, trimMat);
-        soleRimMesh.castShadow = true;
-        group.add(soleRimMesh);
+        // 1-2. ESCARPE ARTICULADO: láminas, puntera, talonera, suela y relieves
+        buildArticulatedSabaton(group, { L: forwardToeDist, heel: backHeelDist, ground: groundDepth, footW: realFootW, collarH, k: lBulk }, bootType, { mainMat, trimMat, glowMat });
 
         // 3. CENEFA SUPERIOR BISELADA DE UNIÓN CON LA GREBA (Ankle Bevel Collar)
         const cuffTrimGeo = createSculptedSabatonGeometry({
@@ -6719,16 +6850,7 @@
         group.add(cuffTrimMesh);
 
         // 4. ORNAMENTOS BISELADOS ESPECÍFICOS DE CADA ESTILO DE BOTA
-        if (bootType === 1) {
-          // Paladín Solar: Gema solar facetada engastada en la cresta dorsal
-          const crestGeo = new THREE.OctahedronGeometry(0.015 * lBulk, 0);
-          crestGeo.scale(0.85, 0.45, 1.60);
-          const crestGem = new THREE.Mesh(crestGeo, glowMat);
-          crestGem.rotation.x = 0.42;
-          crestGem.position.set(0, -groundDepth * 0.18, forwardToeDist * 0.36);
-          group.add(crestGem);
-
-        } else if (bootType === 2) {
+        if (bootType === 2) {
           // Gótico Abisal: Espuela trasera biselada de caballero
           const spurSupport = new THREE.Mesh(new THREE.BoxGeometry(realFootW * 0.90, 0.010 * lBulk, 0.022 * lBulk), trimMat);
           spurSupport.position.set(0, -groundDepth * 0.62, -backHeelDist * 0.85);
@@ -6763,61 +6885,6 @@
           wingGroup.scale.setScalar(1.7);
           group.add(wingGroup);
 
-        } else if (bootType === 5) {
-          // Hoja de Laurel: Hojas de laurel biseladas sobre la cresta
-          for (let i = 0; i < 3; i++) {
-            const leaf = new THREE.Mesh(new THREE.OctahedronGeometry(0.011 * lBulk), trimMat);
-            leaf.scale.set(0.65, 0.35, 1.45);
-            leaf.rotation.x = 0.45;
-            leaf.rotation.y = (i % 2 === 0 ? 0.28 : -0.28);
-            leaf.position.set((i % 2 === 0 ? 0.009 : -0.009) * lBulk, -groundDepth * 0.24 - i * 0.010 * lBulk, forwardToeDist * (0.28 + i * 0.14));
-            group.add(leaf);
-          }
-
-        } else if (bootType === 6) {
-          // Escamas de Dragón: Crestas de escama angulares en chevron sobre el empeine
-          for (let sc = 0; sc < 3; sc++) {
-            const scaleMesh = new THREE.Mesh(new THREE.ConeGeometry(0.019 * lBulk, 0.030 * lBulk, 4), trimMat);
-            scaleMesh.rotation.x = Math.PI / 2 - 0.28;
-            scaleMesh.rotation.z = Math.PI / 4;
-            scaleMesh.scale.set(1.35, 0.42, 1.0);
-            scaleMesh.position.set(0, -groundDepth * 0.22 - sc * 0.011 * lBulk, forwardToeDist * (0.28 + sc * 0.16));
-            group.add(scaleMesh);
-          }
-        }
-
-        // 5. LÁMINAS DORADAS TRANSVERSALES sobre el empeine (siguen la superficie real del escarpe)
-        {
-          const posA = sabatonGeo.attributes.position;
-          const nV = posA.count / 2; // cara exterior primero
-          const tmp = new THREE.Vector3();
-          const zs = [0.18, 0.36, 0.54].map(t => forwardToeDist * t);
-          zs.forEach((zk, li) => {
-            const bins = new Array(14).fill(null);
-            let minY = Infinity, sumX = 0, cnt = 0;
-            const slice = [];
-            for (let i = 0; i < nV; i++) {
-              tmp.fromBufferAttribute(posA, i);
-              if (Math.abs(tmp.z - zk) < 0.006) { slice.push(tmp.clone()); minY = Math.min(minY, tmp.y); sumX += tmp.x; cnt++; }
-            }
-            if (cnt < 6) return;
-            const cx = sumX / cnt, cy = minY + groundDepth * 0.25;
-            slice.forEach(pt => {
-              const ang = Math.atan2(pt.y - cy, pt.x - cx);
-              if (ang < 0.12 || ang > Math.PI - 0.12) return;
-              const bi = Math.min(13, Math.floor(((ang - 0.12) / (Math.PI - 0.24)) * 14));
-              const r = Math.hypot(pt.x - cx, pt.y - cy);
-              if (!bins[bi] || r > bins[bi].r) bins[bi] = { r, pt };
-            });
-            const pts = bins.filter(Boolean).map(b => {
-              const dirv = new THREE.Vector3(b.pt.x - cx, b.pt.y - cy, 0).normalize();
-              return b.pt.clone().addScaledVector(dirv, 0.0022 * lBulk);
-            });
-            if (pts.length < 5) return;
-            const curve = new THREE.CatmullRomCurve3(pts);
-            const band = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, (0.0030 - li * 0.0003) * lBulk, 6, false), trimMat);
-            group.add(band);
-          });
         }
 
         // 6. CAÑA ACAMPANADA sobre la greba con lengüeta frontal en punta (bota alta L2)
@@ -7635,6 +7702,10 @@
         const hand = bonesMap[`hand_${side}`];
         const palm = bonesMap[`Hand_${side}_Palm`];
         if (!hand || !palm) return; // cuerpos externos: se mantiene el guante ajustado clásico
+        // Mano acorazada más grande (estética L2: guanteletes voluminosos)
+        if (!hand.userData.baseScale) hand.userData.baseScale = hand.scale.clone();
+        hand.scale.copy(hand.userData.baseScale).multiplyScalar(1.22);
+        hand.updateMatrixWorld(true);
         const S = lBulk;
         const thick = 0.0032 * S;
         const rim = 0.0019 * S;
@@ -7659,6 +7730,18 @@
         const topRim = createRolledRimAlongRow(dGeo, 0, rim);
         if (topRim) g.add(new THREE.Mesh(topRim, trimMat));
 
+        // Relieves dorados del dorso: cresta central y volutas (o estrías en los góticos)
+        const onDorsal = (u, v, lift = 1) => dorsal(u, v).addScaledVector(Xd, thick * 0.9 * lift);
+        const tubeOn = (pts, r) => { if (pts.length > 2) g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 3, r, 6, false), trimMat)); };
+        { const pts = []; for (let i = 0; i <= 12; i++) pts.push(onDorsal(0.5, 0.06 + i / 12 * 0.80)); tubeOn(pts, rim * 0.8); }
+        if (d.knuckle === 'spikes') {
+          [0.36, 0.64].forEach(uu => { const pts = []; for (let i = 0; i <= 10; i++) pts.push(onDorsal(uu, 0.08 + i / 10 * 0.74)); tubeOn(pts, rim * 0.55); });
+        } else {
+          [-1, 1].forEach(sd => {
+            const pts = []; for (let i = 0; i <= 14; i++) { const v = 0.10 + i / 14 * 0.72; pts.push(onDorsal(0.5 + sd * (0.13 + 0.09 * Math.sin(v * Math.PI * 2.2)), v)); }
+            tubeOn(pts, rim * 0.5);
+          });
+        }
         // Nudillera: púas, gemas o rollo dorado
         for (let k = 0; k < 4; k++) {
           const z = (0.024 - k * 0.0155) * S;
@@ -7706,6 +7789,16 @@
         if (cBot) g.add(new THREE.Mesh(cBot, trimMat));
         const cMid = createRolledRimAlongRow(cGeo, Math.round(cGeo.userData.rows * 0.55), rim * 0.6, { closed: true, outward: 1.5 });
         if (cMid) g.add(new THREE.Mesh(cMid, trimMat));
+        for (let k2 = 0; k2 < 10; k2++) { // remaches del puño
+          const u = k2 / 10, p = cuff(u, 0.22);
+          const n = new THREE.Vector3(p.x, 0, p.z).normalize();
+          const rv = new THREE.Mesh(new THREE.SphereGeometry(rim * 1.1, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
+          rv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+          rv.position.copy(p).addScaledVector(n, thick * 0.6);
+          g.add(rv);
+        }
+        // Voluta grabada en la lengüeta del dorso del puño
+        { const pts = []; for (let i = 0; i <= 12; i++) { const v = 0.30 + i / 12 * 0.55; pts.push(cuff(0.5 + 0.06 * Math.sin(v * Math.PI * 3), v).addScaledVector(Xd, thick)); } g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, rim * 0.6, 6, false), trimMat)); }
 
         if (d.fins) {
           // Aletas aladas de la Dinastía en los cantos del puño
@@ -7733,7 +7826,7 @@
           const r = Math.max(sz.x, sz.z) * 0.5;
           const isDistal = m.parent && m.parent.parent && m.parent.parent !== hand && m.parent.parent.parent === hand;
           const half = sz.y * 0.5;
-          const pr = r * 1.85;
+          const pr = r * 2.15;
           const lame = (u, v) => {
             const th = (u * 2 - 1) * 1.9;
             const y = THREE.MathUtils.lerp(half * 0.92, -half * 1.02, v);
@@ -7745,8 +7838,12 @@
           const lm = new THREE.Group();
           lm.name = 'GauntletFingerLame';
           lm.add(new THREE.Mesh(lg, mainMat));
-          const lr = createRolledRimAlongRow(lg, 0, rim * 0.55);
+          const lr = createRolledRimAlongRow(lg, 0, rim * 0.6);
           if (lr) lm.add(new THREE.Mesh(lr, trimMat));
+          { // nervio dorado a lo largo del dorso de cada falange
+            const pts = []; for (let i = 0; i <= 6; i++) pts.push(lame(0.5, 0.12 + i / 6 * 0.72).addScaledVector(Xd, 0.0014 * S));
+            lm.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, rim * 0.45, 5, false), trimMat));
+          }
           if (isDistal && d.claws) {
             const claw = new THREE.Mesh(new THREE.ConeGeometry(r * 0.75, r * 2.6, 6), trimMat);
             claw.rotation.z = Math.PI; // apunta hacia la punta (-Y)
@@ -8350,6 +8447,8 @@
       clothMat = getPBRMaterial('cloth', 'gloves');
       glowMat = getGlowMaterial('gloves');
       const gloveType = STATE.equipment.gloves;
+      // Restaurar el tamaño natural de las manos (el guantelete las agranda al equiparse)
+      ['L', 'R'].forEach(sd => { const hn = bonesMap[`hand_${sd}`]; if (hn && hn.userData.baseScale) hn.scale.copy(hn.userData.baseScale); });
       if (gloveType > 0) {
         ['forearm_l', 'forearm_r'].forEach(partName => {
           getMeshesByAnatomy([partName]).forEach(fMesh => {
