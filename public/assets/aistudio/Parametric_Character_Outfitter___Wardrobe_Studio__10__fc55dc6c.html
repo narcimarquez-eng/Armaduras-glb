@@ -7987,6 +7987,172 @@
       });
     }
 
+    /* =========================================================================
+       7e. GORJAL Y CUELLO DE SOLAPAS DEL PETO (L2 FULL PLATE)
+       Placa de gorjal que cubre trapecios y pecho alto (abierta en V delante, sin aro
+       alrededor del cuello) + dos grandes solapas tipo cuello de camisa que suben junto
+       al cuello y se doblan hacia fuera con punta, o un cuello alto acampanado.
+       ========================================================================= */
+    const PETO_COLLAR_STYLES = {
+      1: { kind: 'lapel',  h: 1.00, spikes: false, gem: true },
+      2: { kind: 'lapel',  h: 1.10, spikes: false, gem: true, sharp: true },
+      3: { kind: 'flared', h: 1.10, spikes: true },
+      4: { kind: 'lapel',  h: 1.00, spikes: false, gem: true, scallop: true },
+      5: { kind: 'flared', h: 1.15, spikes: false, gem: true },
+      6: { kind: 'lapel',  h: 0.95, spikes: false, gem: true, scallop: true },
+      7: { kind: 'lapel',  h: 1.00, spikes: false, gem: true },
+      8: { kind: 'flared', h: 1.10, spikes: true },
+      9: { kind: 'lapel',  h: 0.85, spikes: false, studs: true },
+      10: { kind: 'flared', h: 1.40, spikes: false, gem: true },
+      11: { kind: 'flared', h: 1.25, spikes: true, sharp: true },
+      12: { kind: 'lapel',  h: 1.30, spikes: false, gem: true, sharp: true },
+      13: { kind: 'flared', h: 1.20, spikes: true },
+      14: { kind: 'flared', h: 1.30, spikes: false, gem: true, scallop: true },
+      15: { kind: 'flared', h: 1.30, spikes: true, sharp: true },
+      16: { kind: 'lapel',  h: 1.30, spikes: false, gem: true, sharp: true },
+      17: { kind: 'flared', h: 1.35, spikes: false, gem: true, scallop: true },
+      18: { kind: 'flared', h: 1.30, spikes: true, sharp: true },
+      19: { kind: 'flared', h: 1.45, spikes: false, gem: true }
+    };
+
+    function buildPetoCollar(tMesh, torsoType, mats) {
+      const st = PETO_COLLAR_STYLES[torsoType] || PETO_COLLAR_STYLES[1];
+      const { mainMat, trimMat, glowMat } = mats;
+      const zoneDef = ANATOMY_ZONES['torso'] || null;
+      const useWorld = Boolean(tMesh.userData.isMultiZone) && zoneDef !== null;
+      const profile = extractAnatomicalProfile(tMesh, 'torso', useWorld, zoneDef);
+      if (!profile) return;
+      const tBulk = STATE.fit.torsoScale;
+      const R = profile.avgRadius;
+      const offY = (STATE.fit.torsoOffsetY || 0) * profile.subHeight;
+      const up = new THREE.Vector3(0, 1, 0);
+      if (profile.useWorldSlice && profile.worldToLocal) up.transformDirection(profile.worldToLocal);
+      const P = (v, a, out = 0) => {
+        const s = sampleProfileSmooth(profile, Math.max(0, Math.min(1, v)), a);
+        const p = new THREE.Vector3(s.cx + Math.sin(a) * (s.radius + out), profile.subYMin + v * profile.subHeight + offY, s.cz + Math.cos(a) * (s.radius + out));
+        if (profile.useWorldSlice && profile.worldToLocal) p.applyMatrix4(profile.worldToLocal);
+        return p;
+      };
+      const radial = (a) => {
+        const d = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+        if (profile.useWorldSlice && profile.worldToLocal) d.transformDirection(profile.worldToLocal);
+        return d;
+      };
+      let gemMat = glowMat, dmMat = glowMat;
+      try {
+        const des = (typeof PETO_SPAULDER_DESIGNS !== 'undefined' && PETO_SPAULDER_DESIGNS[torsoType]) || {};
+        gemMat = getFacetedGemMaterial(des.gem || 'ruby', 'torso'); dmMat = getFacetedGemMaterial('diamond', 'torso');
+      } catch (e) { }
+
+      const group = new THREE.Group();
+      group.name = 'PetoCollar';
+      group.position.copy(tMesh.position); group.rotation.copy(tMesh.rotation); group.scale.copy(tMesh.scale);
+      const thick = R * 0.035;
+      const rimR = Math.max(0.0022, R * 0.013) * tBulk;
+      const center = P(0.9, 0, -R * 0.8);
+
+      // 1. GORJAL: placa que baja del cuello sobre trapecios y pecho alto, abierta en V delante
+      const gap = 0.10;
+      const vOutY = (a) => {
+        const c = Math.cos(a);
+        const front = Math.pow(Math.max(0, c), 2), back = Math.pow(Math.max(0, -c), 2);
+        let v = 0.80 - 0.10 * front + 0.05 * back;
+        if (st.scallop) v -= 0.025 * Math.pow(Math.abs(Math.cos(a * 4)), 3);
+        return v;
+      };
+      const yoke = (u, v) => {
+        const a = gap + u * (Math.PI * 2 - gap * 2);
+        const inner = P(0.995, a, R * 0.03);
+        const outer = P(vOutY(a), a, R * 0.085 * tBulk);
+        const p = inner.clone().lerp(outer, Math.pow(v, 0.85));
+        return p.addScaledVector(radial(a), Math.sin(v * Math.PI) * R * 0.05);
+      };
+      const yg = createArmorPlatePatch(yoke, { uSegs: 64, vSegs: 10, thickness: thick, refCenter: center });
+      group.add(new THREE.Mesh(yg, mainMat));
+      const yr = createRolledRimAlongRow(yg, yg.userData.rows - 1, rimR * 1.2);
+      if (yr) group.add(new THREE.Mesh(yr, trimMat));
+      const yr2 = createRolledRimAlongRow(yg, yg.userData.rows - 4, rimR * 0.55, { outward: 1.4 });
+      if (yr2) group.add(new THREE.Mesh(yr2, trimMat));
+
+      // 2. SOLAPAS (cuello de camisa grande) o CUELLO ALTO ACAMPANADO, abiertos delante
+      [-1, 1].forEach(sg => {
+        const aF = 0.20, aB = 2.55;
+        const H = R * 0.55 * st.h * tBulk;
+        // Solapa: pie que sube junto al cuello y vuelta que cae hacia fuera con punta.
+        // 'flared' (L2) = pie más alto y vuelta más corta (cuello alto vuelto)
+        const tall = st.kind === 'flared';
+        const s0 = tall ? 0.50 : 0.30;
+        const surf = (u, v) => {
+          const a = sg * (aF + u * (aB - aF));
+          const base = P(0.995, a, R * 0.06);
+          const standH = H * (tall ? 1.05 : 1.0) * (0.62 + 0.38 * THREE.MathUtils.smoothstep(u, 0.0, 0.6));
+          const fold = base.clone().addScaledVector(up, standH).addScaledVector(radial(a), R * (tall ? 0.10 : 0.04));
+          if (v <= s0) return base.lerp(fold, v / s0);
+          const w = (v - s0) / (1 - s0);
+          const tip = Math.pow(Math.max(0, 1 - u / 0.35), 2);
+          const aOut = a - sg * (st.sharp ? 0.22 : 0.15) * tip;
+          let vOut = THREE.MathUtils.lerp(tall ? 0.95 : 0.90, tall ? 0.88 : 0.80, u) - (st.sharp ? 0.20 : 0.15) * tip;
+          if (tall && st.sharp) vOut -= 0.04 * Math.pow(Math.abs(Math.sin(u * Math.PI * 2.5)), 4); // puntas aserradas
+          const outer = P(vOut, aOut, R * (tall ? 0.20 : 0.16) * tBulk);
+          const ctrl = fold.clone().addScaledVector(radial(a), R * (tall ? 0.24 : 0.30)).addScaledVector(up, -H * 0.10);
+          return fold.clone().multiplyScalar((1 - w) * (1 - w)).addScaledVector(ctrl, 2 * (1 - w) * w).addScaledVector(outer, w * w);
+        };
+        const g = createArmorPlatePatch(surf, { uSegs: 30, vSegs: 14, thickness: thick, refCenter: center.clone().addScaledVector(up, R * 0.4) });
+        group.add(new THREE.Mesh(g, mainMat));
+        const rimTop = createRolledRimAlongRow(g, g.userData.rows - 1, rimR * 1.15);
+        if (rimTop) group.add(new THREE.Mesh(rimTop, trimMat));
+        {
+          const foldRow = Math.round(s0 * (g.userData.rows - 1));
+          const fr = createRolledRimAlongRow(g, foldRow, rimR * 0.8, { outward: 1.2 });
+          if (fr) group.add(new THREE.Mesh(fr, trimMat));
+          const inner2 = createRolledRimAlongRow(g, g.userData.rows - 4, rimR * 0.5, { outward: 1.4 });
+          if (inner2) group.add(new THREE.Mesh(inner2, trimMat));
+        }
+        // Gema en la punta de la solapa / en el cuello alto
+        if (st.gem) {
+          const gp = surf(0.10, tall ? 0.86 : 0.82);
+          const gn = gp.clone().sub(center).normalize();
+          addFacetedJewel(group, gp.clone().addScaledVector(gn, thick), gn, R * 0.05 * tBulk, gemMat, trimMat, dmMat, 6);
+        }
+        if (st.studs) {
+          for (let k = 0; k < 6; k++) {
+            const p = surf(0.12 + k * 0.15, 0.75);
+            const n = p.clone().sub(center).normalize();
+            const s2 = new THREE.Mesh(new THREE.SphereGeometry(rimR * 1.3, 8, 5), trimMat);
+            s2.position.copy(p).addScaledVector(n, thick * 0.6);
+            group.add(s2);
+          }
+        }
+        // Púas sobre el gorjal junto a los hombros
+        if (st.spikes) {
+          for (let k = 0; k < 3; k++) {
+            const a = sg * (1.05 + k * 0.32);
+            const pp = P(0.88 - k * 0.02, a, R * 0.11);
+            const dir = radial(a).multiplyScalar(0.6).add(up.clone().multiplyScalar(0.8)).normalize();
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(rimR * 1.8, R * (0.30 - k * 0.05), 6), trimMat);
+            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+            cone.position.copy(pp).addScaledVector(dir, R * 0.12);
+            group.add(cone);
+          }
+        }
+      });
+
+      // 3. Joya central en el vértice de la V del gorjal
+      if (st.gem) {
+        const gp = P(vOutY(0) + 0.01, 0, R * 0.11 * tBulk);
+        addFacetedJewel(group, gp, radial(0), R * 0.06 * tBulk, gemMat, trimMat, dmMat, 8);
+      }
+
+      group.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; n.castShadow = true; n.receiveShadow = true; if (n.geometry) n.geometry.userData = {}; } });
+      const exp = STATE.fit.explodedView || 0;
+      if (exp > 0.001) group.position.z += 0.20 * exp;
+      if (tMesh.parent) {
+        tMesh.parent.add(group);
+        generatedArmorShells.push(group);
+        slotArmorMeshes.torso.push(group);
+      }
+    }
+
     function buildAllFittedArmor() {
       clearAllArmorShells();
       // Las hombreras forman ahora un único bloque con el peto: el slot independiente queda desactivado
@@ -8516,56 +8682,11 @@
             });
           }
 
-          // 4. CENEFA SUPERIOR BISELADA DEL ESCOTE Y CLAVÍCULAS (Gorget & Clavicle Rim Trim)
-          createFormFittedShell(tMesh, trimMat, {
-            targetPart: 'torso',
-            thicknessRatio: 0.026 * tBulk,
-            yMin: cfg.yMaxFront - 0.12,
-            yMax: cfg.yMaxFront,
-            angleMin: isWideClavicleWrap ? (-Math.PI * 0.62) : (-Math.PI * 0.48),
-            angleMax: isWideClavicleWrap ? (Math.PI * 0.62) : (Math.PI * 0.48),
-            chestContour: cfg.chestContour,
-            neckCutout: cfg.neckCutout,
-            neckDepth: cfg.neckDepth,
-            sideCutout: cfg.sideCutout,
-            sideDepth: cfg.sideDepth,
-            ridgeCenterZ: (cfg.ridgeCenterZ || 0.16) + 0.015,
-            bevelRadius: 0.008,
-            offsetY: STATE.fit.torsoOffsetY
-          });
+          // 4. (El escote lo cubre ahora el gorjal con solapas: sin cenefa superior)
         });
 
-        // 5. GOLA ALTA CERVICAL Y SUB-HOMBRERA INTEGRADA DEL PETO (Cubre cuello casi hasta la mandíbula y cabeza del hombro)
-        if (isWideClavicleWrap || cfg.neckCutout === 'none' || cfg.neckCutout === 'square' || cfg.neckCutout === 'high_choker_collar' || cfg.neckCutout === 'mandible_gorget' || cfg.neckCutout === 'clavicle_wings') {
-          const highNeckMax = isWideClavicleWrap ? 0.82 : 0.52;
-          neckMeshes.forEach(nMesh => {
-            createFormFittedShell(nMesh, isWideClavicleWrap ? mainMat : trimMat, {
-              targetPart: 'neck',
-              slotName: 'torso',
-              thicknessRatio: 0.021 * tBulk,
-              yMin: 0.02,
-              yMax: highNeckMax,
-              vPointBottom: 0.08,
-              archTop: isWideClavicleWrap ? 0.06 : 0.02,
-              ridgeCenterZ: 0.08,
-              foldStyle: isWideClavicleWrap ? 'swallow_tail' : 'ogee_conopial',
-              foldDepth: 0.05,
-              bevelRadius: 0.007
-            });
-            if (isWideClavicleWrap) {
-              createFormFittedShell(nMesh, trimMat, {
-                targetPart: 'neck',
-                slotName: 'torso',
-                thicknessRatio: 0.025 * tBulk,
-                yMin: highNeckMax - 0.18,
-                yMax: highNeckMax,
-                archTop: 0.06,
-                ridgeCenterZ: 0.09,
-                bevelRadius: 0.006
-              });
-            }
-          });
-        }
+        // 5. GORJAL + CUELLO DE SOLAPAS (sustituye al aro alrededor del cuello)
+        if (torsoMeshes[0]) buildPetoCollar(torsoMeshes[0], torsoType, { mainMat, trimMat, glowMat });
 
         // 6. ESPALDARONES INTEGRADOS DEL PETO: cúpula + láminas que cubren el deltoides (todos los petos)
         buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
