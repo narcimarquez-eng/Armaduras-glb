@@ -888,7 +888,12 @@
         { name: 'Mandoble + Gran Escudo Torre Pavés Solar (D&D)', icon: 'shield' }, 
         { name: 'Espada de Acero + Escudo de Espigas Eclipse (D&D)', icon: 'shield-alert' }, 
         { name: 'Lanza Élfica + Rodela de Hierro / Buckler (D&D)', icon: 'disc' },
-        { name: 'Espada Dinastía + Escudo Alado Oro Rosa (L2)', icon: 'sparkles' }
+        { name: 'Espada Dinastía + Escudo Alado Oro Rosa (L2)', icon: 'sparkles' },
+        { name: 'Hacha de Torre de Doble Filo + Escudo Cometa de Caballero', icon: 'flame' },
+        { name: 'Maza Estrellada + Escudo Redondo Vikingo', icon: 'zap' },
+        { name: 'Estoque Élfico + Escudo Ojival Gótico', icon: 'target' },
+        { name: 'Hoz Abismal + Escudo Cuadrado de Escamas', icon: 'star' },
+        { name: 'Cetro de Mando Solar + Broquel Élfico de Hoja', icon: 'crown' }
       ]
     };
 
@@ -9343,6 +9348,107 @@
         const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.30, 0.010), trimMat); ridge.position.set(0, 1.27, 0.014); spear.add(ridge);
         addFacetedJewel(spear, new THREE.Vector3(0, 1.10, 0.016), new THREE.Vector3(0, 0, 1), 0.024, glowMat, trimMat, glowMat, 6);
         spear.position.set(0, -0.05, 0.02); spear.rotation.x = Math.PI / 2 - 0.12; group.add(spear);
+      } else if (typeIndex === 5) {
+        // Sable Dinástico Curvo con guarda en voluta y gema solar
+        const sab = new THREE.Group();
+        const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), trimMat); pommel.position.y = -0.11; sab.add(pommel);
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.17, 16), trimMat); sab.add(grip);
+        const scrollShape = new THREE.Shape();
+        scrollShape.moveTo(-0.10, -0.010); scrollShape.lineTo(0.10, -0.010);
+        scrollShape.quadraticCurveTo(0.13, 0.00, 0.11, 0.03); scrollShape.quadraticCurveTo(0.06, 0.012, 0.0, 0.014);
+        scrollShape.quadraticCurveTo(-0.06, 0.012, -0.11, 0.03); scrollShape.quadraticCurveTo(-0.13, 0.00, -0.10, -0.010);
+        const scrollGeo = new THREE.ExtrudeGeometry(scrollShape, { depth: 0.020, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2 });
+        scrollGeo.translate(0, 0.095, -0.010); sab.add(new THREE.Mesh(scrollGeo, trimMat));
+        addFacetedJewel(sab, new THREE.Vector3(0, 0.095, 0.014), new THREE.Vector3(0, 0, 1), 0.024, glowMat, trimMat, glowMat, 6);
+        const curvedShape = new THREE.Shape();
+        curvedShape.moveTo(-0.026, 0.10);
+        curvedShape.quadraticCurveTo(0.075, 0.46, 0.012, 0.86);
+        curvedShape.quadraticCurveTo(0.068, 0.44, 0.028, 0.10);
+        curvedShape.closePath();
+        const curvedGeo = new THREE.ExtrudeGeometry(curvedShape, { depth: 0.014, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.003, bevelSegments: 2, curveSegments: 16 });
+        curvedGeo.translate(0, 0, -0.007); sab.add(new THREE.Mesh(curvedGeo, mainMat));
+        sab.position.set(0, -0.03, 0.02); sab.rotation.x = Math.PI / 2; group.add(sab);
+
+      } else if (typeIndex === 6) {
+        // Hacha de Torre de doble filo con gema y pico inferior
+        const ax = new THREE.Group();
+        const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 1.02, 16), trimMat); haft.position.y = 0.40; ax.add(haft);
+        const butt = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.10, 8), trimMat); butt.rotation.x = Math.PI; butt.position.y = -0.12; ax.add(butt);
+        const bitShape = new THREE.Shape();
+        bitShape.moveTo(0.02, 0.56);
+        bitShape.quadraticCurveTo(0.20, 0.52, 0.22, 0.72);
+        bitShape.quadraticCurveTo(0.20, 0.92, 0.02, 0.88);
+        bitShape.closePath();
+        const bitGeo = new THREE.ExtrudeGeometry(bitShape, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 2, curveSegments: 12 });
+        bitGeo.translate(0, 0, -0.015);
+        const bitR = new THREE.Mesh(bitGeo, mainMat); ax.add(bitR);
+        const bitL = new THREE.Mesh(bitGeo, mainMat); bitL.scale.x = -1; ax.add(bitL);
+        const topSpike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 4), trimMat); topSpike.position.y = 1.02; ax.add(topSpike);
+        const collarR = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01, 8, 16), trimMat); collarR.position.y = 0.66; ax.add(collarR);
+        addFacetedJewel(ax, new THREE.Vector3(0, 0.72, 0.018), new THREE.Vector3(0, 0, 1), 0.022, glowMat, trimMat, glowMat, 6);
+        ax.position.set(0, -0.05, 0.02); ax.rotation.x = Math.PI / 2; group.add(ax);
+
+      } else if (typeIndex === 7) {
+        // Maza Estrellada con seis púas radiales y brida de refuerzo
+        const mz = new THREE.Group();
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.72, 16), trimMat); shaft.position.y = 0.22; mz.add(shaft);
+        const headBall = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 16), mainMat); headBall.position.y = 0.62; mz.add(headBall);
+        const flange = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.016, 10, 28), trimMat); flange.rotation.x = Math.PI / 2; flange.position.y = 0.62; mz.add(flange);
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          const spikeM = new THREE.Mesh(new THREE.ConeGeometry(0.030, 0.13, 6), trimMat);
+          spikeM.position.set(Math.cos(a) * 0.12, 0.62, Math.sin(a) * 0.12);
+          spikeM.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
+          mz.add(spikeM);
+        }
+        addFacetedJewel(mz, new THREE.Vector3(0, 0.62, 0.09), new THREE.Vector3(0, 0, 1), 0.022, glowMat, trimMat, glowMat, 6);
+        const pommelM = new THREE.Mesh(new THREE.SphereGeometry(0.028, 14, 10), trimMat); pommelM.position.y = -0.14; mz.add(pommelM);
+        mz.position.set(0, -0.04, 0.02); mz.rotation.x = Math.PI / 2; group.add(mz);
+
+      } else if (typeIndex === 8) {
+        // Estoque Élfico de hoja estrecha con guarda en cruz de aletas
+        const rp = new THREE.Group();
+        const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.012, 0.16, 14), trimMat); grip.position.y = -0.02; rp.add(grip);
+        const pomel = new THREE.Mesh(new THREE.OctahedronGeometry(0.022), trimMat); pomel.position.y = -0.12; rp.add(pomel);
+        const quill = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.018, 0.024), trimMat); quill.position.y = 0.075; rp.add(quill);
+        addFacetedJewel(rp, new THREE.Vector3(0, 0.075, 0.016), new THREE.Vector3(0, 0, 1), 0.018, glowMat, trimMat, glowMat, 6);
+        const rapShape = new THREE.Shape();
+        rapShape.moveTo(-0.018, 0.09); rapShape.lineTo(-0.012, 0.80); rapShape.lineTo(0.0, 0.96);
+        rapShape.lineTo(0.012, 0.80); rapShape.lineTo(0.018, 0.09); rapShape.closePath();
+        const rapGeo = new THREE.ExtrudeGeometry(rapShape, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.002, bevelSegments: 2 });
+        rapGeo.translate(0, 0, -0.004); rp.add(new THREE.Mesh(rapGeo, mainMat));
+        rp.position.set(0, -0.03, 0.02); rp.rotation.x = Math.PI / 2; group.add(rp);
+
+      } else if (typeIndex === 9) {
+        // Hoz Abismal de hoja curva sobre asta larga
+        const hz = new THREE.Group();
+        const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 1.30, 16), trimMat); staff.position.y = 0.40; hz.add(staff);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.10, 8), trimMat); cap.rotation.x = Math.PI; cap.position.y = -0.22; hz.add(cap);
+        const sickleShape = new THREE.Shape();
+        sickleShape.moveTo(0.0, 1.00);
+        sickleShape.bezierCurveTo(0.22, 1.10, 0.34, 0.94, 0.26, 0.74);
+        sickleShape.bezierCurveTo(0.20, 0.86, 0.10, 0.92, 0.0, 0.92);
+        sickleShape.closePath();
+        const sickleGeo = new THREE.ExtrudeGeometry(sickleShape, { depth: 0.024, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.004, bevelSegments: 2, curveSegments: 14 });
+        sickleGeo.translate(0, 0, -0.012); hz.add(new THREE.Mesh(sickleGeo, mainMat));
+        const socket = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01, 8, 18), trimMat); socket.position.y = 0.96; hz.add(socket);
+        addFacetedJewel(hz, new THREE.Vector3(0.10, 0.94, 0.016), new THREE.Vector3(0, 0, 1), 0.02, glowMat, trimMat, glowMat, 6);
+        hz.position.set(0, -0.04, 0.02); hz.rotation.x = Math.PI / 2; group.add(hz);
+
+      } else if (typeIndex === 10) {
+        // Cetro de Mando Solar con orbe radiante
+        const ct = new THREE.Group();
+        const rodC = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 1.10, 16), trimMat); rodC.position.y = 0.35; ct.add(rodC);
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 24, 18), glowMat); orb.position.y = 1.00; ct.add(orb);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.012, 8, 32), trimMat); ring.position.y = 1.00; ring.rotation.x = Math.PI / 2; ct.add(ring);
+        for (let r = 0; r < 8; r++) {
+          const ang = (r / 8) * Math.PI * 2;
+          const ray = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.09, 4), trimMat);
+          ray.position.set(Math.cos(ang) * 0.13, 1.00, Math.sin(ang) * 0.13);
+          ray.rotation.z = -ang + Math.PI / 2; ct.add(ray);
+        }
+        const finial = new THREE.Mesh(new THREE.OctahedronGeometry(0.03), trimMat); finial.position.y = 1.16; ct.add(finial);
+        ct.position.set(0, -0.04, 0.02); ct.rotation.x = Math.PI / 2; group.add(ct);
       }
 
       const s = getNormalizedAttachmentScale(armorSockets.weaponR);
@@ -9581,6 +9687,73 @@
         const spine = new THREE.Mesh(new THREE.BoxGeometry(0.022, shHeight * 0.55, 0.016), trimMat);
         spine.position.set(0, -shHeight * 0.15, frontZ * 0.78);
         shieldHolder.add(spine);
+      } else if (typeIndex === 6) {
+        // Escudo Cometa de Caballero con borde de bronce y cruz central
+        const kiteShape = new THREE.Shape();
+        kiteShape.moveTo(-0.20, 0.28); kiteShape.lineTo(0.20, 0.28); kiteShape.lineTo(0.20, 0.05);
+        kiteShape.quadraticCurveTo(0.18, -0.22, 0.0, -0.42);
+        kiteShape.quadraticCurveTo(-0.18, -0.22, -0.20, 0.05); kiteShape.closePath();
+        const kiteGeo = new THREE.ExtrudeGeometry(kiteShape, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 3, curveSegments: 12 });
+        kiteGeo.translate(0, 0, -0.02); shieldHolder.add(new THREE.Mesh(kiteGeo, mainMat));
+        const kiteRim = new THREE.Mesh(new THREE.ExtrudeGeometry(kiteShape, { depth: 0.02, bevelEnabled: false, curveSegments: 12 }), trimMat);
+        kiteRim.scale.set(1.06, 1.04, 1.0); kiteRim.position.set(-0.012, -0.05, -0.04); shieldHolder.add(kiteRim);
+        const crossKV = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.56, 0.018), trimMat); crossKV.position.set(0, -0.05, 0.034); shieldHolder.add(crossKV);
+        const crossKH = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.026, 0.018), trimMat); crossKH.position.set(0, 0.06, 0.034); shieldHolder.add(crossKH);
+        addFacetedJewel(shieldHolder, new THREE.Vector3(0, 0.06, 0.04), new THREE.Vector3(0, 0, 1), 0.03, glowMat, trimMat, glowMat, 6);
+
+      } else if (typeIndex === 7) {
+        // Escudo Redondo Vikingo de roble con bandas de hierro y umbo
+        const roundDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 36), mainMat);
+        roundDisc.rotation.x = Math.PI / 2; shieldHolder.add(roundDisc);
+        const outerBand = new THREE.Mesh(new THREE.TorusGeometry(0.255, 0.014, 8, 40), trimMat); shieldHolder.add(outerBand);
+        const ironRing = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.012, 8, 36), trimMat); ironRing.position.z = 0.02; shieldHolder.add(ironRing);
+        const boss = new THREE.Mesh(new THREE.SphereGeometry(0.075, 20, 14), trimMat); boss.scale.set(1, 1, 0.55); boss.position.z = 0.03; shieldHolder.add(boss);
+        const bossCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.03), glowMat); bossCore.position.z = 0.072; shieldHolder.add(bossCore);
+        for (let r = 0; r < 12; r++) {
+          const a = (r / 12) * Math.PI * 2;
+          const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), trimMat);
+          rivet.position.set(Math.cos(a) * 0.225, Math.sin(a) * 0.225, 0.022); shieldHolder.add(rivet);
+        }
+
+      } else if (typeIndex === 8) {
+        // Escudo Ojival Gótico de acero negro con cresta vertical
+        const ogShape = new THREE.Shape();
+        ogShape.moveTo(0.0, 0.40); ogShape.lineTo(0.20, 0.22); ogShape.lineTo(0.20, -0.05);
+        ogShape.quadraticCurveTo(0.18, -0.32, 0.0, -0.46);
+        ogShape.quadraticCurveTo(-0.18, -0.32, -0.20, -0.05); ogShape.lineTo(-0.20, 0.22); ogShape.closePath();
+        const ogGeo = new THREE.ExtrudeGeometry(ogShape, { depth: 0.045, bevelEnabled: true, bevelThickness: 0.010, bevelSize: 0.008, bevelSegments: 3, curveSegments: 12 });
+        ogGeo.translate(0, 0, -0.022); shieldHolder.add(new THREE.Mesh(ogGeo, mainMat));
+        const crest = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.74, 0.018), trimMat); crest.position.set(0, -0.03, 0.036); shieldHolder.add(crest);
+        const chevron = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.022, 0.016), trimMat); chevron.position.set(0, 0.12, 0.036); shieldHolder.add(chevron);
+        addFacetedJewel(shieldHolder, new THREE.Vector3(0, -0.14, 0.04), new THREE.Vector3(0, 0, 1), 0.026, glowMat, trimMat, glowMat, 6);
+
+      } else if (typeIndex === 9) {
+        // Escudo Cuadrado de Escamas con remaches en cada celda
+        const sqShape = new THREE.Shape();
+        sqShape.moveTo(-0.21, -0.21); sqShape.lineTo(0.21, -0.21); sqShape.lineTo(0.21, 0.21); sqShape.lineTo(-0.21, 0.21); sqShape.closePath();
+        const sqGeo = new THREE.ExtrudeGeometry(sqShape, { depth: 0.04, bevelEnabled: true, bevelThickness: 0.010, bevelSize: 0.010, bevelSegments: 3 });
+        sqGeo.translate(0, 0, -0.02); shieldHolder.add(new THREE.Mesh(sqGeo, mainMat));
+        for (let r = 0; r < 4; r++) {
+          for (let c = 0; c < 4; c++) {
+            const scale = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), trimMat);
+            scale.scale.set(1, 0.7, 0.4);
+            scale.position.set(-0.15 + c * 0.10, -0.15 + r * 0.10, 0.026);
+            shieldHolder.add(scale);
+          }
+        }
+        addFacetedJewel(shieldHolder, new THREE.Vector3(0, 0, 0.04), new THREE.Vector3(0, 0, 1), 0.03, glowMat, trimMat, glowMat, 6);
+
+      } else if (typeIndex === 10) {
+        // Broquel Élfico en forma de hoja con runa luminosa vertical
+        const leafShape = new THREE.Shape();
+        leafShape.moveTo(0.0, -0.30);
+        leafShape.bezierCurveTo(0.26, -0.10, 0.26, 0.20, 0.0, 0.32);
+        leafShape.bezierCurveTo(-0.26, 0.20, -0.26, -0.10, 0.0, -0.30);
+        const leafGeo = new THREE.ExtrudeGeometry(leafShape, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 3, curveSegments: 16 });
+        leafGeo.translate(0, 0, -0.015); shieldHolder.add(new THREE.Mesh(leafGeo, mainMat));
+        const runeV = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.46, 0.016), glowMat); runeV.position.set(0, 0.01, 0.034); shieldHolder.add(runeV);
+        const rimLeaf = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.010, 6, 40), trimMat); rimLeaf.scale.set(0.9, 1.2, 1); rimLeaf.position.z = 0.02; shieldHolder.add(rimLeaf);
+        addFacetedJewel(shieldHolder, new THREE.Vector3(0, 0.0, 0.04), new THREE.Vector3(0, 0, 1), 0.026, glowMat, trimMat, glowMat, 6);
       }
 
       shieldHolder.position.set(0.06, 0.0, 0.0);
