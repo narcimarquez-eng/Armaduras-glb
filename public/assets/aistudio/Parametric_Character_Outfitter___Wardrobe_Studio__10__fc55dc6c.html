@@ -88,7 +88,7 @@
     <div class="glass-panel p-2 rounded-2xl flex flex-col gap-1 shadow-xl">
       <span class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.5">Cámara</span>
       <button data-camera-view="full" class="cam-btn glass-btn active px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5"><i data-lucide="user" class="w-3.5 h-3.5"></i> Completo</button>
-      <button data-camera-view="head" class="cam-btn glass-btn px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5"><i data-lucide="smile" class="w-3.5 h-3.5"></i> Yelmo</button>
+      <button data-camera-view="head" class="cam-btn glass-btn px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5"><i data-lucide="smile" class="w-3.5 h-3.5"></i> Corona</button>
       <button data-camera-view="torso" class="cam-btn glass-btn px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Coraza</button>
       <button data-camera-view="belt" class="cam-btn glass-btn px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5"><i data-lucide="minimize-2" class="w-3.5 h-3.5"></i> Cinturón</button>
       <button data-camera-view="tassets" class="cam-btn glass-btn px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5"><i data-lucide="columns" class="w-3.5 h-3.5"></i> Escarcelas</button>
@@ -141,8 +141,8 @@
 
         <div class="space-y-1.5">
           <div class="flex items-center justify-between text-xs">
-            <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="crown" class="w-3.5 h-3.5 text-indigo-400"></i> Yelmo Suavizado</span>
-            <div class="flex items-center gap-1.5"><span id="label-helmet" class="text-[10px] text-indigo-300">Gótico</span><button data-export-slot="helmet" class="export-slot-btn px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/40 text-[9px] text-indigo-200 border border-indigo-500/30 flex items-center gap-1"><i data-lucide="download" class="w-2.5 h-2.5"></i> .GLB</button></div>
+            <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="crown" class="w-3.5 h-3.5 text-indigo-400"></i> Coronas &amp; Viseras</span>
+            <div class="flex items-center gap-1.5"><span id="label-helmet" class="text-[10px] text-indigo-300">Corona</span><button data-export-slot="helmet" class="export-slot-btn px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/40 text-[9px] text-indigo-200 border border-indigo-500/30 flex items-center gap-1"><i data-lucide="download" class="w-2.5 h-2.5"></i> .GLB</button></div>
           </div>
           <div class="grid grid-cols-5 gap-1.5" id="slot-helmet"></div>
         </div>
@@ -769,13 +769,15 @@
         { name: 'Terciopelo Heráldico Real Bordado', shortName: 'Terciopelo', icon: 'crown' }
       ],
       helmet: [
-        { name: 'Sin Yelmo (Rostro Visible)', icon: 'ban' }, 
-        { name: 'Yelmo de Paladín con Visor', icon: 'crown' }, 
-        { name: 'Celada Real con Cresta', icon: 'shield' }, 
-        { name: 'Diadema Solar de Campeón', icon: 'sparkles' }, 
-        { name: 'Yelmo Cerrado de Cruzado', icon: 'moon' },
-        { name: 'Corona Dinastía con Alas y Gemas (L2)', icon: 'crown' },
-        { name: 'Celada Cerrada Triskele Grabada (D&D)', icon: 'shield' }
+        { name: 'Sin Corona (Rostro Visible)', shortName: 'Sin', icon: 'ban' },
+        { name: 'Corona Real de Paladín con Flores de Lis', shortName: 'Corona Real', icon: 'crown' },
+        { name: 'Diadema Dinastía Alada con Rubí (L2)', shortName: 'Dinastía', icon: 'crown' },
+        { name: 'Tiara Élfica de Hojas con Esmeraldas', shortName: 'Élfica', icon: 'feather' },
+        { name: 'Corona Dracónica con Cuernos (L2)', shortName: 'Dracónica', icon: 'flame' },
+        { name: 'Corona Astral con Halo de Rayos (L2)', shortName: 'Astral', icon: 'sun' },
+        { name: 'Visera Solar con Nasal y Alas', shortName: 'Visera Solar', icon: 'shield' },
+        { name: 'Visera Dracónica (Antifaz Enjoyado)', shortName: 'Antifaz', icon: 'eye' },
+        { name: 'Visera de Cristal Arcano con Aletas', shortName: 'Cristal', icon: 'gem' }
       ],
       shoulders: [
         { name: 'Sin Hombreras', shortName: 'Sin Hombr.', icon: 'ban' },
@@ -959,7 +961,7 @@
       {
         name: '1. Paladín Dinastía Celestial (Lineage II)',
         desc: 'De la 2ª imagen: Placas blanco nácar con filigranas de oro rosa, tela esmeralda, corazón alado con rubí y escarpes alados',
-        gear: { underlayer: 4, helmet: 5, shoulders: 4, torso: 5, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 },
+        gear: { underlayer: 4, helmet: 2, shoulders: 4, torso: 5, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 },
         texturePreset: 'dynasty_celestial_rose',
         glow: '#f43f5e'
       },
@@ -1001,21 +1003,21 @@
       {
         name: '7. Caballero de Placas Triskele (D&D Full Plate)',
         desc: 'De la 1ª imagen: Coraza con espirales triskele celtas talladas en acero, celada y grebas grabadas',
-        gear: { underlayer: 2, helmet: 6, shoulders: 1, torso: 7, gloves: 3, belt: 1, tassets: 1, cuisses: 1, knees: 1, boots: 1, weapon: 3 },
+        gear: { underlayer: 2, helmet: 4, shoulders: 1, torso: 7, gloves: 3, belt: 1, tassets: 1, cuisses: 1, knees: 1, boots: 1, weapon: 3 },
         texturePreset: 'triskele_full_plate',
         glow: '#818cf8'
       },
       {
         name: '8. Peto Noble de Hoja de Laurel (D&D Breastplate)',
         desc: 'De la 1ª imagen: Peto de acero blanco pulido con guirnalda de hojas de laurel doradas en altorrelieve',
-        gear: { underlayer: 1, helmet: 3, shoulders: 1, torso: 6, gloves: 3, belt: 2, tassets: 5, cuisses: 5, knees: 1, boots: 5, weapon: 1 },
+        gear: { underlayer: 1, helmet: 1, shoulders: 1, torso: 6, gloves: 3, belt: 2, tassets: 5, cuisses: 5, knees: 1, boots: 5, weapon: 1 },
         texturePreset: 'laurel_leaf_plate',
         glow: '#f59e0b'
       },
       {
         name: '9. Cota de Escamas de Dragón & Rubí (D&D Scale Mail)',
         desc: 'De la 1ª imagen: Láminas escamadas superpuestas con hombreras de hueso y gran colgante de rubí',
-        gear: { underlayer: 2, helmet: 3, shoulders: 5, torso: 8, gloves: 5, belt: 1, tassets: 7, cuisses: 4, knees: 7, boots: 6, weapon: 1 },
+        gear: { underlayer: 2, helmet: 1, shoulders: 5, torso: 8, gloves: 5, belt: 1, tassets: 7, cuisses: 4, knees: 7, boots: 6, weapon: 1 },
         texturePreset: 'dragon_scale_ruby',
         glow: '#ef4444'
       },
@@ -1029,35 +1031,35 @@
       {
         name: '11. Armadura Anillada de Gala (D&D Banded Mail)',
         desc: 'De la 1ª imagen: Bandas horizontales laminadas en oro y verde bosque con faldón de justas',
-        gear: { underlayer: 4, helmet: 3, shoulders: 1, torso: 2, gloves: 1, belt: 1, tassets: 8, cuisses: 7, knees: 4, boots: 5, weapon: 2 },
+        gear: { underlayer: 4, helmet: 1, shoulders: 1, torso: 2, gloves: 1, belt: 1, tassets: 8, cuisses: 7, knees: 4, boots: 5, weapon: 2 },
         texturePreset: 'banded_splint_mail',
         glow: '#22c55e'
       },
       {
         name: '12. Imperial Crusader de Cuello Alto y Clavícula (Lineage II)',
         desc: 'Hombreras Imperial Crusader biseladas y peto exótico de cuello alto que cubre clavículas, paletillas y hombros',
-        gear: { underlayer: 7, helmet: 5, shoulders: 7, torso: 10, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 },
+        gear: { underlayer: 7, helmet: 2, shoulders: 7, torso: 10, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 },
         texturePreset: 'imperial_crusader_crimson',
         glow: '#facc15'
       },
       {
         name: '13. Señor Dracónico de Planchas Cortantes (Lineage II)',
         desc: 'Hombreras Dracónicas ascendentes con biseles a 45° y coraza de gola mandibular con yugo escapular',
-        gear: { underlayer: 8, helmet: 6, shoulders: 6, torso: 11, gloves: 5, belt: 4, tassets: 7, cuisses: 4, knees: 7, boots: 6, weapon: 2 },
+        gear: { underlayer: 8, helmet: 4, shoulders: 6, torso: 11, gloves: 5, belt: 4, tassets: 7, cuisses: 4, knees: 7, boots: 6, weapon: 2 },
         texturePreset: 'draconic_crimson_gold',
         glow: '#fb923c'
       },
       {
         name: '14. Arconte Nightmare de Cuchillas Estridentes (Lineage II)',
         desc: 'Hombreras Nightmare de garras cortantes y peto arácnido extraño hasta la garganta con alas de cuchillas en la espalda',
-        gear: { underlayer: 12, helmet: 2, shoulders: 9, torso: 16, gloves: 2, belt: 4, tassets: 2, cuisses: 2, knees: 3, boots: 2, weapon: 4 },
+        gear: { underlayer: 12, helmet: 7, shoulders: 9, torso: 16, gloves: 2, belt: 4, tassets: 2, cuisses: 2, knees: 3, boots: 2, weapon: 4 },
         texturePreset: 'nightmare_obsidian_blood',
         glow: '#ef4444'
       },
       {
         name: '15. Valquiria Serafín de 6 Alas Dorsales y Peto Ceñido',
         desc: 'Coraza entallada de talle largo con quilla saliente, cobertura de clavículas y 6 grandes alas biseladas en la espalda',
-        gear: { underlayer: 4, helmet: 5, shoulders: 10, torso: 17, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 },
+        gear: { underlayer: 4, helmet: 2, shoulders: 10, torso: 17, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 },
         texturePreset: 'valkyrie_winged_silver',
         glow: '#38bdf8'
       }
@@ -3266,6 +3268,11 @@
         const d1 = Math.max(Math.abs(ax - 0.38) / 0.19 - 1.0, Math.abs(slotY - 0.11) / 0.042 - 1.0);
         const d2 = Math.max(Math.abs(ax - 0.35) / 0.17 - 1.0, Math.abs(slotY + 0.09) / 0.042 - 1.0);
         return Math.min(d1, d2);
+      } else if (windowCutout === 'eye_slits') {
+        // Aberturas almendradas para los ojos (antifaz), ligeramente rasgadas hacia arriba
+        const ex = (ax - 0.42) / 0.21;
+        const ey = (localNormY - 0.50 - (ax - 0.42) * 0.35) / 0.30;
+        return Math.sqrt(ex * ex + ey * ey) - 1.0;
       } else if (windowCutout === 'vertical_split') {
         return Math.max(ax / 0.075 - 1.0, Math.abs(localNormY - 0.55) / 0.27 - 1.0);
       }
@@ -6645,12 +6652,13 @@
         const fSize = fBox ? fBox.getSize(new THREE.Vector3()) : new THREE.Vector3(0.10 * lBulk, 0.07 * lBulk, 0.22 * lBulk);
         const sSize = sBox ? sBox.getSize(new THREE.Vector3()) : new THREE.Vector3(0.12 * lBulk, 0.38, 0.12 * lBulk);
 
-        const forwardToeDist = fBox ? Math.max(0.145, (fBox.max.z - anklePos.z) + 0.014 * lBulk) : (0.170 * lBulk);
-        const backHeelDist = fBox ? Math.max(0.052, (anklePos.z - fBox.min.z) + 0.010 * lBulk) : (0.060 * lBulk);
+        // Escarpe sobredimensionado (estética L2): más largo, ancho y alto que el pie para que nunca asome la punta
+        const forwardToeDist = (fBox ? Math.max(0.150, (fBox.max.z - anklePos.z) + 0.016 * lBulk) : (0.175 * lBulk)) * 1.10 + 0.010 * lBulk;
+        const backHeelDist = (fBox ? Math.max(0.054, (anklePos.z - fBox.min.z) + 0.012 * lBulk) : (0.062 * lBulk)) * 1.14;
         const groundDepth = fBox ? Math.max(0.052, anklePos.y - fBox.min.y) : 0.068;
-        const realFootW = Math.max(0.086, fSize.x) * 1.05 * lBulk;
-        const ankleW = Math.max(0.078, sSize.x * 0.86) * lBulk;
-        const collarH = Math.max(0.072, groundDepth * bCfg.collarFactor);
+        const realFootW = Math.max(0.088, fSize.x) * 1.18 * lBulk;
+        const ankleW = Math.max(0.080, sSize.x * 0.86) * 1.14 * lBulk;
+        const collarH = Math.max(0.080, groundDepth * bCfg.collarFactor * 1.25);
 
         // 1. CUERPO ESCULPIDO DEL ESCARPE / BOTA (Malla 3D continua y lisa con bisel de 45°, cero esferas abultadas)
         const sabatonGeo = createSculptedSabatonGeometry({
@@ -6755,7 +6763,8 @@
           const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.012 * lBulk), glowMat);
           gem.position.set(sgn * 0.006 * lBulk, 0.012 * lBulk, 0.0);
           wingGroup.add(gem);
-          wingGroup.position.set(sgn * (ankleW * 0.56), collarH * 0.38, -0.008 * lBulk);
+          wingGroup.position.set(sgn * (ankleW * 0.62), collarH * 0.42, -0.008 * lBulk);
+          wingGroup.scale.setScalar(1.7);
           group.add(wingGroup);
 
         } else if (bootType === 5) {
@@ -6778,6 +6787,79 @@
             scaleMesh.scale.set(1.35, 0.42, 1.0);
             scaleMesh.position.set(0, -groundDepth * 0.22 - sc * 0.011 * lBulk, forwardToeDist * (0.28 + sc * 0.16));
             group.add(scaleMesh);
+          }
+        }
+
+        // 5. LÁMINAS DORADAS TRANSVERSALES sobre el empeine (siguen la superficie real del escarpe)
+        {
+          const posA = sabatonGeo.attributes.position;
+          const nV = posA.count / 2; // cara exterior primero
+          const tmp = new THREE.Vector3();
+          const zs = [0.18, 0.36, 0.54].map(t => forwardToeDist * t);
+          zs.forEach((zk, li) => {
+            const bins = new Array(14).fill(null);
+            let minY = Infinity, sumX = 0, cnt = 0;
+            const slice = [];
+            for (let i = 0; i < nV; i++) {
+              tmp.fromBufferAttribute(posA, i);
+              if (Math.abs(tmp.z - zk) < 0.006) { slice.push(tmp.clone()); minY = Math.min(minY, tmp.y); sumX += tmp.x; cnt++; }
+            }
+            if (cnt < 6) return;
+            const cx = sumX / cnt, cy = minY + groundDepth * 0.25;
+            slice.forEach(pt => {
+              const ang = Math.atan2(pt.y - cy, pt.x - cx);
+              if (ang < 0.12 || ang > Math.PI - 0.12) return;
+              const bi = Math.min(13, Math.floor(((ang - 0.12) / (Math.PI - 0.24)) * 14));
+              const r = Math.hypot(pt.x - cx, pt.y - cy);
+              if (!bins[bi] || r > bins[bi].r) bins[bi] = { r, pt };
+            });
+            const pts = bins.filter(Boolean).map(b => {
+              const dirv = new THREE.Vector3(b.pt.x - cx, b.pt.y - cy, 0).normalize();
+              return b.pt.clone().addScaledVector(dirv, 0.0022 * lBulk);
+            });
+            if (pts.length < 5) return;
+            const curve = new THREE.CatmullRomCurve3(pts);
+            const band = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, (0.0030 - li * 0.0003) * lBulk, 6, false), trimMat);
+            group.add(band);
+          });
+        }
+
+        // 6. CAÑA ACAMPANADA sobre la greba con lengüeta frontal en punta (bota alta L2)
+        {
+          const flareH = collarH * 0.95;
+          const r0x = ankleW * 0.60, r0z = ankleW * 0.68;
+          const tongue = bootType === 2 || bootType === 6 ? 0.75 : 0.45;
+          const flareSurf = (u, v) => {
+            const th = u * Math.PI * 2 - Math.PI; // 0 = frente (+Z)
+            const front = Math.pow(Math.max(0, Math.cos(th)), 6);
+            const side = bootType === 4 ? Math.pow(Math.abs(Math.sin(th)), 10) * 0.55 : 0;
+            const top = flareH * (0.72 + tongue * front + side);
+            const y = collarH * 0.55 + v * top;
+            const fl = 1 + 0.42 * Math.pow(v, 1.5);
+            return new THREE.Vector3(Math.sin(th) * r0x * fl, y, Math.cos(th) * r0z * fl - backHeelDist * 0.08);
+          };
+          const fGeo = createArmorPlatePatch(flareSurf, { uSegs: 40, vSegs: 10, thickness: 0.0045 * lBulk, refCenter: new THREE.Vector3(0, collarH, 0), wrapU: true });
+          group.add(new THREE.Mesh(fGeo, mainMat));
+          const fTop = createRolledRimAlongRow(fGeo, fGeo.userData.rows - 1, 0.0034 * lBulk, { closed: true });
+          if (fTop) group.add(new THREE.Mesh(fTop, trimMat));
+          const fBot = createRolledRimAlongRow(fGeo, 0, 0.0030 * lBulk, { closed: true });
+          if (fBot) group.add(new THREE.Mesh(fBot, trimMat));
+          let gemB = glowMat, dmB = glowMat;
+          try { gemB = getFacetedGemMaterial(bootType === 6 ? 'ruby' : (bootType === 5 ? 'emerald' : (bootType === 2 ? 'amethyst' : 'sapphire')), 'boots'); dmB = getFacetedGemMaterial('diamond', 'boots'); } catch (e) { }
+          const gp = flareSurf(0.5, 0.55);
+          addFacetedJewel(group, gp, new THREE.Vector3(0, 0.15, 1).normalize(), 0.0105 * lBulk, gemB, trimMat, dmB, 6);
+          // Rodelas de tobillo a ambos lados
+          if (bootType === 1 || bootType === 3 || bootType === 5) {
+            [-1, 1].forEach(xs => {
+              const rondel = new THREE.Mesh(new THREE.CylinderGeometry(0.020 * lBulk, 0.022 * lBulk, 0.005 * lBulk, 20), trimMat);
+              rondel.rotation.z = Math.PI / 2;
+              rondel.position.set(xs * (ankleW * 0.66), collarH * 0.30, -backHeelDist * 0.05);
+              group.add(rondel);
+              const rg = new THREE.Mesh(new THREE.OctahedronGeometry(0.0075 * lBulk, 0), gemB);
+              rg.position.copy(rondel.position).add(new THREE.Vector3(xs * 0.004 * lBulk, 0, 0));
+              rg.scale.set(0.6, 1, 1);
+              group.add(rg);
+            });
           }
         }
 
@@ -7217,6 +7299,452 @@
       });
     }
 
+    /* =========================================================================
+       7c. CORONAS Y VISERAS (ESTÉTICA LINEAGE II)
+       Sustituyen a los yelmos cerrados: el rostro y el cabello quedan visibles.
+       Todo se construye sobre el contorno real del cráneo (perfil anatómico) y se
+       ancla a la cabeza para seguir las animaciones.
+       ========================================================================= */
+    function getHeadProfileInfo(hMesh) {
+      const zoneDef = ANATOMY_ZONES['head'] || null;
+      const useWorld = Boolean(hMesh.userData.isMultiZone) && zoneDef !== null;
+      const profile = extractAnatomicalProfile(hMesh, 'head', useWorld, zoneDef);
+      if (!profile) return null;
+      // Altura de los ojos (normalizada 0 = barbilla, 1 = coronilla)
+      let eyeV = 0.55;
+      const eye = bonesMap['eye_0'] || bonesMap['eye_1'];
+      if (eye) {
+        const wp = new THREE.Vector3(); eye.getWorldPosition(wp);
+        const y = profile.useWorldSlice ? wp.y : hMesh.worldToLocal(wp.clone()).y;
+        const v = (y - profile.subYMin) / profile.subHeight;
+        if (v > 0.30 && v < 0.75) eyeV = v;
+      }
+      const point = (v, a, out = 0) => {
+        const s = sampleProfileAt(profile, Math.max(0, Math.min(1, v)), a);
+        const p = new THREE.Vector3(s.cx + Math.sin(a) * (s.radius + out), profile.subYMin + v * profile.subHeight, s.cz + Math.cos(a) * (s.radius + out));
+        if (profile.useWorldSlice && profile.worldToLocal) p.applyMatrix4(profile.worldToLocal);
+        return p;
+      };
+      const dir = (a) => {
+        const d = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+        if (profile.useWorldSlice && profile.worldToLocal) d.transformDirection(profile.worldToLocal);
+        return d;
+      };
+      const up = new THREE.Vector3(0, 1, 0);
+      if (profile.useWorldSlice && profile.worldToLocal) up.transformDirection(profile.worldToLocal);
+      return { profile, eyeV, point, dir, up, avgR: profile.avgRadius, H: profile.subHeight };
+    }
+
+    // Púa/hoja de corona: placa que nace del aro y sube con ligera inclinación hacia fuera
+    function addCrownTine(group, hi, opts, mat, gemMat) {
+      const { a, v0, out, h, w, shape = 'fleur', lean = 0.18, curl = 0 } = opts;
+      const surf = (u, v) => {
+        const s = u * 2 - 1;
+        let half;
+        if (shape === 'leaf') half = Math.sin(Math.min(1, v * 1.05) * Math.PI) * 0.9 + 0.1 * (1 - v);
+        else if (shape === 'blade') half = (1 - v) * 0.85 + 0.15 * (1 - v * v);
+        else half = (v < 0.55 ? 1 - v * 0.35 : (1 - v) * 1.8) * (1 - 0.25 * Math.sin(v * Math.PI)); // flor de lis
+        const aa = a + s * half * w * 0.5;
+        const base = hi.point(v0, aa, out);
+        const radial = hi.dir(aa);
+        return base.addScaledVector(hi.up, v * h).addScaledVector(radial, v * v * h * lean + Math.sin(v * Math.PI) * curl * h);
+      };
+      const center = hi.point(v0, a, -hi.avgR * 0.6);
+      const g = createArmorPlatePatch(surf, { uSegs: 12, vSegs: 10, thickness: 0.0035, refCenter: center });
+      group.add(new THREE.Mesh(g, mat));
+      const rim = createRolledRimAlongRow(g, 0, 0.0018);
+      if (rim) group.add(new THREE.Mesh(rim, mat));
+      if (gemMat) {
+        const tip = surf(0.5, shape === 'leaf' ? 0.55 : 0.82);
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(Math.max(0.0035, w * hi.avgR * 0.10), 0), gemMat);
+        gem.position.copy(tip).addScaledVector(hi.dir(a), 0.004);
+        gem.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), hi.dir(a));
+        gem.scale.set(1, 1.3, 0.6);
+        group.add(gem);
+      }
+    }
+
+    function addFacetedJewel(group, pos, normal, size, gemMat, bezelMat, diamondMat, ring = 6) {
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.clone().normalize());
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), gemMat);
+      gem.quaternion.copy(q); gem.scale.set(0.9, 1.3, 0.55);
+      gem.position.copy(pos).addScaledVector(normal, size * 0.35);
+      group.add(gem);
+      const bezel = new THREE.Mesh(new THREE.TorusGeometry(size * 1.05, size * 0.16, 6, 24), bezelMat);
+      bezel.quaternion.copy(q); bezel.scale.set(0.9, 1.3, 1);
+      bezel.position.copy(pos).addScaledVector(normal, size * 0.15);
+      group.add(bezel);
+      for (let d = 0; d < ring; d++) {
+        const ang = (d / ring) * Math.PI * 2;
+        const off = new THREE.Vector3(Math.cos(ang) * 0.9, Math.sin(ang) * 1.3, 0).multiplyScalar(size * 1.45).applyQuaternion(q);
+        const dm = new THREE.Mesh(new THREE.OctahedronGeometry(size * 0.22, 0), diamondMat);
+        dm.position.copy(pos).add(off).addScaledVector(normal, size * 0.15);
+        dm.quaternion.copy(q); dm.scale.set(1, 1, 0.6);
+        group.add(dm);
+      }
+    }
+
+    // Cuerno curvo (tubo ahusado a lo largo de una curva)
+    function addCurvedHorn(group, pts, r0, mat) {
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const surf = (u, v) => {
+        const p = curve.getPointAt(v);
+        const t = curve.getTangentAt(v).normalize();
+        let n = new THREE.Vector3(0, 1, 0).cross(t);
+        if (n.lengthSq() < 1e-6) n = new THREE.Vector3(1, 0, 0);
+        n.normalize();
+        const b = new THREE.Vector3().crossVectors(t, n).normalize();
+        const r = r0 * Math.pow(1 - v, 0.8) + 0.0006;
+        const ang = u * Math.PI * 2;
+        return p.addScaledVector(n, Math.cos(ang) * r).addScaledVector(b, Math.sin(ang) * r);
+      };
+      const g = createArmorPlatePatch(surf, { uSegs: 14, vSegs: 16, thickness: 0.002, refCenter: pts[0].clone(), wrapU: true, edgeRound: 1.0 });
+      group.add(new THREE.Mesh(g, mat));
+    }
+
+    const HEADPIECE_DESIGNS = {
+      1: { kind: 'crown',   name: 'Corona Real',         tines: 'all',   count: 8,  shape: 'fleur', h: 0.30, gem: 'ruby',     center: 'sapphire' },
+      2: { kind: 'crown',   name: 'Diadema Dinastía',    tines: 'front', count: 5,  shape: 'blade', h: 0.42, gem: 'ruby',     center: 'ruby', wings: true },
+      3: { kind: 'crown',   name: 'Tiara Élfica',        tines: 'front', count: 7,  shape: 'leaf',  h: 0.30, gem: 'emerald',  center: 'emerald', doubleBand: true },
+      4: { kind: 'crown',   name: 'Corona Dracónica',    tines: 'front', count: 5,  shape: 'blade', h: 0.24, gem: null,       center: 'ruby', horns: true },
+      5: { kind: 'crown',   name: 'Corona Astral',       tines: 'all',   count: 10, shape: 'blade', h: 0.18, gem: 'diamond',  center: 'sapphire', halo: true },
+      6: { kind: 'visor',   name: 'Visera Solar',        style: 'brow',    center: 'topaz' },
+      7: { kind: 'visor',   name: 'Visera Dracónica',    style: 'mask',    center: 'ruby' },
+      8: { kind: 'visor',   name: 'Visera de Cristal',   style: 'crystal', center: 'sapphire' }
+    };
+
+    function buildCrownOrVisor(hMesh, helmType, mats) {
+      const d = HEADPIECE_DESIGNS[helmType];
+      if (!d) return;
+      const hi = getHeadProfileInfo(hMesh);
+      if (!hi) return;
+      const { mainMat, trimMat, glowMat } = mats;
+      const hBulk = STATE.fit.headScale;
+      const gem = (k) => { try { return getFacetedGemMaterial(k, 'helmet'); } catch (e) { return glowMat; } };
+      const diamondMat = gem('diamond');
+      const centerMat = gem(d.center || 'ruby');
+      const tipMat = d.gem ? gem(d.gem) : null;
+      const eyeV = hi.eyeV;
+      const R = hi.avgR;
+      // Holgura sobre el cabello: la pieza descansa por encima del pelo
+      const hairOut = R * 0.13 * hBulk;
+      const thickR = 0.13 * hBulk;
+      const offY = STATE.fit.headOffsetY;
+
+      const group = new THREE.Group();
+      group.name = `Headpiece_${helmType}`;
+      group.position.copy(hMesh.position); group.rotation.copy(hMesh.rotation); group.scale.copy(hMesh.scale);
+
+      if (d.kind === 'crown') {
+        const bandLo = Math.min(0.86, eyeV + 0.16), bandHi = Math.min(0.94, eyeV + 0.27);
+        createFormFittedShell(hMesh, trimMat, {
+          targetPart: 'head', slotName: 'helmet', thicknessRatio: thickR, yMin: bandLo, yMax: bandHi,
+          vPointBottom: helmType === 2 || helmType === 4 ? 0.07 : 0.03, ridgeCenterZ: 0.08, bevelRadius: 0.006, offsetY: offY,
+          foldStyle: helmType === 3 ? 'scalloped' : 'ogee_conopial', foldWaves: 6.0, foldDepth: 0.03,
+          edgeRim: 0.0022 * hBulk, frameMaterial: trimMat
+        });
+        if (d.doubleBand) {
+          createFormFittedShell(hMesh, mainMat, {
+            targetPart: 'head', slotName: 'helmet', thicknessRatio: thickR * 1.08, yMin: bandLo + 0.035, yMax: bandHi - 0.035,
+            bevelRadius: 0.004, offsetY: offY, edgeRim: 0.0016 * hBulk, frameMaterial: trimMat
+          });
+        }
+        const vTop = bandHi + offY;
+        const out = hairOut + R * 0.02;
+        const tineList = [];
+        if (d.tines === 'all') {
+          for (let i = 0; i < d.count; i++) {
+            const a = (i / d.count) * Math.PI * 2;
+            tineList.push({ a, tall: i % 2 === 0 });
+          }
+        } else {
+          const span = 1.15;
+          for (let i = 0; i < d.count; i++) {
+            const t = d.count === 1 ? 0 : (i / (d.count - 1)) * 2 - 1;
+            tineList.push({ a: t * span, tall: Math.abs(t) < 0.01, side: Math.abs(t) });
+          }
+        }
+        tineList.forEach(tn => {
+          const frontness = 0.5 + 0.5 * Math.cos(tn.a);
+          let h = R * d.h * hBulk * (tn.tall ? 1.35 : 0.85) * (d.tines === 'front' ? (1.25 - 0.55 * (tn.side || 0)) : (0.75 + 0.35 * frontness));
+          const w = d.shape === 'leaf' ? 0.34 : (d.tines === 'all' ? 0.42 : 0.30);
+          addCrownTine(group, hi, { a: tn.a, v0: vTop - 0.01, out, h, w, shape: d.shape, lean: helmType === 5 ? 0.30 : 0.16 }, trimMat, tipMat);
+        });
+        // Joya central frontal
+        const fp = hi.point(bandLo + (bandHi - bandLo) * 0.5 + offY, 0, out + 0.002);
+        addFacetedJewel(group, fp, hi.dir(0), R * 0.085 * hBulk, centerMat, trimMat, diamondMat, 8);
+
+        if (d.wings) {
+          // Alas de la Dinastía: tres plumas de acero barridas hacia atrás desde cada sien
+          [-1, 1].forEach(sg => {
+            for (let f = 0; f < 3; f++) {
+              const a0 = sg * (Math.PI * 0.50 + f * 0.10);
+              addCrownTine(group, hi, { a: a0, v0: bandLo + 0.03 + offY, out: out + 0.002, h: R * (0.62 - f * 0.12) * hBulk, w: 0.26, shape: 'blade', lean: 0.55, curl: -0.05 }, f === 1 ? mainMat : trimMat, null);
+            }
+          });
+        }
+        if (d.horns) {
+          [-1, 1].forEach(sg => {
+            const a0 = sg * 0.95;
+            const p0 = hi.point(bandHi + offY, a0, out * 0.6);
+            const dr = hi.dir(a0);
+            const back = hi.dir(sg * 2.2);
+            const pts = [p0,
+              p0.clone().addScaledVector(hi.up, R * 0.35).addScaledVector(dr, R * 0.18),
+              p0.clone().addScaledVector(hi.up, R * 0.62).addScaledVector(back, R * 0.35).addScaledVector(dr, R * 0.18),
+              p0.clone().addScaledVector(hi.up, R * 0.70).addScaledVector(back, R * 0.85)];
+            addCurvedHorn(group, pts, R * 0.11 * hBulk, mainMat);
+          });
+        }
+        if (d.halo) {
+          const c = hi.point(eyeV + 0.30 + offY, Math.PI, -R * 0.55);
+          const back = hi.dir(Math.PI);
+          const halo = new THREE.Mesh(new THREE.TorusGeometry(R * 1.05, R * 0.035, 8, 48), trimMat);
+          halo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), back);
+          halo.position.copy(c).addScaledVector(back, R * 0.55);
+          group.add(halo);
+          for (let k = 0; k < 12; k++) {
+            const ang = (k / 12) * Math.PI * 2;
+            const ray = new THREE.Mesh(new THREE.ConeGeometry(R * 0.04, R * (k % 2 ? 0.30 : 0.48), 4), trimMat);
+            const radial = new THREE.Vector3(Math.cos(ang), Math.sin(ang), 0);
+            ray.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), radial);
+            ray.position.copy(radial).multiplyScalar(R * (1.05 + (k % 2 ? 0.15 : 0.24)));
+            ray.position.applyQuaternion(halo.quaternion).add(halo.position);
+            ray.quaternion.premultiply(halo.quaternion);
+            group.add(ray);
+            if (k % 3 === 0) {
+              const dm = new THREE.Mesh(new THREE.OctahedronGeometry(R * 0.06, 0), diamondMat);
+              dm.position.copy(radial).multiplyScalar(R * 1.05).applyQuaternion(halo.quaternion).add(halo.position);
+              group.add(dm);
+            }
+          }
+        }
+      } else {
+        // VISERAS: aro posterior fino + pieza frontal
+        createFormFittedShell(hMesh, trimMat, {
+          targetPart: 'head', slotName: 'helmet', thicknessRatio: thickR, yMin: Math.min(0.86, eyeV + 0.17), yMax: Math.min(0.93, eyeV + 0.23),
+          bevelRadius: 0.004, offsetY: offY, edgeRim: 0.0018 * hBulk, frameMaterial: trimMat
+        });
+        const out = hairOut * 0.35;
+        if (d.style === 'brow') {
+          // Visera solar: placa de frente con nasal y alas en las sienes
+          createFormFittedShell(hMesh, mainMat, {
+            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.07 * hBulk, yMin: eyeV + 0.07, yMax: Math.min(0.95, eyeV + 0.30),
+            angleMin: -1.30, angleMax: 1.30, vPointBottom: 0.06, archTop: 0.05, ridgeCenterZ: 0.10, foldStyle: 'upward_arch', foldDepth: 0.05,
+            bevelRadius: 0.006, offsetY: offY, edgeRim: 0.0022 * hBulk, frameMaterial: trimMat
+          });
+          createFormFittedShell(hMesh, trimMat, {
+            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.09 * hBulk, yMin: eyeV - 0.17, yMax: eyeV + 0.10,
+            angleMin: -0.11, angleMax: 0.11, vPointBottom: 0.04, ridgeCenterZ: 0.20, bevelRadius: 0.003, offsetY: offY
+          });
+          const fp = hi.point(eyeV + 0.19 + offY, 0, R * 0.09);
+          addFacetedJewel(group, fp, hi.dir(0), R * 0.09 * hBulk, centerMat, trimMat, diamondMat, 8);
+          [-1, 1].forEach(sg => {
+            for (let f = 0; f < 2; f++) {
+              addCrownTine(group, hi, { a: sg * (1.15 + f * 0.16), v0: eyeV + 0.10 + offY, out: R * 0.08, h: R * (0.50 - f * 0.12) * hBulk, w: 0.24, shape: 'blade', lean: 0.65 }, trimMat, null);
+            }
+          });
+        } else if (d.style === 'mask') {
+          // Antifaz dracónico: cubre los ojos con calados enmarcados en oro y diamantes, puntas en las mejillas
+          createFormFittedShell(hMesh, mainMat, {
+            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.075 * hBulk, yMin: eyeV - 0.09, yMax: eyeV + 0.13,
+            angleMin: -1.35, angleMax: 1.35, windowCutout: 'eye_slits', vPointBottom: 0.0, foldStyle: 'swallow_tail', foldDepth: 0.06,
+            archTop: 0.06, ridgeCenterZ: 0.12, bevelRadius: 0.005, offsetY: offY,
+            windowFrame: true, edgeRim: 0.0016 * hBulk, frameMaterial: trimMat, frameGemMaterial: diamondMat, accentGemMaterial: centerMat
+          });
+          [-1, 1].forEach(sg => {
+            const p0 = hi.point(eyeV + 0.12 + offY, sg * 0.85, R * 0.07);
+            const dr = hi.dir(sg * 0.85), back = hi.dir(sg * 2.3);
+            addCurvedHorn(group, [p0, p0.clone().addScaledVector(hi.up, R * 0.25).addScaledVector(dr, R * 0.08), p0.clone().addScaledVector(hi.up, R * 0.42).addScaledVector(back, R * 0.40)], R * 0.07 * hBulk, trimMat);
+          });
+          const fp = hi.point(eyeV + 0.16 + offY, 0, R * 0.09);
+          addFacetedJewel(group, fp, hi.dir(0), R * 0.07 * hBulk, centerMat, trimMat, diamondMat, 6);
+        } else {
+          // Visera de cristal: banda translúcida luminosa sobre los ojos con marco dorado y aletas
+          const crystalMat = new THREE.MeshStandardMaterial({
+            color: centerMat.color ? centerMat.color.clone() : new THREE.Color(0x60a5fa),
+            emissive: centerMat.color ? centerMat.color.clone().multiplyScalar(0.55) : new THREE.Color(0x1e3a8a),
+            emissiveIntensity: 0.9, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.62, side: THREE.DoubleSide
+          });
+          createFormFittedShell(hMesh, crystalMat, {
+            targetPart: 'head', slotName: 'helmet', thicknessRatio: 0.085 * hBulk, yMin: eyeV - 0.055, yMax: eyeV + 0.075,
+            angleMin: -1.25, angleMax: 1.25, vPointBottom: 0.0, bevelRadius: 0.003, offsetY: offY, edgeRim: 0.0022 * hBulk, frameMaterial: trimMat
+          });
+          [-1, 1].forEach(sg => {
+            for (let f = 0; f < 3; f++) {
+              addCrownTine(group, hi, { a: sg * (1.20 + f * 0.13), v0: eyeV - 0.02 + f * 0.035 + offY, out: R * 0.09, h: R * (0.46 - f * 0.10) * hBulk, w: 0.20, shape: 'blade', lean: 0.95 }, f === 1 ? mainMat : trimMat, null);
+            }
+          });
+          const fp = hi.point(eyeV + 0.17 + offY, 0, R * 0.08);
+          addFacetedJewel(group, fp, hi.dir(0), R * 0.075 * hBulk, centerMat, trimMat, diamondMat, 6);
+        }
+      }
+
+      group.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; n.castShadow = true; if (n.geometry) n.geometry.userData = {}; } });
+      const exp = STATE.fit.explodedView || 0;
+      if (exp > 0.001) group.position.y += 0.32 * exp;
+      if (hMesh.parent) {
+        hMesh.parent.add(group);
+        generatedArmorShells.push(group);
+        slotArmorMeshes.helmet.push(group);
+      }
+    }
+
+    /* =========================================================================
+       7d. GUANTELETES COMPLETOS (L2): puño acampanado, placa dorsal con nudillera,
+       láminas articuladas en cada falange que siguen la flexión de los dedos.
+       ========================================================================= */
+    const GAUNTLET_DESIGNS = {
+      1: { cuff: 'bell',    cuffH: 1.00, flare: 1.45, gem: 'topaz',    knuckle: 'roll',   claws: false, fins: false },
+      2: { cuff: 'pointed', cuffH: 1.35, flare: 1.55, gem: 'ruby',     knuckle: 'spikes', claws: true,  fins: false },
+      3: { cuff: 'scallop', cuffH: 1.10, flare: 1.50, gem: 'sapphire', knuckle: 'gems',   claws: false, fins: false },
+      4: { cuff: 'winged',  cuffH: 1.25, flare: 1.70, gem: 'ruby',     knuckle: 'gems',   claws: false, fins: true },
+      5: { cuff: 'pointed', cuffH: 1.20, flare: 1.55, gem: 'emerald',  knuckle: 'spikes', claws: true,  fins: false, ridge: true }
+    };
+
+    function buildGauntletHands(gloveType, mats) {
+      const d = GAUNTLET_DESIGNS[gloveType];
+      if (!d) return;
+      const { mainMat, trimMat, glowMat } = mats;
+      let gemMat = glowMat, diamondMat = glowMat;
+      try { gemMat = getFacetedGemMaterial(d.gem, 'gloves'); diamondMat = getFacetedGemMaterial('diamond', 'gloves'); } catch (e) { }
+      const lBulk = STATE.fit.limbScale;
+      const register = (obj, parent) => {
+        obj.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; n.castShadow = true; n.receiveShadow = true; if (n.geometry) n.geometry.userData = {}; } });
+        parent.add(obj);
+        generatedArmorShells.push(obj);
+        slotArmorMeshes.gloves.push(obj);
+      };
+
+      ['L', 'R'].forEach(side => {
+        const dir = side === 'L' ? 1 : -1;
+        const hand = bonesMap[`hand_${side}`];
+        const palm = bonesMap[`Hand_${side}_Palm`];
+        if (!hand || !palm) return; // cuerpos externos: se mantiene el guante ajustado clásico
+        const S = lBulk;
+        const thick = 0.0032 * S;
+        const rim = 0.0019 * S;
+        const Xd = new THREE.Vector3(dir, 0, 0);
+
+        const g = new THREE.Group();
+        g.name = `Gauntlet_${side}`;
+
+        // 1. PLACA DORSAL abombada que envuelve el dorso y los cantos de la mano
+        const rx = 0.027 * S, rz = 0.046 * S;
+        const dorsal = (u, v) => {
+          const th = (u * 2 - 1) * 1.85;
+          const y = THREE.MathUtils.lerp(0.006, -0.068, v);
+          const knuckleLobes = Math.pow(Math.abs(Math.cos(u * Math.PI * 4)), 3) * 0.006 * Math.pow(v, 6);
+          const dome = 1 + 0.22 * Math.pow(Math.max(0, Math.cos(th)), 2) * Math.sin(v * Math.PI) + (d.ridge ? 0.12 * Math.pow(Math.max(0, Math.cos(th)), 30) : 0);
+          return new THREE.Vector3(dir * Math.cos(th) * rx * dome, y - knuckleLobes, Math.sin(th) * rz * (1 + 0.05 * Math.sin(v * Math.PI)));
+        };
+        const dGeo = createArmorPlatePatch(dorsal, { uSegs: 26, vSegs: 12, thickness: thick, refCenter: new THREE.Vector3(0, -0.03, 0) });
+        g.add(new THREE.Mesh(dGeo, mainMat));
+        const knRim = createRolledRimAlongRow(dGeo, dGeo.userData.rows - 1, rim * 1.6);
+        if (knRim) g.add(new THREE.Mesh(knRim, trimMat));
+        const topRim = createRolledRimAlongRow(dGeo, 0, rim);
+        if (topRim) g.add(new THREE.Mesh(topRim, trimMat));
+
+        // Nudillera: púas, gemas o rollo dorado
+        for (let k = 0; k < 4; k++) {
+          const z = (0.024 - k * 0.0155) * S;
+          const p = new THREE.Vector3(dir * rx * 1.08, -0.066 * S, z);
+          if (d.knuckle === 'spikes') {
+            const sp = new THREE.Mesh(new THREE.ConeGeometry(0.0042 * S, 0.016 * S, 6), trimMat);
+            sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), Xd.clone().add(new THREE.Vector3(0, -0.35, 0)).normalize());
+            sp.position.copy(p).addScaledVector(Xd, 0.007 * S);
+            g.add(sp);
+          } else if (d.knuckle === 'gems') {
+            const gm = new THREE.Mesh(new THREE.OctahedronGeometry(0.0038 * S, 0), k % 3 === 0 ? gemMat : diamondMat);
+            gm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), Xd);
+            gm.scale.set(1, 1, 0.6);
+            gm.position.copy(p).addScaledVector(Xd, 0.003 * S);
+            g.add(gm);
+          } else {
+            const st = new THREE.Mesh(new THREE.SphereGeometry(0.0036 * S, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.5), trimMat);
+            st.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), Xd);
+            st.position.copy(p).addScaledVector(Xd, 0.002 * S);
+            g.add(st);
+          }
+        }
+        // Gema del dorso con engaste y diamantes
+        addFacetedJewel(g, new THREE.Vector3(dir * rx * 1.24, -0.030 * S, 0), Xd.clone(), 0.0075 * S, gemMat, trimMat, diamondMat, d.knuckle === 'gems' ? 6 : 4);
+
+        // 2. PUÑO ACAMPANADO alrededor de la muñeca, con lengüeta alzada en el dorso
+        const wrx = 0.030 * S, wrz = 0.044 * S, cuffH = 0.062 * S * d.cuffH;
+        const cuff = (u, v) => {
+          const th = u * Math.PI * 2 - Math.PI; // 0 = dorso
+          const c = Math.max(0, Math.cos(th));
+          let top = cuffH;
+          if (d.cuff === 'pointed') top = cuffH * (0.70 + 0.55 * Math.pow(c, 6));
+          else if (d.cuff === 'scallop') top = cuffH * (0.85 + 0.15 * Math.cos(th * 6));
+          else if (d.cuff === 'winged') top = cuffH * (0.78 + 0.45 * Math.pow(Math.abs(Math.sin(th)), 8) + 0.25 * Math.pow(c, 6));
+          else top = cuffH * (0.9 + 0.15 * Math.pow(c, 4));
+          const y = THREE.MathUtils.lerp(-0.004 * S, top, v);
+          const fl = 1 + (d.flare - 1) * Math.pow(v, 1.6);
+          return new THREE.Vector3(dir * Math.cos(th) * wrx * fl, y, Math.sin(th) * wrz * fl);
+        };
+        const cGeo = createArmorPlatePatch(cuff, { uSegs: 40, vSegs: 10, thickness: thick, refCenter: new THREE.Vector3(0, cuffH * 0.4, 0), wrapU: true });
+        g.add(new THREE.Mesh(cGeo, mainMat));
+        const cTop = createRolledRimAlongRow(cGeo, cGeo.userData.rows - 1, rim * 1.4, { closed: true });
+        if (cTop) g.add(new THREE.Mesh(cTop, trimMat));
+        const cBot = createRolledRimAlongRow(cGeo, 0, rim * 1.2, { closed: true });
+        if (cBot) g.add(new THREE.Mesh(cBot, trimMat));
+        const cMid = createRolledRimAlongRow(cGeo, Math.round(cGeo.userData.rows * 0.55), rim * 0.6, { closed: true, outward: 1.5 });
+        if (cMid) g.add(new THREE.Mesh(cMid, trimMat));
+
+        if (d.fins) {
+          // Aletas aladas de la Dinastía en los cantos del puño
+          [-1, 1].forEach(zs => {
+            for (let f = 0; f < 3; f++) {
+              const fin = new THREE.Mesh(createBeveledCuttingPlate({
+                width: (0.016 - f * 0.003) * S, length: (0.070 - f * 0.012) * S, thickness: 0.0022 * S, bevel: 0.34, ridge: 0.003 * S, curveArch: 0.14, sweepX: -0.20, sharpness: 1.8
+              }), f === 1 ? mainMat : trimMat);
+              fin.position.set(dir * 0.006 * S, cuffH * (0.35 + f * 0.18), zs * wrz * 1.25);
+              fin.rotation.set(zs * (0.35 + f * 0.10), zs > 0 ? 0 : Math.PI, zs * 0.25);
+              g.add(fin);
+            }
+          });
+        }
+        register(g, hand);
+
+        // 3. LÁMINAS EN CADA FALANGE (hijas de cada falange: siguen la flexión)
+        const phalanges = [];
+        hand.traverse(m => { if (m.isMesh && m !== palm && !m.userData.isArmorShell && m.geometry) phalanges.push(m); });
+        phalanges.forEach(m => {
+          if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+          const bb = m.geometry.boundingBox;
+          const sz = bb.getSize(new THREE.Vector3());
+          if (sz.y < 0.012 || sz.y > 0.08) return;
+          const r = Math.max(sz.x, sz.z) * 0.5;
+          const isDistal = m.parent && m.parent.parent && m.parent.parent !== hand && m.parent.parent.parent === hand;
+          const half = sz.y * 0.5;
+          const pr = r * 1.55;
+          const lame = (u, v) => {
+            const th = (u * 2 - 1) * 1.9;
+            const y = THREE.MathUtils.lerp(half * 0.92, -half * 1.02, v);
+            let rr = pr * (1 + 0.10 * Math.sin(v * Math.PI));
+            if (isDistal) rr *= 1 - 0.55 * Math.pow(Math.max(0, (v - 0.55) / 0.45), 2); // remate de la punta
+            return new THREE.Vector3(dir * Math.cos(th) * rr, y, Math.sin(th) * rr);
+          };
+          const lg = createArmorPlatePatch(lame, { uSegs: 12, vSegs: 6, thickness: 0.0016 * S, refCenter: new THREE.Vector3() });
+          const lm = new THREE.Group();
+          lm.name = 'GauntletFingerLame';
+          lm.add(new THREE.Mesh(lg, mainMat));
+          const lr = createRolledRimAlongRow(lg, 0, rim * 0.55);
+          if (lr) lm.add(new THREE.Mesh(lr, trimMat));
+          if (isDistal && d.claws) {
+            const claw = new THREE.Mesh(new THREE.ConeGeometry(r * 0.75, r * 2.6, 6), trimMat);
+            claw.rotation.z = Math.PI; // apunta hacia la punta (-Y)
+            claw.position.set(dir * r * 0.35, -half - r * 1.0, 0);
+            lm.add(claw);
+          }
+          lm.position.copy(bb.getCenter(new THREE.Vector3()));
+          register(lm, m);
+        });
+      });
+    }
+
     function buildAllFittedArmor() {
       clearAllArmorShells();
       // Las hombreras forman ahora un único bloque con el peto: el slot independiente queda desactivado
@@ -7235,123 +7763,8 @@
       const headMeshes = getMeshesByAnatomy(['head']);
       const helmType = STATE.equipment.helmet;
       if (helmType > 0) {
-        headMeshes.forEach(hMesh => {
-          if (helmType === 1) {
-            // 1. Gran Yelmo Solar con Visera en T y Corona Dorada Biselada
-            createFormFittedShell(hMesh, mainMat, {
-              targetPart: 'head', thicknessRatio: 0.028 * hBulk,
-              yMin: 0.14, yMax: 1.0,
-              ridgeCenterZ: 0.09,
-              excludeFaceWindow: { yMin: 0.22, yMax: 0.60, xMaxRatio: 0.42 },
-              bevelRadius: 0.008,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.034 * hBulk,
-              yMin: 0.68, yMax: 0.86,
-              vPointBottom: 0.08,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.032 * hBulk,
-              yMin: 0.14, yMax: 0.25,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-          } else if (helmType === 2) {
-            // 2. Yelmo Cerrado Gótico con Visor de Rendija y Cresta Central Biselada
-            createFormFittedShell(hMesh, mainMat, {
-              targetPart: 'head', thicknessRatio: 0.030 * hBulk,
-              yMin: 0.08, yMax: 1.0,
-              ridgeCenterZ: 0.16,
-              excludeFaceWindow: { yMin: 0.40, yMax: 0.53, xMaxRatio: 0.40 },
-              bevelRadius: 0.008,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.036 * hBulk,
-              yMin: 0.66, yMax: 0.84,
-              ridgeCenterZ: 0.18,
-              vPointBottom: 0.10,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.034 * hBulk,
-              yMin: 0.08, yMax: 0.22,
-              vPointBottom: 0.08,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-          } else if (helmType === 3) {
-            // 3. Diadema Real / Corona de Campeón (Rostro descubierto)
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.030 * hBulk,
-              yMin: 0.64, yMax: 0.86,
-              ridgeCenterZ: 0.14,
-              vPointBottom: 0.08,
-              archTop: 0.10,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, glowMat, {
-              targetPart: 'head', thicknessRatio: 0.034 * hBulk,
-              yMin: 0.70, yMax: 0.80,
-              angleMin: -0.35, angleMax: 0.35,
-              bevelRadius: 0.006,
-              offsetY: STATE.fit.headOffsetY
-            });
-          } else if (helmType === 4) {
-            // 4. Tiara de Filigrana Dinastía Celestial (Lineage II)
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.028 * hBulk,
-              yMin: 0.62, yMax: 0.88,
-              ridgeCenterZ: 0.12,
-              vPointBottom: 0.10,
-              foldStyle: 'foliate', foldWaves: 3.0, foldDepth: 0.08,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-          } else if (helmType === 5) {
-            // 5. Yelmo Imperial Hoja de Laurel con Guardas de Mejilla Biseladas
-            createFormFittedShell(hMesh, mainMat, {
-              targetPart: 'head', thicknessRatio: 0.029 * hBulk,
-              yMin: 0.16, yMax: 1.0,
-              ridgeCenterZ: 0.12,
-              excludeFaceWindow: { yMin: 0.18, yMax: 0.62, xMaxRatio: 0.46 },
-              bevelRadius: 0.008,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.035 * hBulk,
-              yMin: 0.64, yMax: 0.82,
-              foldStyle: 'scalloped', foldWaves: 4.0, foldDepth: 0.06,
-              bevelRadius: 0.007,
-              offsetY: STATE.fit.headOffsetY
-            });
-          } else if (helmType === 6) {
-            // 6. Yelmo Draconiano Escamas de Dragón con Visera Angular
-            createFormFittedShell(hMesh, mainMat, {
-              targetPart: 'head', thicknessRatio: 0.031 * hBulk,
-              yMin: 0.10, yMax: 1.0,
-              ridgeCenterZ: 0.20,
-              vPointBottom: 0.10,
-              excludeFaceWindow: { yMin: 0.36, yMax: 0.54, xMaxRatio: 0.42 },
-              bevelRadius: 0.009,
-              offsetY: STATE.fit.headOffsetY
-            });
-            createFormFittedShell(hMesh, trimMat, {
-              targetPart: 'head', thicknessRatio: 0.036 * hBulk,
-              yMin: 0.62, yMax: 0.86,
-              ridgeCenterZ: 0.22,
-              vPointBottom: 0.12,
-              foldStyle: 'swallow_tail', foldDepth: 0.09,
-              bevelRadius: 0.008,
-              offsetY: STATE.fit.headOffsetY
-            });
-          }
-        });
+        // Coronas y viseras (sin yelmos cerrados): rostro y cabello siempre visibles
+        headMeshes.forEach(hMesh => buildCrownOrVisor(hMesh, helmType, { mainMat, trimMat, glowMat }));
       }
 
       /* === HOMBRERAS BASE Y GUARDABRAZOS SUPERIORES DIFERENCIADOS POR ARQUITECTURA === */
@@ -7964,6 +8377,8 @@
             });
           });
         });
+        // Guantelete completo: puño acampanado, dorso, nudillera y láminas en cada falange
+        buildGauntletHands(gloveType, { mainMat, trimMat, glowMat });
       }
 
       /* === GREBAS CON CRESTA TIBIAL Y BISEL FORJADO === */
@@ -8138,7 +8553,7 @@
       });
 
       const helmType = STATE.equipment.helmet;
-      const hideHairForClosedHelm = (helmType === 1 || helmType === 2 || helmType === 4);
+      const hideHairForClosedHelm = false;
       const hideShortsForLowerArmor = (STATE.equipment.cuisses > 0 || STATE.equipment.tassets > 0 || STATE.equipment.belt > 0 || mode > 0);
       const hasBoots = STATE.equipment.boots > 0;
 
@@ -8533,7 +8948,7 @@
       let count = 0;
       Object.values(STATE.equipment).forEach(v => { if (v > 0) count++; });
       // Sincronizar visibilidad del cabello según tipo de yelmo
-      const isClosedHelm = (STATE.equipment.helmet === 1 || STATE.equipment.helmet === 2 || STATE.equipment.helmet === 4);
+      const isClosedHelm = false;
       if (hairMeshGroup) hairMeshGroup.visible = (!isClosedHelm && HAIR_CONFIG.visible);
       document.getElementById('status-text').textContent = `${count} piezas ensambladas`;
       refreshActiveItemButtons();
@@ -10303,7 +10718,7 @@
 
       // Ocultar cabello si el yelmo es cerrado
       const helmType = STATE.equipment.helmet;
-      const hideForClosedHelm = (helmType === 1 || helmType === 2 || helmType === 4);
+      const hideForClosedHelm = false;
       if (hideForClosedHelm) {
         if (hairMeshGroup) hairMeshGroup.visible = false;
         return;
