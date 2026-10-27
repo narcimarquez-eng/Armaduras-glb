@@ -8663,17 +8663,18 @@
       const tSize = tb.getSize(new THREE.Vector3());
       const tc = tb.getCenter(new THREE.Vector3());
       const W = tSize.x, H = tSize.y;
-      const frontZ = tb.max.z - tc.z + 0.012;
-      const backZ = tb.min.z - tc.z - 0.010;
+      // Los tirantes van por fuera de la pechera (grosor ~0.03 m) y del espaldar, que no existe en la ligera
+      const frontZ = tb.max.z - tc.z + 0.040;
+      const backZ = tb.min.z - tc.z - 0.030;
       const yAttach = (tb.min.y - tc.y) + H * 0.86;   // borde superior de la pechera
-      const yShoulder = (tb.max.y - tc.y) - H * 0.03; // cresta del hombro
+      const yShoulder = (tb.max.y - tc.y) + 0.020;    // por encima de la cresta del hombro
 
       const group = new THREE.Group();
       group.name = 'Light_Chest_Straps';
       [-1, 1].forEach(s => {
         const curve = new THREE.CatmullRomCurve3([
           new THREE.Vector3(s * W * 0.24, yAttach, frontZ),
-          new THREE.Vector3(s * W * 0.34, yShoulder, 0),
+          new THREE.Vector3(s * W * 0.30, yShoulder, 0),
           new THREE.Vector3(s * W * 0.24, yAttach, backZ)
         ]);
         group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.009, 8, false), clothMat));
