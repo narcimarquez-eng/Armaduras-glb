@@ -9245,24 +9245,67 @@
 
       if (typeIndex === 1) {
         // Espada Solar de Paladín con Guarda Alada Dorada
+        // Hoja biselada extruida con acanaladura, guarda con alas y gemas facetadas
         const sword = new THREE.Group();
         const pommel = new THREE.Mesh(new THREE.OctahedronGeometry(0.028), trimMat); pommel.position.y = -0.11; sword.add(pommel);
+        addFacetedJewel(sword, new THREE.Vector3(0, -0.128, 0), new THREE.Vector3(0, -1, 0), 0.018, glowMat, trimMat, glowMat, 6);
         const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.18, 16), trimMat); sword.add(grip);
-        const guardCenter = new THREE.Mesh(new THREE.OctahedronGeometry(0.032), glowMat); guardCenter.position.y = 0.095; sword.add(guardCenter);
-        const guardBar = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.026, 0.032), trimMat); guardBar.position.y = 0.095; sword.add(guardBar);
-        const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.034, 0.78, 4), mainMat);
-        blade.scale.set(1, 1, 0.22); blade.position.y = 0.48; sword.add(blade);
-        const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.54, 0.014), trimMat); fuller.position.y = 0.38; sword.add(fuller);
+
+        const guardShape = new THREE.Shape();
+        guardShape.moveTo(-0.11, -0.012);
+        guardShape.lineTo(0.11, -0.012);
+        guardShape.quadraticCurveTo(0.14, -0.005, 0.125, 0.032);
+        guardShape.quadraticCurveTo(0.10, 0.012, 0.0, 0.014);
+        guardShape.quadraticCurveTo(-0.10, 0.012, -0.125, 0.032);
+        guardShape.quadraticCurveTo(-0.14, -0.005, -0.11, -0.012);
+        const guardGeo = new THREE.ExtrudeGeometry(guardShape, { depth: 0.022, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005, bevelSegments: 2, curveSegments: 10 });
+        guardGeo.translate(0, 0.095, -0.011);
+        sword.add(new THREE.Mesh(guardGeo, trimMat));
+        addFacetedJewel(sword, new THREE.Vector3(0, 0.095, 0.014), new THREE.Vector3(0, 0, 1), 0.026, glowMat, trimMat, glowMat, 6);
+
+        const swordBladeShape = new THREE.Shape();
+        swordBladeShape.moveTo(-0.034, 0.0);
+        swordBladeShape.lineTo(-0.032, 0.66);
+        swordBladeShape.lineTo(0.0, 0.78);
+        swordBladeShape.lineTo(0.032, 0.66);
+        swordBladeShape.lineTo(0.034, 0.0);
+        swordBladeShape.closePath();
+        const swordBladeGeo = new THREE.ExtrudeGeometry(swordBladeShape, { depth: 0.016, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2 });
+        swordBladeGeo.translate(0, 0.10, -0.008);
+        sword.add(new THREE.Mesh(swordBladeGeo, mainMat));
+        const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.50, 0.010), trimMat); fuller.position.set(0, 0.38, 0.012); sword.add(fuller);
         sword.position.set(0, -0.03, 0.02); sword.rotation.x = Math.PI / 2; group.add(sword);
       } else if (typeIndex === 2) {
         // Mandoble Real con Gavilanes en V
+        // Hoja larga biselada, gavilanes en V y runa luminosa en la acanaladura
         const gs = new THREE.Group();
         const pommel = new THREE.Mesh(new THREE.OctahedronGeometry(0.034), trimMat); pommel.position.y = -0.14; gs.add(pommel);
+        addFacetedJewel(gs, new THREE.Vector3(0, -0.168, 0), new THREE.Vector3(0, -1, 0), 0.022, glowMat, trimMat, glowMat, 6);
         const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.26, 16), trimMat); gs.add(grip);
-        const guard = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.032, 0.042), trimMat); guard.position.y = 0.13; gs.add(guard);
-        const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.046, 0.98, 4), mainMat);
-        blade.scale.set(1, 1, 0.20); blade.position.y = 0.62; gs.add(blade);
-        const rune = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.70, 0.016), glowMat); rune.position.y = 0.52; gs.add(rune);
+
+        const crossShape = new THREE.Shape();
+        crossShape.moveTo(-0.12, -0.016);
+        crossShape.lineTo(0.12, -0.016);
+        crossShape.quadraticCurveTo(0.15, -0.024, 0.17, -0.048);
+        crossShape.quadraticCurveTo(0.13, -0.010, 0.0, 0.016);
+        crossShape.quadraticCurveTo(-0.13, -0.010, -0.17, -0.048);
+        crossShape.quadraticCurveTo(-0.15, -0.024, -0.12, -0.016);
+        const crossGeo = new THREE.ExtrudeGeometry(crossShape, { depth: 0.030, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 2, curveSegments: 10 });
+        crossGeo.translate(0, 0.13, -0.015);
+        gs.add(new THREE.Mesh(crossGeo, trimMat));
+        addFacetedJewel(gs, new THREE.Vector3(0, 0.13, 0.020), new THREE.Vector3(0, 0, 1), 0.024, glowMat, trimMat, glowMat, 6);
+
+        const gsBladeShape = new THREE.Shape();
+        gsBladeShape.moveTo(-0.05, 0.0);
+        gsBladeShape.lineTo(-0.046, 0.80);
+        gsBladeShape.lineTo(0.0, 0.98);
+        gsBladeShape.lineTo(0.046, 0.80);
+        gsBladeShape.lineTo(0.05, 0.0);
+        gsBladeShape.closePath();
+        const gsBladeGeo = new THREE.ExtrudeGeometry(gsBladeShape, { depth: 0.020, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005, bevelSegments: 2 });
+        gsBladeGeo.translate(0, 0.15, -0.010);
+        gs.add(new THREE.Mesh(gsBladeGeo, mainMat));
+        const rune = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.64, 0.010), glowMat); rune.position.set(0, 0.55, 0.016); gs.add(rune);
         gs.position.set(0, -0.04, 0.02); gs.rotation.x = Math.PI / 2; group.add(gs);
       } else if (typeIndex === 3) {
         // Martillo de Guerra de Comandante
