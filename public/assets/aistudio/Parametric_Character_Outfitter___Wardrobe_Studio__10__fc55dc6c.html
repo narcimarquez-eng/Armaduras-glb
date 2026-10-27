@@ -9913,6 +9913,14 @@
     const AR_UP = new THREE.Vector3(0, 1, 0);
     const AR_DOWN = new THREE.Vector3(0, -1, 0);
     const AR_AIM_DIR = new THREE.Vector3(0, -0.03, 1);        // se dispara al frente del personaje
+    // Postura del brazo de la cuerda. Son centímetros, pero deciden si el brazo sale por
+    // fuera de la coraza o se queda enterrado en ella. La articulación sólo se SUBE: llevarla
+    // además hacia afuera o hacia atrás (la retracción escapular real) saca el deltoides por
+    // el espaldar del peto, así que la apertura se consigue con el codo, no moviendo el hueso.
+    const AR_DRAW = {
+      hombroArriba: 0.026,   // la escápula se eleva al tensar
+      codoAlzado:   0.34     // cuánto se alza el codo sobre la horizontal
+    };
     const AR_TURN = 1.45;                                     // el arquero se pone de costado al objetivo
 
     function spawnArrowTrail(pos) {
@@ -10100,8 +10108,19 @@
     const _arQ = (map, key) => { let q = map.get(key); if (!q) { q = new THREE.Quaternion(); map.set(key, q); } return q; };
 
     function archeryIdleBow(rig) {
+      archeryDrawShoulder(0);
       wfBowSetString(rig, _ikV.set(0, 0, -AR_BRACE), 0);
       if (rig.arrow) { rig.bow.remove(rig.arrow); rig.arrow = null; }
+    }
+
+    // Al tensar, el hombro de la cuerda no se queda quieto: la escápula se eleva.
+    // 'w' va de 0 (reposo) a 1 (en plena tensión).
+    function archeryDrawShoulder(w) {
+      const sh = bonesMap.Shoulder_R;
+      if (!sh) return;
+      if (!sh.userData.archeryRest) sh.userData.archeryRest = sh.position.clone();
+      const r = sh.userData.archeryRest;
+      sh.position.set(r.x, r.y + AR_DRAW.hombroArriba * w, r.z);
     }
 
     /* -------------------------------------------------------------------------
@@ -10151,7 +10170,7 @@
     function updateArchery(delta) {
       updateArrowFlight(delta);
       const rig = archeryRig;
-      if (!rig) return;
+      if (!rig) { archeryDrawShoulder(0); return; }   // sin arco (o cambiado en plena tensión)
       if (STATE.currentAnim !== 'archery') {
         archeryT = 0; archeryLastU = 0;
         archeryIdleBow(rig);
@@ -10231,7 +10250,14 @@
       }
       const drawLocal = AR_BRACE + drawFull * pull;
 
-      // 4. Mano de la cuerda: IK hasta el culatín, con el puño vertical para enganchar
+      // 4. Mano de la cuerda: IK hasta el culatín, con el puño vertical para enganchar.
+      //    El codo se lleva hacia la ESPALDA y sólo un poco alto, como tira un arquero: el
+      //    antebrazo pasa por detrás del hombro en vez de cruzar por delante del peto.
+      //    (Hacia atrás en la línea de la flecha no sirve: con la mano en el pómulo esa
+      //    dirección es casi el propio eje hombro-muñeca y el codo acaba donde sea.)
+      archeryDrawShoulder(aim);
+      const poleDrawW = new THREE.Vector3(0, 0, -1).transformDirection(torso.matrixWorld)
+        .normalize().addScaledVector(AR_UP, AR_DRAW.codoAlzado).normalize();
       const reachR = handGripReach('R');
       const nockTargetW = rig.bow.localToWorld(new THREE.Vector3(0, 0, -drawLocal));
       // Dos pasadas: la segunda corrige el desfase que deja el giro del brazo, de modo
@@ -10239,7 +10265,7 @@
       const aimTarget = nockTargetW.clone();
       for (let it = 0; it < 2; it++) {
         solveArmIK('R', aimTarget, reachR);
-        setElbowPole('R', AR_UP);          // codo de la cuerda alto, en línea con la flecha
+        setElbowPole('R', poleDrawW);      // codo de la cuerda atrás, en línea con la flecha
         alignHandFrame('R', aimW.clone().negate(), AR_UP);
         const hw = handGripWorld('R', _ikW);
         if (!hw) break;
@@ -13798,6 +13824,8 @@
        se queda en el estudio y en el .GLB el arco sale braceado.
        ------------------------------------------------------------------------- */
     const ARCHERY_BAKE_BONES = AR_JOINTS.concat(['Hip_L', 'Hip_R', 'Knee_L', 'Knee_R', 'Ankle_L', 'Ankle_R']);
+    // Huesos que además se desplazan durante el ciclo (el hombro de la cuerda se eleva)
+    const ARCHERY_BAKE_MOVED = ['Pelvis', 'Shoulder_R'];
 
     function bakeArcheryClip(fps = 15) {
       const rig = archeryRig;
@@ -13809,15 +13837,18 @@
       // flecha montada y recorrido de la cuerda
       const pose = [];
       Object.values(bonesMap).forEach(b => { if (b) pose.push([b, b.position.clone(), b.quaternion.clone()]); });
+      const savedShoulderRest = bonesMap.Shoulder_R && bonesMap.Shoulder_R.userData.archeryRest
+        ? bonesMap.Shoulder_R.userData.archeryRest.clone() : null;
       const savedT = archeryT, savedLastU = archeryLastU;
       const savedGripL = HAND_GRIP_FRAME.L, savedGripR = HAND_GRIP_FRAME.R;
       const savedArrow = rig.arrow;
       const savedString = rig.stringState ? { nock: rig.stringState.nock.clone(), bend: rig.stringState.bend } : null;
       rig.arrow = null;                      // ni se monta ni se suelta flecha alguna al hornear
 
+      const moved = ARCHERY_BAKE_MOVED.map(n => [n, bonesMap[n]]).filter(e => e[1]);
       const steps = Math.max(24, Math.round(ARCHERY_CYCLE * fps));
       const times = [];
-      const pelvisPos = [];
+      const pos = new Map(moved.map(e => [e[0], []]));
       const quats = new Map(bones.map(e => [e[0], []]));
       try {
         for (let i = 0; i <= steps; i++) {
@@ -13826,8 +13857,7 @@
           restoreBindPose();                 // base limpia: el ciclo abre y cierra en reposo, así cicla
           archeryApplyPose(rig, Math.min(t, ARCHERY_CYCLE - 1e-4));
           mannequinRoot.updateMatrixWorld(true);
-          const pp = bonesMap.Pelvis.position;
-          pelvisPos.push(pp.x, pp.y, pp.z);
+          moved.forEach(e => { const v = e[1].position; pos.get(e[0]).push(v.x, v.y, v.z); });
           bones.forEach(e => { const q = e[1].quaternion; quats.get(e[0]).push(q.x, q.y, q.z, q.w); });
         }
       } catch (err) {
@@ -13839,10 +13869,11 @@
         archeryT = savedT; archeryLastU = savedLastU;
         HAND_GRIP_FRAME.L = savedGripL; HAND_GRIP_FRAME.R = savedGripR;
         rig.arrow = savedArrow;
+        if (savedShoulderRest) bonesMap.Shoulder_R.userData.archeryRest = savedShoulderRest;
         if (savedString) wfBowSetString(rig, savedString.nock, savedString.bend);
       }
 
-      const tracks = [new THREE.VectorKeyframeTrack('Pelvis.position', times, pelvisPos)];
+      const tracks = moved.map(e => new THREE.VectorKeyframeTrack(`${e[0]}.position`, times, pos.get(e[0])));
       bones.forEach(e => tracks.push(new THREE.QuaternionKeyframeTrack(`${e[0]}.quaternion`, times, quats.get(e[0]))));
       return new THREE.AnimationClip('archery', ARCHERY_CYCLE, tracks);
     }
@@ -19330,7 +19361,7 @@ function resetCharacter() {
       get archeryTime() { return archeryT; },
       setArcheryTime(t) { archeryT = t; archeryLastU = 0; },
       updateWardrobePieces, applyHandGrip, getHandGripAnchor, handGripWorld,
-      archeryApplyPose, bakeArcheryClip, getLightExportClips
+      archeryApplyPose, bakeArcheryClip, getLightExportClips, AR_DRAW
     };
   </script>
 </body>
