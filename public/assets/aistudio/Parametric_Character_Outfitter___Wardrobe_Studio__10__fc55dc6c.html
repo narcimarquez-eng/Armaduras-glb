@@ -9309,22 +9309,39 @@
         gs.position.set(0, -0.04, 0.02); gs.rotation.x = Math.PI / 2; group.add(gs);
       } else if (typeIndex === 3) {
         // Martillo de Guerra de Comandante
+        // Cabeza biselada con cara de impacto, púa lateral y gema facetada
         const wh = new THREE.Group();
         const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 0.78, 16), trimMat); shaft.position.y = 0.24; wh.add(shaft);
-        const headC = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.10, 0.10), mainMat); headC.position.y = 0.58; wh.add(headC);
-        const trimBand = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.03, 0.11), trimMat); trimBand.position.y = 0.58; wh.add(trimBand);
-        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.12, 6), trimMat);
-        spike.rotation.z = Math.PI / 2; spike.position.set(-0.15, 0.58, 0); wh.add(spike);
-        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.028), glowMat); gem.position.set(0, 0.58, 0.055); wh.add(gem);
+        const headShape = new THREE.Shape();
+        headShape.moveTo(-0.10, -0.045);
+        headShape.lineTo(0.10, -0.045);
+        headShape.lineTo(0.10, 0.045);
+        headShape.lineTo(-0.10, 0.045);
+        headShape.closePath();
+        const headGeo = new THREE.ExtrudeGeometry(headShape, { depth: 0.09, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 4 });
+        headGeo.translate(0, 0.58, -0.045);
+        wh.add(new THREE.Mesh(headGeo, mainMat));
+        const trimBand = new THREE.Mesh(new THREE.BoxGeometry(0.215, 0.026, 0.115), trimMat); trimBand.position.y = 0.58; wh.add(trimBand);
+        const spikeGeo = new THREE.ConeGeometry(0.030, 0.12, 6);
+        const spike = new THREE.Mesh(spikeGeo, trimMat);
+        spike.rotation.z = Math.PI / 2; spike.position.set(-0.16, 0.58, 0); wh.add(spike);
+        addFacetedJewel(wh, new THREE.Vector3(0, 0.58, 0.058), new THREE.Vector3(0, 0, 1), 0.026, glowMat, trimMat, glowMat, 6);
         wh.position.set(0, -0.04, 0.02); wh.rotation.x = Math.PI / 2; wh.rotation.y = Math.PI / 2; group.add(wh);
       } else if (typeIndex === 4) {
         // Lanza / Alabarda de Guardián Élfico
+        // Punta de hoja biselada con nervio central y collarín con gema facetada
         const spear = new THREE.Group();
         const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.013, 1.38, 16), trimMat); rod.position.y = 0.40; spear.add(rod);
         const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.020, 0.08, 16), trimMat); collar.position.y = 1.06; spear.add(collar);
-        const spearTip = new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.34, 4), mainMat);
-        spearTip.scale.set(1.0, 1.0, 0.32); spearTip.position.y = 1.26; spear.add(spearTip);
-        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.026), glowMat); gem.position.y = 1.09; spear.add(gem);
+        const tipShape = new THREE.Shape();
+        tipShape.moveTo(0, 0);
+        tipShape.bezierCurveTo(0.052, 0.09, 0.046, 0.24, 0, 0.36);
+        tipShape.bezierCurveTo(-0.046, 0.24, -0.052, 0.09, 0, 0);
+        const tipGeo = new THREE.ExtrudeGeometry(tipShape, { depth: 0.018, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005, bevelSegments: 2, curveSegments: 12 });
+        tipGeo.translate(0, 1.10, -0.009);
+        spear.add(new THREE.Mesh(tipGeo, mainMat));
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.30, 0.010), trimMat); ridge.position.set(0, 1.27, 0.014); spear.add(ridge);
+        addFacetedJewel(spear, new THREE.Vector3(0, 1.10, 0.016), new THREE.Vector3(0, 0, 1), 0.024, glowMat, trimMat, glowMat, 6);
         spear.position.set(0, -0.05, 0.02); spear.rotation.x = Math.PI / 2 - 0.12; group.add(spear);
       }
 
