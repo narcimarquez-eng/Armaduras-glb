@@ -147,17 +147,11 @@
           <div class="grid grid-cols-5 gap-1.5" id="slot-helmet"></div>
         </div>
 
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between text-xs">
-            <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="box" class="w-3.5 h-3.5 text-indigo-400"></i> Hombreras Curvas Solapadas</span>
-            <div class="flex items-center gap-1.5"><span id="label-shoulders" class="text-[10px] text-indigo-300">Guardias</span><button data-export-slot="shoulders" class="export-slot-btn px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/40 text-[9px] text-indigo-200 border border-indigo-500/30 flex items-center gap-1"><i data-lucide="download" class="w-2.5 h-2.5"></i> .GLB</button></div>
-          </div>
-          <div class="grid grid-cols-4 gap-1.5" id="slot-shoulders"></div>
-        </div>
+        <!-- Hombreras integradas en cada peto (slot independiente eliminado) -->
 
         <div class="space-y-1.5">
           <div class="flex items-center justify-between text-xs">
-            <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-400"></i> Peto & Espaldar Continuo</span>
+            <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-indigo-400"></i> Peto con Hombreras Integradas</span>
             <div class="flex items-center gap-1.5"><span id="label-torso" class="text-[10px] text-indigo-300">Coraza Anatómica</span><button data-export-slot="torso" class="export-slot-btn px-1.5 py-0.5 rounded bg-indigo-500/20 hover:bg-indigo-500/40 text-[9px] text-indigo-200 border border-indigo-500/30 flex items-center gap-1"><i data-lucide="download" class="w-2.5 h-2.5"></i> .GLB</button></div>
           </div>
           <div class="grid grid-cols-5 gap-1.5" id="slot-torso"></div>
@@ -334,7 +328,6 @@
             <option value="underlayer">👕 Solo Capa Interna / Cota Interior</option>
             <option value="torso">🛡️ Solo Coraza / Peto</option>
             <option value="helmet">👑 Solo Yelmo / Corona</option>
-            <option value="shoulders">⚔️ Solo Hombreras</option>
             <option value="gloves">🧤 Solo Brazales y Guanteletes</option>
             <option value="belt">🎗️ Solo Cinturón y Tabardo</option>
             <option value="tassets">🏛️ Solo Escarcelas (Tassets)</option>
@@ -3283,6 +3276,151 @@
       return a + b;
     }
 
+    /* =========================================================================
+       5b. MARCOS ENJOYADOS PARA LOS CALADOS DEL PETO Y RIBETE DE LOS CANTOS
+       Detecta los bordes libres de la placa (aristas con un solo triángulo), los encadena
+       en contornos y coloca: doble moldura dorada + engastes de diamante en cada ventana,
+       y un ribete dorado fino en el canto exterior de la placa.
+       ========================================================================= */
+    function extractShellBoundaryLoops(positions, indices) {
+      const n = positions.length / 3;
+      const canon = new Int32Array(n);
+      const keyMap = new Map();
+      for (let i = 0; i < n; i++) {
+        const k = Math.round(positions[i * 3] * 1e5) + '_' + Math.round(positions[i * 3 + 1] * 1e5) + '_' + Math.round(positions[i * 3 + 2] * 1e5);
+        if (!keyMap.has(k)) keyMap.set(k, i);
+        canon[i] = keyMap.get(k);
+      }
+      const edgeCount = new Map();
+      for (let t = 0; t < indices.length; t += 3) {
+        for (let e = 0; e < 3; e++) {
+          const a = canon[indices[t + e]], b = canon[indices[t + (e + 1) % 3]];
+          if (a === b) continue;
+          const k = a < b ? a + '_' + b : b + '_' + a;
+          edgeCount.set(k, (edgeCount.get(k) || 0) + 1);
+        }
+      }
+      const adj = new Map();
+      edgeCount.forEach((c, k) => {
+        if (c !== 1) return;
+        const [a, b] = k.split('_').map(Number);
+        if (!adj.has(a)) adj.set(a, []);
+        if (!adj.has(b)) adj.set(b, []);
+        adj.get(a).push(b); adj.get(b).push(a);
+      });
+      const visited = new Set();
+      const loops = [];
+      adj.forEach((_, start) => {
+        if (visited.has(start)) return;
+        const chain = [start]; visited.add(start);
+        let prev = -1, cur = start, closed = false;
+        for (let guard = 0; guard < 100000; guard++) {
+          const nb = adj.get(cur).filter(x => x !== prev);
+          const next = nb.find(x => !visited.has(x));
+          if (next === undefined) { closed = nb.includes(start) && chain.length > 2; break; }
+          visited.add(next); chain.push(next); prev = cur; cur = next;
+        }
+        if (chain.length >= 4) loops.push({ idx: chain, closed });
+      });
+      return loops;
+    }
+
+    function smoothPolyline(pts, closed, passes = 2) {
+      let cur = pts.map(p => p.clone());
+      for (let p = 0; p < passes; p++) {
+        const nxt = cur.map((v, i) => {
+          if (!closed && (i === 0 || i === cur.length - 1)) return v.clone();
+          const a = cur[(i - 1 + cur.length) % cur.length], b = cur[(i + 1) % cur.length];
+          return v.clone().multiplyScalar(0.5).addScaledVector(a, 0.25).addScaledVector(b, 0.25);
+        });
+        cur = nxt;
+      }
+      return cur;
+    }
+
+    function decorateShellOpenings(shellMesh, positions, indices, vertexSDF, opts) {
+      const { frameMat, gemMat, accentGemMat, rimR = 0.004, frameWindows = false, rimEdges = false } = opts;
+      if (!frameMat) return;
+      const geo = shellMesh.geometry;
+      const normAttr = geo.attributes.normal;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      const center = geo.boundingBox.getCenter(new THREE.Vector3());
+      const loops = extractShellBoundaryLoops(positions, indices);
+      const tmpN = new THREE.Vector3();
+      const outN = (i, p) => {
+        tmpN.fromBufferAttribute(normAttr, i).normalize();
+        const radial = p.clone().sub(center); radial.y *= 0.25;
+        if (tmpN.dot(radial) < 0) tmpN.negate();
+        return tmpN.clone();
+      };
+
+      loops.forEach(loop => {
+        const rawPts = loop.idx.map(i => new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]));
+        const nrm = loop.idx.map((i, k) => outN(i, rawPts[k]));
+        let sdfAvg = 0;
+        if (vertexSDF) { loop.idx.forEach(i => { sdfAvg += Math.abs(vertexSDF[i] ?? 1); }); sdfAvg /= loop.idx.length; }
+        const isWindow = frameWindows && vertexSDF && sdfAvg < 0.2 && loop.closed;
+        if (!isWindow && !rimEdges) return;
+
+        const pts = smoothPolyline(rawPts, loop.closed, isWindow ? 3 : 2);
+        const centroid = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+        const R = isWindow ? rimR * 1.35 : rimR * 0.8;
+        const main = pts.map((p, k) => p.clone().addScaledVector(nrm[k], R * 0.55));
+        const curve = new THREE.CatmullRomCurve3(main, loop.closed, 'centripetal');
+        const segs = Math.max(24, Math.round(main.length * 1.4));
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, R, 6, loop.closed), frameMat);
+        tube.userData.isArmorShell = true;
+        shellMesh.add(tube);
+        if (!isWindow) return;
+
+        // Segunda moldura exterior, separada del hueco sobre la superficie de la placa
+        const away = pts.map((p, k) => {
+          const d = p.clone().sub(centroid).projectOnPlane(nrm[k]);
+          return d.lengthSq() > 1e-12 ? d.normalize() : new THREE.Vector3(0, 1, 0);
+        });
+        const gap = R * 3.4;
+        const outerPts = pts.map((p, k) => p.clone().addScaledVector(away[k], gap).addScaledVector(nrm[k], R * 0.45));
+        const outerCurve = new THREE.CatmullRomCurve3(outerPts, true, 'centripetal');
+        const outer = new THREE.Mesh(new THREE.TubeGeometry(outerCurve, segs, R * 0.55, 6, true), frameMat);
+        outer.userData.isArmorShell = true;
+        shellMesh.add(outer);
+
+        // Engastes de diamante repartidos entre las dos molduras
+        const midCurve = new THREE.CatmullRomCurve3(pts.map((p, k) => p.clone().addScaledVector(away[k], gap * 0.5).addScaledVector(nrm[k], R * 0.7)), true, 'centripetal');
+        const perim = midCurve.getLength();
+        const count = Math.max(4, Math.min(18, Math.round(perim / (R * 7.5))));
+        const zAxis = new THREE.Vector3(0, 0, 1);
+        for (let g = 0; g < count; g++) {
+          const t = g / count;
+          const p = midCurve.getPointAt(t);
+          let best = 0, bd = Infinity;
+          pts.forEach((q, k) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; best = k; } });
+          const gemMesh = new THREE.Mesh(new THREE.OctahedronGeometry(R * 1.05, 0), gemMat || frameMat);
+          gemMesh.quaternion.setFromUnitVectors(zAxis, nrm[best]);
+          gemMesh.scale.set(1, 1, 0.55);
+          gemMesh.position.copy(p);
+          gemMesh.userData.isArmorShell = true;
+          shellMesh.add(gemMesh);
+        }
+        // Gema principal en el vértice inferior del calado, con engaste
+        let low = 0;
+        pts.forEach((p, k) => { if (p.y < pts[low].y) low = k; });
+        const lp = pts[low].clone().addScaledVector(away[low], gap * 1.1).addScaledVector(nrm[low], R * 1.2);
+        const big = new THREE.Mesh(new THREE.OctahedronGeometry(R * 2.6, 0), accentGemMat || gemMat || frameMat);
+        big.quaternion.setFromUnitVectors(zAxis, nrm[low]);
+        big.scale.set(0.85, 1.25, 0.5);
+        big.position.copy(lp);
+        big.userData.isArmorShell = true;
+        shellMesh.add(big);
+        const bezel = new THREE.Mesh(new THREE.TorusGeometry(R * 2.7, R * 0.45, 6, 20), frameMat);
+        bezel.quaternion.copy(big.quaternion);
+        bezel.scale.set(0.85, 1.25, 1);
+        bezel.position.copy(lp).addScaledVector(nrm[low], -R * 0.4);
+        bezel.userData.isArmorShell = true;
+        shellMesh.add(bezel);
+      });
+    }
+
     function createFormFittedShell(sourceMesh, material, options = {}) {
       if (!sourceMesh || !sourceMesh.geometry) return null;
       const {
@@ -3313,7 +3451,12 @@
         neckDepth = 0.0,
         sideCutout = 'none', // 'none', 'armhole', 'hourglass', 'arch_flank', 'v_shield', 'bolero_wings', 'open_harness'
         sideDepth = 0.0,
-        windowCutout = 'none' // 'none', 'diamond_sternum', 'heart_window', 'keyhole_sternum', 'dual_lozenges', 'rib_slots', 'vertical_split'
+        windowCutout = 'none', // 'none', 'diamond_sternum', 'heart_window', 'keyhole_sternum', 'dual_lozenges', 'rib_slots', 'vertical_split'
+        windowFrame = false,     // marco dorado con diamantes alrededor de cada calado
+        edgeRim = 0,             // radio del ribete dorado del canto exterior (0 = sin ribete)
+        frameMaterial = null,
+        frameGemMaterial = null,
+        accentGemMaterial = null
       } = options;
 
       const partKey = targetPart || sourceMesh.userData.bodyPart || 'torso';
@@ -3769,6 +3912,13 @@
       shellMesh.receiveShadow = true;
       shellMesh.userData.isArmorShell = true;
       shellMesh.userData.armorSlot = slotName;
+
+      if (frameMaterial && ((windowFrame && hasWindowCutout) || edgeRim > 0)) {
+        decorateShellOpenings(shellMesh, outPositions, indices, hasWindowCutout ? vertexSDF : null, {
+          frameMat: frameMaterial, gemMat: frameGemMaterial, accentGemMat: accentGemMaterial,
+          rimR: Math.max(0.0025, edgeRim || avgRadius * 0.028), frameWindows: windowFrame && hasWindowCutout, rimEdges: edgeRim > 0
+        });
+      }
 
       const exp = STATE.fit.explodedView || 0;
       if (exp > 0.001) {
@@ -5758,15 +5908,303 @@
       return geo;
     }
 
+    // 11 arquitecturas de planchas cortantes (antes slot 'Hombreras'): ahora se usan como adornos integrados en cada peto
+    function addPauldronAccentBlades(group, shType, sgn, capR, mats, shOvr) {
+      const { mainMat, trimMat, glowMat } = mats;
+      const stridentTilt = shOvr ? shOvr.stridentTilt : 0.0;
+      const extraSharp = shOvr ? shOvr.sharpness : 1.45;
+      if (shType === 1) {
+        // 1. Hombreras Solares con Guarda-Cuello Alta Biselada y Placa Frontal en Escudo
+        const mainPlate = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.95, length: capR * 2.15, thickness: 0.009, bevel: 0.28, ridge: 0.014, curveArch: 0.22, crossCup: 0.26, sharpness: 1.15
+        }), mainMat);
+        mainPlate.rotation.set(0.12, sgn * Math.PI * 0.5, -sgn * 1.18);
+        mainPlate.position.set(sgn * capR * 0.18, capR * 0.14, 0);
+        group.add(mainPlate);
+
+        const trimPlate = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 2.05, length: capR * 0.85, thickness: 0.011, bevel: 0.30, ridge: 0.016, curveArch: 0.18, crossCup: 0.24, sharpness: 1.25
+        }), trimMat);
+        trimPlate.rotation.set(0.12, sgn * Math.PI * 0.5, -sgn * 1.32);
+        trimPlate.position.set(sgn * capR * 0.34, -capR * 0.12, 0);
+        group.add(trimPlate);
+
+        // Guarda-cuello vertical biselada (Haute-Piece)
+        const hauteBlade = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.35, length: capR * 1.45, thickness: 0.009, bevel: 0.32, ridge: 0.012, curveArch: -0.10, sharpness: 1.30
+        }), trimMat);
+        hauteBlade.position.set(-sgn * capR * 0.16, capR * 0.26, 0);
+        hauteBlade.rotation.set(0, sgn * Math.PI * 0.5, -sgn * 0.22);
+        group.add(hauteBlade);
+
+        const sunGem = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.22), glowMat);
+        sunGem.scale.set(1.0, 1.35, 0.55);
+        sunGem.position.set(sgn * capR * 0.65, capR * 0.12, capR * 0.58);
+        group.add(sunGem);
+
+      } else if (shType === 2) {
+        // 2. Hombreras Abisales de Cuchillas Estridentes: 3 planchas cortantes superpuestas en V + espolones afilados
+        for (let t = 0; t < 3; t++) {
+          const blade = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * (1.55 - t * 0.18),
+            length: capR * (2.45 - t * 0.22),
+            thickness: 0.010,
+            bevel: 0.34,
+            ridge: 0.018,
+            curveArch: 0.16,
+            crossCup: 0.18,
+            sharpness: 1.75,
+            serrated: 0.08
+          }), t % 2 === 0 ? mainMat : trimMat);
+          blade.position.set(sgn * capR * (0.12 + t * 0.22), capR * (0.28 - t * 0.24), 0);
+          blade.rotation.set(0.08, sgn * Math.PI * 0.5, -sgn * (0.78 + t * 0.28 + stridentTilt));
+          group.add(blade);
+        }
+        // Dos cuchillas dorsales estridentes proyectadas hacia arriba
+        [-0.28, 0.28].forEach((zOff, idx) => {
+          const dorsalSpike = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.48, length: capR * (1.75 - idx * 0.25), thickness: 0.011, bevel: 0.38, ridge: 0.016, curveArch: -0.14, sharpness: 1.90
+          }), trimMat);
+          dorsalSpike.position.set(sgn * capR * 0.26, capR * 0.42, zOff * capR);
+          dorsalSpike.rotation.set(idx === 0 ? -0.22 : 0.22, sgn * Math.PI * 0.5, -sgn * (0.38 + stridentTilt));
+          group.add(dorsalSpike);
+        });
+
+      } else if (shType === 3) {
+        // 3. Hombreras Aladas de Guardián Celestial: Placa base en punta + abanico de 4 alas ascendentes biseladas
+        const baseShield = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.65, length: capR * 2.10, thickness: 0.009, bevel: 0.28, ridge: 0.015, curveArch: 0.20, crossCup: 0.22, sharpness: 1.45
+        }), mainMat);
+        baseShield.rotation.set(0, sgn * Math.PI * 0.5, -sgn * 1.25);
+        baseShield.position.set(sgn * capR * 0.16, capR * 0.10, 0);
+        group.add(baseShield);
+
+        for (let w = 0; w < 4; w++) {
+          const wing = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * (0.48 - w * 0.05),
+            length: capR * (2.15 - w * 0.22),
+            thickness: 0.008,
+            bevel: 0.34,
+            ridge: 0.012,
+            curveArch: -0.16,
+            sweepX: -0.18,
+            sharpness: 1.70
+          }), w % 2 === 0 ? trimMat : mainMat);
+          wing.position.set(sgn * capR * (0.35 + w * 0.12), capR * (0.22 + w * 0.10), -capR * (0.08 + w * 0.14));
+          wing.rotation.set(-0.28 - w * 0.12, sgn * 0.35, -sgn * (0.45 + w * 0.16 + stridentTilt));
+          group.add(wing);
+        }
+
+      } else if (shType === 4) {
+        // 4. Hombreras Dinastía Imperial de Planchas Flotantes (Lineage II): Abanico de cuchillas curvas con núcleo de rubí/cristal
+        const coreGem = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.28), glowMat);
+        coreGem.scale.set(0.85, 1.35, 0.85);
+        coreGem.position.set(sgn * capR * 0.48, capR * 0.24, 0);
+        group.add(coreGem);
+
+        for (let f = 0; f < 5; f++) {
+          const t = (f - 2) / 2; // -1 a +1
+          const blade = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.52,
+            length: capR * (2.30 - Math.abs(t) * 0.38),
+            thickness: 0.0085,
+            bevel: 0.35,
+            ridge: 0.014,
+            curveArch: 0.18,
+            sweepX: t * 0.22,
+            sharpness: 1.80
+          }), f % 2 === 0 ? mainMat : trimMat);
+          blade.position.set(sgn * capR * 0.28, capR * 0.18, t * capR * 0.34);
+          blade.rotation.set(t * 0.42, sgn * Math.PI * 0.5, -sgn * (0.72 + Math.abs(t) * 0.25 + stridentTilt));
+          group.add(blade);
+        }
+        // Aleta clavicular interna estilo Lineage II
+        const innerFin = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 0.65, length: capR * 1.65, thickness: 0.009, bevel: 0.32, ridge: 0.012, curveArch: 0.12, sharpness: 1.65
+        }), trimMat);
+        innerFin.position.set(-sgn * capR * 0.10, capR * 0.35, capR * 0.18);
+        innerFin.rotation.set(0.25, -sgn * 0.45, sgn * 0.55);
+        group.add(innerFin);
+
+      } else if (shType === 5) {
+        // 5. Hombreras Dracónicas de Planchas Cortantes (Lineage II Draconic): Quilla frontal gigante proyectada y garras biseladas
+        const prowBlade = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.45, length: capR * 2.75, thickness: 0.011, bevel: 0.36, ridge: 0.022, curveArch: 0.10, crossCup: 0.22, sharpness: 1.85, serrated: 0.10
+        }), mainMat);
+        prowBlade.position.set(sgn * capR * 0.15, capR * 0.22, 0);
+        prowBlade.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.82 + stridentTilt));
+        group.add(prowBlade);
+
+        const prowTrim = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 0.72, length: capR * 2.85, thickness: 0.012, bevel: 0.38, ridge: 0.024, curveArch: 0.10, sharpness: 1.95
+        }), trimMat);
+        prowTrim.position.set(sgn * capR * 0.18, capR * 0.25, 0);
+        prowTrim.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.82 + stridentTilt));
+        group.add(prowTrim);
+
+        [-1, 1].forEach(dir => {
+          const sideClaw = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.62, length: capR * 1.95, thickness: 0.009, bevel: 0.34, ridge: 0.015, curveArch: 0.15, sweepX: dir * 0.25, sharpness: 1.80
+          }), trimMat);
+          sideClaw.position.set(sgn * capR * 0.28, capR * 0.08, dir * capR * 0.45);
+          sideClaw.rotation.set(dir * 0.38, sgn * Math.PI * 0.5, -sgn * 1.05);
+          group.add(sideClaw);
+        });
+
+      } else if (shType === 6) {
+        // 6. Hombreras Imperial Crusader de Muralla Alta (Lineage II): Escudo vertical masivo junto al cuello + doble placa en V
+        const fortressWall = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.75, length: capR * 2.10, thickness: 0.012, bevel: 0.32, ridge: 0.018, curveArch: -0.08, crossCup: 0.16, sharpness: 1.25
+        }), trimMat);
+        fortressWall.position.set(-sgn * capR * 0.08, capR * 0.22, 0);
+        fortressWall.rotation.set(0, sgn * Math.PI * 0.5, -sgn * 0.18);
+        group.add(fortressWall);
+
+        for (let l = 0; l < 2; l++) {
+          const heavyPlate = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * (1.85 - l * 0.20), length: capR * (2.20 - l * 0.25), thickness: 0.011, bevel: 0.30, ridge: 0.020, curveArch: 0.18, crossCup: 0.24, sharpness: 1.35
+          }), l === 0 ? mainMat : trimMat);
+          heavyPlate.position.set(sgn * capR * (0.20 + l * 0.22), capR * (0.08 - l * 0.26), 0);
+          heavyPlate.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (1.15 + l * 0.18));
+          group.add(heavyPlate);
+        }
+
+      } else if (shType === 7) {
+        // 7. Hombreras Majestic de Filigrana Cortante (Lineage II): Hojas de cimitarra cruzadas sobre hombro, clavícula y escápula
+        for (let c = 0; c < 3; c++) {
+          const scimitar = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.68,
+            length: capR * (2.40 - c * 0.22),
+            thickness: 0.009,
+            bevel: 0.36,
+            ridge: 0.014,
+            curveArch: 0.22,
+            sweepX: (c % 2 === 0 ? 0.32 : -0.28),
+            sharpness: 1.75
+          }), c === 1 ? trimMat : mainMat);
+          scimitar.position.set(sgn * capR * (0.14 + c * 0.18), capR * (0.24 - c * 0.14), (c - 1) * capR * 0.22);
+          scimitar.rotation.set((c - 1) * 0.25, sgn * Math.PI * 0.5, -sgn * (0.68 + c * 0.28 + stridentTilt));
+          group.add(scimitar);
+        }
+
+      } else if (shType === 8) {
+        // 8. Hombreras Nightmare de Espolones Estridentes (Lineage II): Planchas en diente de sierra invertido con cuernos de acero
+        for (let s = 0; s < 4; s++) {
+          const sawBlade = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.58,
+            length: capR * (2.55 - s * 0.24),
+            thickness: 0.010,
+            bevel: 0.38,
+            ridge: 0.018,
+            curveArch: -0.15,
+            sweepX: 0.20,
+            sharpness: 1.95,
+            serrated: 0.12
+          }), s % 2 === 0 ? mainMat : trimMat);
+          sawBlade.position.set(sgn * capR * (0.08 + s * 0.18), capR * (0.36 - s * 0.18), (s - 1.5) * capR * 0.18);
+          sawBlade.rotation.set((s - 1.5) * 0.18, sgn * Math.PI * 0.5, -sgn * (0.48 + s * 0.24 + stridentTilt));
+          group.add(sawBlade);
+        }
+        const nightmareGem = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.24), glowMat);
+        nightmareGem.position.set(sgn * capR * 0.55, capR * 0.20, 0);
+        group.add(nightmareGem);
+
+      } else if (shType === 9) {
+        // 9. Hombreras Valquiria de Plumas de Acero Biseladas: Corona de 6 cuchillas plumadas desplegadas en diagonal alta
+        for (let p = 0; p < 6; p++) {
+          const frac = p / 5;
+          const featherBlade = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.44,
+            length: capR * (1.85 + Math.sin(frac * Math.PI) * 0.75),
+            thickness: 0.008,
+            bevel: 0.36,
+            ridge: 0.013,
+            curveArch: 0.12,
+            sweepX: -0.16,
+            sharpness: 1.85
+          }), p % 2 === 0 ? trimMat : mainMat);
+          featherBlade.position.set(sgn * capR * (0.18 + frac * 0.35), capR * (0.15 + (1 - frac) * 0.22), (frac - 0.5) * capR * 0.85);
+          featherBlade.rotation.set((frac - 0.5) * 0.75, sgn * Math.PI * 0.5, -sgn * (0.35 + frac * 0.65 + stridentTilt));
+          group.add(featherBlade);
+        }
+
+      } else if (shType === 10) {
+        // 10. Hombreras Prisma de Facetas Cortantes a 45°: Placas geométricas poligonales de aristas duras sin curvas esféricas
+        const centralPrism = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.65, length: capR * 2.40, thickness: 0.012, bevel: 0.42, ridge: 0.024, curveArch: 0.04, crossCup: 0.12, sharpness: 1.50
+        }), mainMat);
+        centralPrism.position.set(sgn * capR * 0.20, capR * 0.18, 0);
+        centralPrism.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.95 + stridentTilt));
+        group.add(centralPrism);
+
+        [-1, 1].forEach(zSgn => {
+          const wingPrism = new THREE.Mesh(createBeveledCuttingPlate({
+            width: capR * 0.92, length: capR * 2.05, thickness: 0.010, bevel: 0.40, ridge: 0.018, curveArch: 0.02, crossCup: 0.08, sharpness: 1.65
+          }), trimMat);
+          wingPrism.position.set(sgn * capR * 0.26, capR * 0.12, zSgn * capR * 0.54);
+          wingPrism.rotation.set(zSgn * 0.48, sgn * Math.PI * 0.5, -sgn * 1.08);
+          group.add(wingPrism);
+        });
+
+      } else {
+        // 11. Hombreras Arconte con Puente de Clavícula y Paletilla (Lineage II): Cubre hombro, se extiende hacia el cuello/clavícula y hacia la escápula
+        const archonMain = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 1.50, length: capR * 2.55, thickness: 0.010, bevel: 0.34, ridge: 0.018, curveArch: 0.16, crossCup: 0.20, sharpness: extraSharp
+        }), mainMat);
+        archonMain.position.set(sgn * capR * 0.18, capR * 0.22, 0);
+        archonMain.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.76 + stridentTilt));
+        group.add(archonMain);
+
+        // Extensión frontal cortante hacia la clavícula y el cuello
+        const clavicleBridge = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 0.78, length: capR * 1.85, thickness: 0.009, bevel: 0.34, ridge: 0.014, curveArch: 0.18, sweepX: 0.22, sharpness: 1.70
+        }), trimMat);
+        clavicleBridge.position.set(-sgn * capR * 0.05, capR * 0.28, capR * 0.36);
+        clavicleBridge.rotation.set(0.38, -sgn * 0.55, sgn * 0.68);
+        group.add(clavicleBridge);
+
+        // Extensión trasera cortante hacia la paletilla / escápula
+        const scapulaBridge = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 0.84, length: capR * 2.05, thickness: 0.009, bevel: 0.34, ridge: 0.016, curveArch: -0.18, sweepX: -0.24, sharpness: 1.75
+        }), trimMat);
+        scapulaBridge.position.set(-sgn * capR * 0.08, capR * 0.24, -capR * 0.42);
+        scapulaBridge.rotation.set(-0.42, sgn * 0.55, sgn * 0.58);
+        group.add(scapulaBridge);
+
+        const archonCrystal = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.24), glowMat);
+        archonCrystal.scale.set(0.8, 1.4, 0.8);
+        archonCrystal.position.set(sgn * capR * 0.46, capR * 0.32, 0);
+        group.add(archonCrystal);
+      }
+
+      // Si la aleatoriedad activó aletas estridentes adicionales (shOvr.extraStridentFin), añadimos cuchilla superior de impacto
+      if (shOvr && shOvr.extraStridentFin) {
+        const bonusFin = new THREE.Mesh(createBeveledCuttingPlate({
+          width: capR * 0.52,
+          length: capR * shOvr.finLength,
+          thickness: 0.009,
+          bevel: 0.38,
+          ridge: 0.016,
+          curveArch: shOvr.finCurve,
+          sharpness: 1.90,
+          serrated: 0.09
+        }), trimMat);
+        bonusFin.position.set(sgn * capR * 0.30, capR * 0.40, 0);
+        bonusFin.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.42 + stridentTilt));
+        group.add(bonusFin);
+      }
+    }
+
     function buildArticulatedArmorJoints() {
-      let mainMat = getPBRMaterial('primary', 'shoulders');
-      let trimMat = getPBRMaterial('trim', 'shoulders');
-      let glowMat = getGlowMaterial('shoulders');
+      let mainMat = null, trimMat = null, glowMat = null;
       const overlap = STATE.fit.jointOverlap;
 
       /* === 11 ARQUITECTURAS DE HOMBRERAS DIFERENCIADAS: PLANCHAS CORTANTES CON BISELES, ZONAS ESTRIDENTES Y DISEÑOS LINEAGE II === */
       if (STATE.equipment.shoulders > 0) {
         currentBuildingSlot = 'shoulders';
+        mainMat = getPBRMaterial('primary', 'shoulders');
+        trimMat = getPBRMaterial('trim', 'shoulders');
+        glowMat = getGlowMaterial('shoulders');
         const shType = STATE.equipment.shoulders;
         const shOvr = STATE.fit.shoulderShapeOverride || null;
 
@@ -5802,286 +6240,7 @@
           const stridentTilt = shOvr ? shOvr.stridentTilt : 0.0;
           const extraSharp = shOvr ? shOvr.sharpness : 1.45;
 
-          if (shType === 1) {
-            // 1. Hombreras Solares con Guarda-Cuello Alta Biselada y Placa Frontal en Escudo
-            const mainPlate = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.95, length: capR * 2.15, thickness: 0.009, bevel: 0.28, ridge: 0.014, curveArch: 0.22, crossCup: 0.26, sharpness: 1.15
-            }), mainMat);
-            mainPlate.rotation.set(0.12, sgn * Math.PI * 0.5, -sgn * 1.18);
-            mainPlate.position.set(sgn * capR * 0.18, capR * 0.14, 0);
-            group.add(mainPlate);
-
-            const trimPlate = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 2.05, length: capR * 0.85, thickness: 0.011, bevel: 0.30, ridge: 0.016, curveArch: 0.18, crossCup: 0.24, sharpness: 1.25
-            }), trimMat);
-            trimPlate.rotation.set(0.12, sgn * Math.PI * 0.5, -sgn * 1.32);
-            trimPlate.position.set(sgn * capR * 0.34, -capR * 0.12, 0);
-            group.add(trimPlate);
-
-            // Guarda-cuello vertical biselada (Haute-Piece)
-            const hauteBlade = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.35, length: capR * 1.45, thickness: 0.009, bevel: 0.32, ridge: 0.012, curveArch: -0.10, sharpness: 1.30
-            }), trimMat);
-            hauteBlade.position.set(-sgn * capR * 0.16, capR * 0.26, 0);
-            hauteBlade.rotation.set(0, sgn * Math.PI * 0.5, -sgn * 0.22);
-            group.add(hauteBlade);
-
-            const sunGem = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.22), glowMat);
-            sunGem.scale.set(1.0, 1.35, 0.55);
-            sunGem.position.set(sgn * capR * 0.65, capR * 0.12, capR * 0.58);
-            group.add(sunGem);
-
-          } else if (shType === 2) {
-            // 2. Hombreras Abisales de Cuchillas Estridentes: 3 planchas cortantes superpuestas en V + espolones afilados
-            for (let t = 0; t < 3; t++) {
-              const blade = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * (1.55 - t * 0.18),
-                length: capR * (2.45 - t * 0.22),
-                thickness: 0.010,
-                bevel: 0.34,
-                ridge: 0.018,
-                curveArch: 0.16,
-                crossCup: 0.18,
-                sharpness: 1.75,
-                serrated: 0.08
-              }), t % 2 === 0 ? mainMat : trimMat);
-              blade.position.set(sgn * capR * (0.12 + t * 0.22), capR * (0.28 - t * 0.24), 0);
-              blade.rotation.set(0.08, sgn * Math.PI * 0.5, -sgn * (0.78 + t * 0.28 + stridentTilt));
-              group.add(blade);
-            }
-            // Dos cuchillas dorsales estridentes proyectadas hacia arriba
-            [-0.28, 0.28].forEach((zOff, idx) => {
-              const dorsalSpike = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.48, length: capR * (1.75 - idx * 0.25), thickness: 0.011, bevel: 0.38, ridge: 0.016, curveArch: -0.14, sharpness: 1.90
-              }), trimMat);
-              dorsalSpike.position.set(sgn * capR * 0.26, capR * 0.42, zOff * capR);
-              dorsalSpike.rotation.set(idx === 0 ? -0.22 : 0.22, sgn * Math.PI * 0.5, -sgn * (0.38 + stridentTilt));
-              group.add(dorsalSpike);
-            });
-
-          } else if (shType === 3) {
-            // 3. Hombreras Aladas de Guardián Celestial: Placa base en punta + abanico de 4 alas ascendentes biseladas
-            const baseShield = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.65, length: capR * 2.10, thickness: 0.009, bevel: 0.28, ridge: 0.015, curveArch: 0.20, crossCup: 0.22, sharpness: 1.45
-            }), mainMat);
-            baseShield.rotation.set(0, sgn * Math.PI * 0.5, -sgn * 1.25);
-            baseShield.position.set(sgn * capR * 0.16, capR * 0.10, 0);
-            group.add(baseShield);
-
-            for (let w = 0; w < 4; w++) {
-              const wing = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * (0.48 - w * 0.05),
-                length: capR * (2.15 - w * 0.22),
-                thickness: 0.008,
-                bevel: 0.34,
-                ridge: 0.012,
-                curveArch: -0.16,
-                sweepX: -0.18,
-                sharpness: 1.70
-              }), w % 2 === 0 ? trimMat : mainMat);
-              wing.position.set(sgn * capR * (0.35 + w * 0.12), capR * (0.22 + w * 0.10), -capR * (0.08 + w * 0.14));
-              wing.rotation.set(-0.28 - w * 0.12, sgn * 0.35, -sgn * (0.45 + w * 0.16 + stridentTilt));
-              group.add(wing);
-            }
-
-          } else if (shType === 4) {
-            // 4. Hombreras Dinastía Imperial de Planchas Flotantes (Lineage II): Abanico de cuchillas curvas con núcleo de rubí/cristal
-            const coreGem = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.28), glowMat);
-            coreGem.scale.set(0.85, 1.35, 0.85);
-            coreGem.position.set(sgn * capR * 0.48, capR * 0.24, 0);
-            group.add(coreGem);
-
-            for (let f = 0; f < 5; f++) {
-              const t = (f - 2) / 2; // -1 a +1
-              const blade = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.52,
-                length: capR * (2.30 - Math.abs(t) * 0.38),
-                thickness: 0.0085,
-                bevel: 0.35,
-                ridge: 0.014,
-                curveArch: 0.18,
-                sweepX: t * 0.22,
-                sharpness: 1.80
-              }), f % 2 === 0 ? mainMat : trimMat);
-              blade.position.set(sgn * capR * 0.28, capR * 0.18, t * capR * 0.34);
-              blade.rotation.set(t * 0.42, sgn * Math.PI * 0.5, -sgn * (0.72 + Math.abs(t) * 0.25 + stridentTilt));
-              group.add(blade);
-            }
-            // Aleta clavicular interna estilo Lineage II
-            const innerFin = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 0.65, length: capR * 1.65, thickness: 0.009, bevel: 0.32, ridge: 0.012, curveArch: 0.12, sharpness: 1.65
-            }), trimMat);
-            innerFin.position.set(-sgn * capR * 0.10, capR * 0.35, capR * 0.18);
-            innerFin.rotation.set(0.25, -sgn * 0.45, sgn * 0.55);
-            group.add(innerFin);
-
-          } else if (shType === 5) {
-            // 5. Hombreras Dracónicas de Planchas Cortantes (Lineage II Draconic): Quilla frontal gigante proyectada y garras biseladas
-            const prowBlade = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.45, length: capR * 2.75, thickness: 0.011, bevel: 0.36, ridge: 0.022, curveArch: 0.10, crossCup: 0.22, sharpness: 1.85, serrated: 0.10
-            }), mainMat);
-            prowBlade.position.set(sgn * capR * 0.15, capR * 0.22, 0);
-            prowBlade.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.82 + stridentTilt));
-            group.add(prowBlade);
-
-            const prowTrim = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 0.72, length: capR * 2.85, thickness: 0.012, bevel: 0.38, ridge: 0.024, curveArch: 0.10, sharpness: 1.95
-            }), trimMat);
-            prowTrim.position.set(sgn * capR * 0.18, capR * 0.25, 0);
-            prowTrim.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.82 + stridentTilt));
-            group.add(prowTrim);
-
-            [-1, 1].forEach(dir => {
-              const sideClaw = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.62, length: capR * 1.95, thickness: 0.009, bevel: 0.34, ridge: 0.015, curveArch: 0.15, sweepX: dir * 0.25, sharpness: 1.80
-              }), trimMat);
-              sideClaw.position.set(sgn * capR * 0.28, capR * 0.08, dir * capR * 0.45);
-              sideClaw.rotation.set(dir * 0.38, sgn * Math.PI * 0.5, -sgn * 1.05);
-              group.add(sideClaw);
-            });
-
-          } else if (shType === 6) {
-            // 6. Hombreras Imperial Crusader de Muralla Alta (Lineage II): Escudo vertical masivo junto al cuello + doble placa en V
-            const fortressWall = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.75, length: capR * 2.10, thickness: 0.012, bevel: 0.32, ridge: 0.018, curveArch: -0.08, crossCup: 0.16, sharpness: 1.25
-            }), trimMat);
-            fortressWall.position.set(-sgn * capR * 0.08, capR * 0.22, 0);
-            fortressWall.rotation.set(0, sgn * Math.PI * 0.5, -sgn * 0.18);
-            group.add(fortressWall);
-
-            for (let l = 0; l < 2; l++) {
-              const heavyPlate = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * (1.85 - l * 0.20), length: capR * (2.20 - l * 0.25), thickness: 0.011, bevel: 0.30, ridge: 0.020, curveArch: 0.18, crossCup: 0.24, sharpness: 1.35
-              }), l === 0 ? mainMat : trimMat);
-              heavyPlate.position.set(sgn * capR * (0.20 + l * 0.22), capR * (0.08 - l * 0.26), 0);
-              heavyPlate.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (1.15 + l * 0.18));
-              group.add(heavyPlate);
-            }
-
-          } else if (shType === 7) {
-            // 7. Hombreras Majestic de Filigrana Cortante (Lineage II): Hojas de cimitarra cruzadas sobre hombro, clavícula y escápula
-            for (let c = 0; c < 3; c++) {
-              const scimitar = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.68,
-                length: capR * (2.40 - c * 0.22),
-                thickness: 0.009,
-                bevel: 0.36,
-                ridge: 0.014,
-                curveArch: 0.22,
-                sweepX: (c % 2 === 0 ? 0.32 : -0.28),
-                sharpness: 1.75
-              }), c === 1 ? trimMat : mainMat);
-              scimitar.position.set(sgn * capR * (0.14 + c * 0.18), capR * (0.24 - c * 0.14), (c - 1) * capR * 0.22);
-              scimitar.rotation.set((c - 1) * 0.25, sgn * Math.PI * 0.5, -sgn * (0.68 + c * 0.28 + stridentTilt));
-              group.add(scimitar);
-            }
-
-          } else if (shType === 8) {
-            // 8. Hombreras Nightmare de Espolones Estridentes (Lineage II): Planchas en diente de sierra invertido con cuernos de acero
-            for (let s = 0; s < 4; s++) {
-              const sawBlade = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.58,
-                length: capR * (2.55 - s * 0.24),
-                thickness: 0.010,
-                bevel: 0.38,
-                ridge: 0.018,
-                curveArch: -0.15,
-                sweepX: 0.20,
-                sharpness: 1.95,
-                serrated: 0.12
-              }), s % 2 === 0 ? mainMat : trimMat);
-              sawBlade.position.set(sgn * capR * (0.08 + s * 0.18), capR * (0.36 - s * 0.18), (s - 1.5) * capR * 0.18);
-              sawBlade.rotation.set((s - 1.5) * 0.18, sgn * Math.PI * 0.5, -sgn * (0.48 + s * 0.24 + stridentTilt));
-              group.add(sawBlade);
-            }
-            const nightmareGem = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.24), glowMat);
-            nightmareGem.position.set(sgn * capR * 0.55, capR * 0.20, 0);
-            group.add(nightmareGem);
-
-          } else if (shType === 9) {
-            // 9. Hombreras Valquiria de Plumas de Acero Biseladas: Corona de 6 cuchillas plumadas desplegadas en diagonal alta
-            for (let p = 0; p < 6; p++) {
-              const frac = p / 5;
-              const featherBlade = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.44,
-                length: capR * (1.85 + Math.sin(frac * Math.PI) * 0.75),
-                thickness: 0.008,
-                bevel: 0.36,
-                ridge: 0.013,
-                curveArch: 0.12,
-                sweepX: -0.16,
-                sharpness: 1.85
-              }), p % 2 === 0 ? trimMat : mainMat);
-              featherBlade.position.set(sgn * capR * (0.18 + frac * 0.35), capR * (0.15 + (1 - frac) * 0.22), (frac - 0.5) * capR * 0.85);
-              featherBlade.rotation.set((frac - 0.5) * 0.75, sgn * Math.PI * 0.5, -sgn * (0.35 + frac * 0.65 + stridentTilt));
-              group.add(featherBlade);
-            }
-
-          } else if (shType === 10) {
-            // 10. Hombreras Prisma de Facetas Cortantes a 45°: Placas geométricas poligonales de aristas duras sin curvas esféricas
-            const centralPrism = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.65, length: capR * 2.40, thickness: 0.012, bevel: 0.42, ridge: 0.024, curveArch: 0.04, crossCup: 0.12, sharpness: 1.50
-            }), mainMat);
-            centralPrism.position.set(sgn * capR * 0.20, capR * 0.18, 0);
-            centralPrism.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.95 + stridentTilt));
-            group.add(centralPrism);
-
-            [-1, 1].forEach(zSgn => {
-              const wingPrism = new THREE.Mesh(createBeveledCuttingPlate({
-                width: capR * 0.92, length: capR * 2.05, thickness: 0.010, bevel: 0.40, ridge: 0.018, curveArch: 0.02, crossCup: 0.08, sharpness: 1.65
-              }), trimMat);
-              wingPrism.position.set(sgn * capR * 0.26, capR * 0.12, zSgn * capR * 0.54);
-              wingPrism.rotation.set(zSgn * 0.48, sgn * Math.PI * 0.5, -sgn * 1.08);
-              group.add(wingPrism);
-            });
-
-          } else {
-            // 11. Hombreras Arconte con Puente de Clavícula y Paletilla (Lineage II): Cubre hombro, se extiende hacia el cuello/clavícula y hacia la escápula
-            const archonMain = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 1.50, length: capR * 2.55, thickness: 0.010, bevel: 0.34, ridge: 0.018, curveArch: 0.16, crossCup: 0.20, sharpness: extraSharp
-            }), mainMat);
-            archonMain.position.set(sgn * capR * 0.18, capR * 0.22, 0);
-            archonMain.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.76 + stridentTilt));
-            group.add(archonMain);
-
-            // Extensión frontal cortante hacia la clavícula y el cuello
-            const clavicleBridge = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 0.78, length: capR * 1.85, thickness: 0.009, bevel: 0.34, ridge: 0.014, curveArch: 0.18, sweepX: 0.22, sharpness: 1.70
-            }), trimMat);
-            clavicleBridge.position.set(-sgn * capR * 0.05, capR * 0.28, capR * 0.36);
-            clavicleBridge.rotation.set(0.38, -sgn * 0.55, sgn * 0.68);
-            group.add(clavicleBridge);
-
-            // Extensión trasera cortante hacia la paletilla / escápula
-            const scapulaBridge = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 0.84, length: capR * 2.05, thickness: 0.009, bevel: 0.34, ridge: 0.016, curveArch: -0.18, sweepX: -0.24, sharpness: 1.75
-            }), trimMat);
-            scapulaBridge.position.set(-sgn * capR * 0.08, capR * 0.24, -capR * 0.42);
-            scapulaBridge.rotation.set(-0.42, sgn * 0.55, sgn * 0.58);
-            group.add(scapulaBridge);
-
-            const archonCrystal = new THREE.Mesh(new THREE.OctahedronGeometry(capR * 0.24), glowMat);
-            archonCrystal.scale.set(0.8, 1.4, 0.8);
-            archonCrystal.position.set(sgn * capR * 0.46, capR * 0.32, 0);
-            group.add(archonCrystal);
-          }
-
-          // Si la aleatoriedad activó aletas estridentes adicionales (shOvr.extraStridentFin), añadimos cuchilla superior de impacto
-          if (shOvr && shOvr.extraStridentFin) {
-            const bonusFin = new THREE.Mesh(createBeveledCuttingPlate({
-              width: capR * 0.52,
-              length: capR * shOvr.finLength,
-              thickness: 0.009,
-              bevel: 0.38,
-              ridge: 0.016,
-              curveArch: shOvr.finCurve,
-              sharpness: 1.90,
-              serrated: 0.09
-            }), trimMat);
-            bonusFin.position.set(sgn * capR * 0.30, capR * 0.40, 0);
-            bonusFin.rotation.set(0, sgn * Math.PI * 0.5, -sgn * (0.42 + stridentTilt));
-            group.add(bonusFin);
-          }
+          addPauldronAccentBlades(group, shType, sgn, capR, { mainMat, trimMat, glowMat }, shOvr);
 
           attachOrnamentWorld(socket, group, sPos, q, 'shoulders');
         });
@@ -6738,24 +6897,33 @@
       return new THREE.TubeGeometry(curve, Math.max(20, Math.round(pts.length * 1.25)), radius, 6, closed);
     }
 
-    function getSpaulderStyleForTorso(torsoType, cfg, isWideClavicleWrap) {
-      const isL2 = torsoType >= 10 || torsoType === 5;
-      const fold = cfg.foldStyle || 'ogee_conopial';
-      let edge = 'round';
-      if (fold === 'swallow_tail' || fold === 'triple_v' || fold === 'inverted_v_notch') edge = 'pointed';
-      else if (fold === 'scalloped' || fold === 'foliate') edge = 'scalloped';
-      else if (fold === 'ogee_conopial') edge = 'ogee';
-      const spiky = cfg.chestContour === 'draconic_ribs_relief' || cfg.chestContour === 'strident_prow' || torsoType === 3;
-      return {
-        lames: isL2 ? 3 : 2,
-        edge,
-        scale: isL2 ? 1.12 : 1.0,
-        haute: isWideClavicleWrap || torsoType === 1 || torsoType === 2,
-        spikes: spiky,
-        gem: isL2 || cfg.windowCutout !== 'none' || torsoType === 4,
-        flare: isL2 ? 0.34 : 0.24
-      };
-    }
+    // Catálogo de 19 hombreras integradas (una por peto). Cada peto forma un único bloque con su hombrera:
+    //  cap:   forma de la cúpula  ('dome' | 'ridged' | 'faceted' | 'flared' | 'double' | 'winged')
+    //  edge:  borde inferior      ('round' | 'pointed' | 'scalloped' | 'ogee')
+    //  haute: guarda-cuello alzada ('none' | 'blade' | 'wall' | 'twin')
+    //  accent: planchas cortantes del antiguo slot de hombreras (1..11) montadas sobre la cúpula
+    //  rere:  estilo del brazal superior (rerebrace) bajo las láminas
+    const PETO_SPAULDER_DESIGNS = {
+      1:  { cap: 'dome',    edge: 'ogee',      lames: 2, haute: 'blade', gem: 'topaz',    accent: 1,  rere: 1,  flare: 0.26, scale: 1.00 },
+      2:  { cap: 'ridged',  edge: 'pointed',   lames: 3, haute: 'wall',  gem: 'sapphire', accent: 6,  rere: 6,  flare: 0.24, scale: 1.04 },
+      3:  { cap: 'faceted', edge: 'pointed',   lames: 3, haute: 'blade', gem: 'ruby',     accent: 2,  rere: 2,  flare: 0.30, scale: 1.04, spikes: true },
+      4:  { cap: 'flared',  edge: 'scalloped', lames: 2, haute: 'none',  gem: 'emerald',  accent: 3,  rere: 3,  flare: 0.30, scale: 1.02 },
+      5:  { cap: 'double',  edge: 'ogee',      lames: 3, haute: 'twin',  gem: 'ruby',     accent: 4,  rere: 4,  flare: 0.34, scale: 1.12 },
+      6:  { cap: 'dome',    edge: 'scalloped', lames: 3, haute: 'none',  gem: 'emerald',  accent: 7,  rere: 9,  flare: 0.26, scale: 1.02 },
+      7:  { cap: 'ridged',  edge: 'round',     lames: 3, haute: 'blade', gem: 'amethyst', accent: 10, rere: 10, flare: 0.22, scale: 1.02 },
+      8:  { cap: 'faceted', edge: 'pointed',   lames: 4, haute: 'blade', gem: 'ruby',     accent: 5,  rere: 5,  flare: 0.32, scale: 1.08, spikes: true },
+      9:  { cap: 'dome',    edge: 'round',     lames: 3, haute: 'none',  gem: null,       accent: 0,  rere: 7,  flare: 0.20, scale: 1.00, studs: true },
+      10: { cap: 'double',  edge: 'ogee',      lames: 3, haute: 'wall',  gem: 'sapphire', accent: 11, rere: 11, flare: 0.34, scale: 1.14 },
+      11: { cap: 'faceted', edge: 'pointed',   lames: 3, haute: 'twin',  gem: 'ruby',     accent: 8,  rere: 8,  flare: 0.32, scale: 1.12, spikes: true },
+      12: { cap: 'flared',  edge: 'ogee',      lames: 3, haute: 'twin',  gem: 'ruby',     accent: 4,  rere: 4,  flare: 0.36, scale: 1.14 },
+      13: { cap: 'winged',  edge: 'pointed',   lames: 3, haute: 'blade', gem: 'amethyst', accent: 2,  rere: 10, flare: 0.32, scale: 1.12, spikes: true },
+      14: { cap: 'flared',  edge: 'scalloped', lames: 3, haute: 'blade', gem: 'emerald',  accent: 9,  rere: 9,  flare: 0.34, scale: 1.12 },
+      15: { cap: 'ridged',  edge: 'pointed',   lames: 4, haute: 'wall',  gem: 'sapphire', accent: 5,  rere: 5,  flare: 0.34, scale: 1.16, spikes: true },
+      16: { cap: 'faceted', edge: 'pointed',   lames: 3, haute: 'blade', gem: 'diamond',  accent: 10, rere: 10, flare: 0.30, scale: 1.14 },
+      17: { cap: 'winged',  edge: 'scalloped', lames: 3, haute: 'twin',  gem: 'diamond',  accent: 9,  rere: 3,  flare: 0.36, scale: 1.14 },
+      18: { cap: 'ridged',  edge: 'pointed',   lames: 4, haute: 'twin',  gem: 'emerald',  accent: 8,  rere: 8,  flare: 0.34, scale: 1.16, spikes: true },
+      19: { cap: 'double',  edge: 'ogee',      lames: 3, haute: 'wall',  gem: 'sapphire', accent: 11, rere: 11, flare: 0.36, scale: 1.18, halo: true }
+    };
 
     // Perfil del borde inferior de cada placa según el estilo (0 en los laterales, 1 en el centro exterior)
     function spaulderEdgeDrop(edge, w) {
@@ -6766,15 +6934,52 @@
       return Math.pow(c, 1.4) * 0.18;
     }
 
+    // Brazal superior (rerebrace) del peto bajo las láminas: cubre el brazo hasta el codo
+    const PETO_REREBRACE_STYLES = {
+      1:  { fold: 'ogee_conopial', depth: 0.08, ridge: 0.12, flute: 0, side: 'none' },
+      2:  { fold: 'swallow_tail',  depth: 0.16, ridge: 0.22, flute: 4, side: 'v_shield' },
+      3:  { fold: 'foliate',       depth: 0.14, ridge: 0.14, flute: 3, side: 'none' },
+      4:  { fold: 'upward_arch',   depth: 0.14, ridge: 0.16, flute: 0, side: 'none' },
+      5:  { fold: 'triple_v',      depth: 0.18, ridge: 0.24, flute: 5, side: 'v_shield' },
+      6:  { fold: 'ogee_conopial', depth: 0.12, ridge: 0.20, flute: 4, side: 'none' },
+      7:  { fold: 'foliate',       depth: 0.15, ridge: 0.15, flute: 2, side: 'none' },
+      8:  { fold: 'swallow_tail',  depth: 0.18, ridge: 0.24, flute: 6, side: 'none' },
+      9:  { fold: 'scalloped',     depth: 0.14, ridge: 0.16, flute: 3, side: 'none' },
+      10: { fold: 'inverted_v_notch', depth: 0.15, ridge: 0.22, flute: 4, side: 'v_shield' },
+      11: { fold: 'swallow_tail',  depth: 0.16, ridge: 0.20, flute: 3, side: 'none' }
+    };
+
     function buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, mats) {
       const { mainMat, trimMat, glowMat } = mats;
-      const st = getSpaulderStyleForTorso(torsoType, cfg, isWideClavicleWrap);
-      const hasPauldron = STATE.equipment.shoulders > 0;
+      const st = Object.assign({ lames: 3, flare: 0.28, scale: 1.0 }, PETO_SPAULDER_DESIGNS[torsoType] || PETO_SPAULDER_DESIGNS[1]);
+      const shOvr = STATE.fit.shoulderShapeOverride || null; // variación aleatoria de "Armadura Random"
       const tBulk = STATE.fit.torsoScale;
+      const lBulk = STATE.fit.limbScale;
       const charBox = getCharacterWorldBox();
       const charH = Math.max(0.5, charBox.max.y - charBox.min.y);
-      let gemMat = null;
-      try { gemMat = getFacetedGemMaterial(torsoType >= 15 ? 'sapphire' : (torsoType === 4 || torsoType === 14 ? 'emerald' : 'ruby'), 'torso'); } catch (e) { gemMat = glowMat; }
+      let gemMat = glowMat;
+      if (st.gem) { try { gemMat = getFacetedGemMaterial(st.gem, 'torso'); } catch (e) { gemMat = glowMat; } }
+      let diamondMat = gemMat;
+      try { diamondMat = getFacetedGemMaterial('diamond', 'torso'); } catch (e) { }
+
+      // Brazal superior del propio peto (antes venía del slot de hombreras)
+      const rr = PETO_REREBRACE_STYLES[st.rere] || PETO_REREBRACE_STYLES[1];
+      ['upperarm_l', 'upperarm_r'].forEach(partName => {
+        getMeshesByAnatomy([partName]).forEach(aMesh => {
+          createFormFittedShell(aMesh, mainMat, {
+            targetPart: partName, slotName: 'torso',
+            thicknessRatio: 0.029 * lBulk, yMin: 0.16, yMax: 0.74,
+            flareBottom: 0.06, ridgeCenterZ: rr.ridge,
+            foldStyle: (shOvr && shOvr.armFoldStyle) ? shOvr.armFoldStyle : rr.fold, foldDepth: rr.depth,
+            fluteCount: rr.flute, fluteDepth: 0.012, sideCutout: rr.side, sideDepth: 0.95, bevelRadius: 0.009
+          });
+          createFormFittedShell(aMesh, trimMat, {
+            targetPart: partName, slotName: 'torso',
+            thicknessRatio: 0.035 * lBulk, yMin: 0.14, yMax: 0.26,
+            vPointBottom: 0.10, ridgeCenterZ: rr.ridge + 0.02, foldStyle: rr.fold, foldDepth: rr.depth, bevelRadius: 0.008
+          });
+        });
+      });
 
       ['l', 'r'].forEach(side => {
         const sgn = side === 'l' ? 1 : -1;
@@ -6795,7 +7000,6 @@
           sPos.set(tC.x + sgn * tSz.x * 0.42, tBox.max.y - 0.05, tC.z);
           ePos.copy(sPos).add(new THREE.Vector3(sgn * 0.16, -0.24, 0));
         }
-        const armLen = Math.max(0.12, sPos.distanceTo(ePos));
         const axisDown = new THREE.Vector3().subVectors(ePos, sPos).normalize();
         const q = orientAlongAxis(axisDown);
         const qInv = q.clone().invert();
@@ -6811,9 +7015,8 @@
           const meas = Math.max(sz.x * ws.x, sz.z * ws.z) * 0.5;
           if (meas > 0.02 && meas < 0.2) rd = meas;
         }
-        // Sin hombreras del slot, el espaldarón del peto es la pieza protagonista: más ancho (silueta en V de Lineage II)
-        rd *= st.scale * tBulk * (STATE.fit.shoulderSize || 1.0) * (hasPauldron ? 0.94 : 1.14);
-        const capScale = 1.0;
+        // Hombrera protagonista: silueta en V de Lineage II
+        rd *= st.scale * tBulk * (STATE.fit.shoulderSize || 1.0) * 1.14 * (shOvr ? THREE.MathUtils.clamp(shOvr.scaleMult, 0.92, 1.12) : 1.0);
 
         // Marco del brazo: Y sube por el eje hacia el hombro, X·sgn = cara externa (deltoides), Z = frente
         const Y = new THREE.Vector3(0, 1, 0), Xo = new THREE.Vector3(sgn, 0, 0), Z = new THREE.Vector3(0, 0, 1);
@@ -6829,95 +7032,145 @@
         const thick = 0.0065 * (charH / 1.75);
         const rimR = 0.0042 * (charH / 1.75) * st.scale;
 
-        // 1. CÚPULA (cop) abombada sobre el hombro
-        const Rc = rd * 1.52 * capScale;
+        // 1. CÚPULA (cop) con la forma del diseño
+        const Rc = rd * 1.52;
         const Cc = Xo.clone().multiplyScalar(rd * 0.24).addScaledVector(Y, -rd * 0.12);
+        const isWinged = st.cap === 'winged';
         const psiMax = (w) => {
           const c = Math.cos(w);
           const out = Math.pow(Math.max(0, c), 1.3), inn = Math.pow(Math.max(0, -c), 1.3);
-          return 1.20 + 0.42 * out - 0.24 * inn + spaulderEdgeDrop(st.edge, w) * 0.60;
+          let m = 1.20 + 0.42 * out - 0.24 * inn + spaulderEdgeDrop(st.edge, w) * 0.60;
+          if (isWinged) { // ala barrida hacia la espalda con punta
+            const back = Math.max(0, -Math.sin(w));
+            m += Math.pow(back, 2.0) * 0.38 + Math.pow(back, 10.0) * 0.30;
+          }
+          return m;
         };
-        const capSurf = (u, v) => {
-          const w = u * Math.PI * 2 - Math.PI;
+        const ridgeAmt = st.cap === 'ridged' ? 0.16 : 0.06;
+        const flareUp = st.cap === 'flared' ? 0.26 : 0.0;
+        const facetN = st.cap === 'faceted' ? 10 : 0;
+        const rawCap = (w, v, scaleR = 1.0) => {
           const psi = v * psiMax(w);
           const sp = Math.sin(psi), cp = Math.cos(psi);
-          const lip = Math.pow(v, 6.0) * st.flare * 0.35; // labio acampanado del borde
-          const ridge = Math.pow(Math.max(0, Math.cos(w)), 18.0) * Math.sin(Math.min(1, v * 1.2) * Math.PI) * 0.06;
-          const r = 1.0 + lip + ridge;
-          return Cc.clone()
+          const lip = Math.pow(v, 6.0) * st.flare * 0.35 + Math.pow(v, 4.0) * flareUp;
+          let ridge = Math.pow(Math.max(0, Math.cos(w)), 18.0) * Math.sin(Math.min(1, v * 1.2) * Math.PI) * ridgeAmt;
+          if (st.cap === 'ridged') ridge += Math.pow(Math.abs(Math.cos(w * 3.0)), 24.0) * Math.sin(Math.min(1, v * 1.1) * Math.PI) * 0.05;
+          const r = (1.0 + lip + ridge) * scaleR;
+          const pt = Cc.clone()
             .addScaledVector(P, Rc * 0.86 * cp * r)
             .addScaledVector(Q, Rc * 1.08 * Math.cos(w) * sp * r)
             .addScaledVector(Z, Rc * 1.00 * Math.sin(w) * sp * r);
+          if (flareUp > 0) pt.addScaledVector(P, Rc * Math.pow(v, 5.0) * 0.16); // labio vuelto hacia arriba (Imperial Crusader)
+          return pt;
         };
-        const capGeo = createArmorPlatePatch(capSurf, { uSegs: 48, vSegs: 16, thickness: thick, refCenter: Cc, wrapU: true });
+        const capSurfS = (scaleR) => (u, v) => {
+          const w = u * Math.PI * 2 - Math.PI;
+          if (!facetN) return rawCap(w, v, scaleR);
+          // Facetas planas a 45°: interpolación lineal entre aristas angulares
+          const step = (Math.PI * 2) / facetN;
+          const k = Math.floor((w + Math.PI) / step);
+          const w0 = -Math.PI + k * step, w1 = w0 + step;
+          const t = (w - w0) / step;
+          return rawCap(w0, v, scaleR).lerp(rawCap(w1, v, scaleR), t);
+        };
+        const capSurf = capSurfS(1.0);
+        const capGeo = createArmorPlatePatch(capSurf, { uSegs: facetN ? 50 : 48, vSegs: 16, thickness: thick, refCenter: Cc, wrapU: true });
         group.add(new THREE.Mesh(capGeo, mainMat));
         const capRim = createRolledRimAlongRow(capGeo, capGeo.userData.rows - 1, rimR * 1.25, { closed: true });
         if (capRim) group.add(new THREE.Mesh(capRim, trimMat));
-        // Segundo ribete interior (doble filete dorado)
         const capRim2 = createRolledRimAlongRow(capGeo, capGeo.userData.rows - 4, rimR * 0.55, { closed: true, outward: 1.4 });
         if (capRim2) group.add(new THREE.Mesh(capRim2, trimMat));
 
-        // 2. LÁMINAS ESCALONADAS que bajan por el brazo (metidas bajo la cúpula, cada una más acampanada)
+        // Cúpula doble (cop superpuesto) en los diseños dinásticos
+        if (st.cap === 'double') {
+          const topSurf = (u, v) => capSurfS(1.07)(u, v * 0.58);
+          const topGeo = createArmorPlatePatch(topSurf, { uSegs: 44, vSegs: 10, thickness: thick, refCenter: Cc, wrapU: true });
+          group.add(new THREE.Mesh(topGeo, trimMat));
+          const topRim = createRolledRimAlongRow(topGeo, topGeo.userData.rows - 1, rimR * 1.1, { closed: true });
+          if (topRim) group.add(new THREE.Mesh(topRim, trimMat));
+        }
+
+        // 2. LÁMINAS ESCALONADAS que bajan por el brazo
         const spanW = Math.PI * 0.64;
         for (let k = 0; k < st.lames; k++) {
-          const yTop = -rd * (0.40 + k * 0.48);
-          const yBot = -rd * (1.08 + k * 0.50);
+          const yTop = -rd * (0.40 + k * 0.46);
+          const yBot = -rd * (1.08 + k * 0.48);
           const baseR = rd * (1.14 + k * 0.04);
           const lameSurf = (u, v) => {
             const w = (u * 2 - 1) * spanW;
             const drop = spaulderEdgeDrop(st.edge, w) * rd * 0.55;
             const y = THREE.MathUtils.lerp(yTop, yBot - drop, v);
             const flare = 1.0 + Math.pow(v, 1.6) * st.flare;
-            const ridge = Math.pow(Math.max(0, Math.cos(w)), 14.0) * 0.05;
+            const ridge = Math.pow(Math.max(0, Math.cos(w)), 14.0) * (st.cap === 'ridged' ? 0.09 : 0.05);
             const r = baseR * (flare + ridge) * (1.0 + 0.06 * Math.max(0, Math.cos(w)));
             return new THREE.Vector3(0, y, 0)
               .addScaledVector(Xo, Math.cos(w) * r)
               .addScaledVector(Z, Math.sin(w) * r * 0.97);
           };
           const lGeo = createArmorPlatePatch(lameSurf, { uSegs: 32, vSegs: 8, thickness: thick * 0.9, refCenter: new THREE.Vector3(0, (yTop + yBot) * 0.5, 0) });
-          group.add(new THREE.Mesh(lGeo, (st.lames === 3 && k === 1) ? trimMat : mainMat));
+          group.add(new THREE.Mesh(lGeo, (st.lames >= 3 && k === 1) ? trimMat : mainMat));
           const lRim = createRolledRimAlongRow(lGeo, lGeo.userData.rows - 1, rimR);
           if (lRim) group.add(new THREE.Mesh(lRim, trimMat));
 
-          // Remaches dorados en la línea de articulación
-          [-0.55, 0.0, 0.55].forEach(fr => {
+          const rivetRow = st.studs ? [-0.8, -0.55, -0.3, 0.0, 0.3, 0.55, 0.8] : [-0.55, 0.0, 0.55];
+          rivetRow.forEach(fr => {
             const w = fr * spanW;
             const p = lameSurf(0.5 + fr * 0.5, 0.22);
-            const riv = new THREE.Mesh(new THREE.SphereGeometry(rimR * 0.95, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
-            riv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(Math.cos(w) * sgn, 0, Math.sin(w)));
-            riv.position.copy(p).addScaledVector(new THREE.Vector3(Math.cos(w) * sgn, 0, Math.sin(w)), thick * 0.6);
+            const nDir = new THREE.Vector3(Math.cos(w) * sgn, 0, Math.sin(w));
+            const riv = new THREE.Mesh(new THREE.SphereGeometry(rimR * (st.studs ? 1.15 : 0.95), 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
+            riv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nDir);
+            riv.position.copy(p).addScaledVector(nDir, thick * 0.6);
             group.add(riv);
           });
 
           if (st.spikes) {
             const tip = lameSurf(0.5, 0.75);
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(rimR * 1.9, rd * (0.62 - k * 0.12), 10), trimMat);
+            const len = rd * (0.70 - k * 0.12);
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(rimR * 1.9, len, 10), trimMat);
             const dir = Xo.clone().multiplyScalar(0.80).addScaledVector(Y, 0.45).normalize();
             spike.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-            spike.position.copy(tip).addScaledVector(dir, rd * (0.62 - k * 0.12) * 0.45);
+            spike.position.copy(tip).addScaledVector(dir, len * 0.45);
             group.add(spike);
           }
         }
 
         // 3. GUARDA-CUELLO ALZADA (haute-piece) sobre el canto interior de la cúpula
-        if (st.haute) {
-          const hH = rd * (st.scale > 1.05 ? 1.25 : 0.95);
-          const hW = 1.05;
+        if (st.haute !== 'none') {
           const outwardDir = Xo.clone().projectOnPlane(worldUpL).normalize();
-          const hauteSurf = (u, v) => {
-            const w = Math.PI + (u * 2 - 1) * hW;
-            const base = capSurf((w + Math.PI) / (Math.PI * 2), 0.80);
-            const crown = st.edge === 'pointed' ? Math.pow(Math.cos((u * 2 - 1) * Math.PI * 0.5), 3.0) * 0.55 : Math.cos((u * 2 - 1) * Math.PI * 0.5) * 0.30;
-            const hh = hH * (0.55 + crown) * v;
-            return base.addScaledVector(worldUpL, hh).addScaledVector(outwardDir, Math.pow(v, 2.0) * hH * 0.38);
-          };
-          const hGeo = createArmorPlatePatch(hauteSurf, { uSegs: 24, vSegs: 8, thickness: thick, refCenter: Cc.clone().addScaledVector(Xo, -rd * 3.0) });
-          group.add(new THREE.Mesh(hGeo, trimMat));
-          const hRim = createRolledRimAlongRow(hGeo, hGeo.userData.rows - 1, rimR * 0.9);
-          if (hRim) group.add(new THREE.Mesh(hRim, trimMat));
+          const blades = st.haute === 'twin' ? [{ c: Math.PI - 0.62, w: 0.50, h: 1.10 }, { c: Math.PI + 0.62, w: 0.50, h: 0.95 }]
+            : st.haute === 'wall' ? [{ c: Math.PI, w: 1.25, h: 1.45 }]
+            : [{ c: Math.PI, w: 1.05, h: st.scale > 1.05 ? 1.25 : 0.95 }];
+          blades.forEach(bd => {
+            const hH = rd * bd.h;
+            const hauteSurf = (u, v) => {
+              const w = bd.c + (u * 2 - 1) * bd.w;
+              const base = capSurf((w + Math.PI) / (Math.PI * 2), 0.80);
+              const crownShape = (st.edge === 'pointed' || st.haute === 'twin')
+                ? Math.pow(Math.cos((u * 2 - 1) * Math.PI * 0.5), 3.0) * 0.55
+                : (st.haute === 'wall' ? 0.25 + Math.cos((u * 2 - 1) * Math.PI * 0.5) * 0.18 : Math.cos((u * 2 - 1) * Math.PI * 0.5) * 0.30);
+              const hh = hH * (0.55 + crownShape) * v;
+              return base.addScaledVector(worldUpL, hh).addScaledVector(outwardDir, Math.pow(v, 2.0) * hH * 0.38);
+            };
+            const hGeo = createArmorPlatePatch(hauteSurf, { uSegs: 24, vSegs: 8, thickness: thick, refCenter: Cc.clone().addScaledVector(Xo, -rd * 3.0) });
+            group.add(new THREE.Mesh(hGeo, trimMat));
+            const hRim = createRolledRimAlongRow(hGeo, hGeo.userData.rows - 1, rimR * 0.9);
+            if (hRim) group.add(new THREE.Mesh(hRim, trimMat));
+          });
         }
 
-        // 4. GEMA FACETADA con engaste dorado en la cara externa de la cúpula
+        // 4. PLANCHAS CORTANTES del antiguo slot de hombreras, ahora soldadas a la cúpula del peto
+        if (st.accent > 0) {
+          const acc = new THREE.Group();
+          acc.name = 'PetoSpaulderAccent';
+          const capR = Rc * 0.80;
+          addPauldronAccentBlades(acc, st.accent, sgn, capR, { mainMat: trimMat, trimMat: mainMat, glowMat: gemMat }, shOvr);
+          // Se monta por encima de la cúpula (desplazada hacia el polo y hacia fuera) para que sobresalga
+          acc.position.copy(Cc).addScaledVector(P, Rc * 0.30).addScaledVector(Xo, Rc * 0.08);
+          acc.scale.setScalar(1.08);
+          group.add(acc);
+        }
+
+        // 5. GEMA FACETADA con engaste dorado y engarces de diamante alrededor
         if (st.gem) {
           const gp = capSurf(0.5, 0.42);
           const gn = gp.clone().sub(Cc).normalize();
@@ -6931,6 +7184,29 @@
           bezel.scale.set(0.9, 1.2, 1.0);
           bezel.position.copy(gp).addScaledVector(gn, thick * 0.6);
           group.add(bezel);
+          for (let d = 0; d < 6; d++) {
+            const a = (d / 6) * Math.PI * 2;
+            const off = new THREE.Vector3(Math.cos(a) * 0.9, Math.sin(a) * 1.2, 0).multiplyScalar(rd * 0.30).applyQuaternion(gem.quaternion);
+            const dm = new THREE.Mesh(new THREE.OctahedronGeometry(rd * 0.045, 0), diamondMat);
+            dm.position.copy(gem.position).add(off);
+            dm.quaternion.copy(gem.quaternion);
+            dm.scale.set(1, 1, 0.6);
+            group.add(dm);
+          }
+        }
+
+        // 6. HALO astral dorado tras la cúpula (Soberano)
+        if (st.halo) {
+          const halo = new THREE.Mesh(new THREE.TorusGeometry(Rc * 0.62, rimR * 1.1, 8, 40), trimMat);
+          halo.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), P);
+          halo.position.copy(Cc).addScaledVector(P, Rc * 1.02);
+          group.add(halo);
+          for (let d = 0; d < 8; d++) {
+            const a = (d / 8) * Math.PI * 2;
+            const dm = new THREE.Mesh(new THREE.OctahedronGeometry(rimR * 2.2, 0), diamondMat);
+            dm.position.set(Math.cos(a) * Rc * 0.62, Math.sin(a) * Rc * 0.62, 0).applyQuaternion(halo.quaternion).add(halo.position);
+            group.add(dm);
+          }
         }
 
         group.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; if (n.geometry) n.geometry.userData = {}; } });
@@ -6943,6 +7219,8 @@
 
     function buildAllFittedArmor() {
       clearAllArmorShells();
+      // Las hombreras forman ahora un único bloque con el peto: el slot independiente queda desactivado
+      STATE.equipment.shoulders = 0;
 
       const tBulk = STATE.fit.torsoScale;
       const lBulk = STATE.fit.limbScale;
@@ -7077,14 +7355,14 @@
       }
 
       /* === HOMBRERAS BASE Y GUARDABRAZOS SUPERIORES DIFERENCIADOS POR ARQUITECTURA === */
-      currentBuildingSlot = 'shoulders';
-      mainMat = getPBRMaterial('primary', 'shoulders');
-      trimMat = getPBRMaterial('trim', 'shoulders');
-      clothMat = getPBRMaterial('cloth', 'shoulders');
-      glowMat = getGlowMaterial('shoulders');
       const torsoMeshes = getMeshesByAnatomy(['torso']);
       const shoulderType = STATE.equipment.shoulders;
       if (shoulderType > 0) {
+        currentBuildingSlot = 'shoulders';
+        mainMat = getPBRMaterial('primary', 'shoulders');
+        trimMat = getPBRMaterial('trim', 'shoulders');
+        clothMat = getPBRMaterial('cloth', 'shoulders');
+        glowMat = getGlowMaterial('shoulders');
         const shOvr = STATE.fit.shoulderShapeOverride || null;
         const vambraceStyles = {
           1:  { yMin: 0.22, yMax: 0.96, fold: 'ogee_conopial', depth: 0.08, ridge: 0.12, flute: 0, side: 'none' },
@@ -7383,6 +7661,10 @@
           cfg.sideCutout === 'archon_full_carapace'
         );
         const frontAngleLimit = isWideClavicleWrap ? (Math.PI * 0.68) : (Math.PI * 0.60);
+        // Gemas del peto: diamantes para los engastes del marco y una gema de color por diseño
+        const petoDesign = PETO_SPAULDER_DESIGNS[torsoType] || {};
+        let petoDiamondMat = glowMat, petoGemMat = glowMat;
+        try { petoDiamondMat = getFacetedGemMaterial('diamond', 'torso'); petoGemMat = getFacetedGemMaterial(petoDesign.gem || 'ruby', 'torso'); } catch (e) { }
         const backStyle = cfg.backStyle || 'smooth';
 
         torsoMeshes.forEach(tMesh => {
@@ -7421,7 +7703,12 @@
             fluteCount: cfg.fluteCount || 0,
             fluteDepth: cfg.fluteDepth || 0.010,
             bevelRadius: 0.011,
-            offsetY: STATE.fit.torsoOffsetY
+            offsetY: STATE.fit.torsoOffsetY,
+            windowFrame: true,
+            edgeRim: 0.0032 * tBulk,
+            frameMaterial: trimMat,
+            frameGemMaterial: petoDiamondMat,
+            accentGemMaterial: petoGemMat
           });
 
           // 2. ESPALDAR (BACKPLATE) CON ARQUITECTURAS REALMENTE VARIADAS (Liso, Láminas Articuladas, Dorsales Anchas, Concha Alada, Escudos Dorsales)
@@ -7442,7 +7729,9 @@
               vPointBottom: 0.08,
               fluteCount: 0,
               bevelRadius: 0.011,
-              offsetY: STATE.fit.torsoOffsetY
+              offsetY: STATE.fit.torsoOffsetY,
+              edgeRim: 0.0030 * tBulk,
+              frameMaterial: trimMat
             });
           } else if (backStyle === 'laminated') {
             // 2B. ESPALDAR DE LÁMINAS ARTICULADAS (4 láminas horizontales superpuestas en chevron con biseles de 45°)
@@ -8222,7 +8511,8 @@
       buildAllFittedArmor();
 
       document.getElementById('label-helmet').textContent = ITEMS_DB.helmet[STATE.equipment.helmet].name;
-      document.getElementById('label-shoulders').textContent = ITEMS_DB.shoulders[STATE.equipment.shoulders].name;
+      const lblSh = document.getElementById('label-shoulders');
+      if (lblSh) lblSh.textContent = ITEMS_DB.shoulders[STATE.equipment.shoulders].name;
       document.getElementById('label-torso').textContent = ITEMS_DB.torso[STATE.equipment.torso].name;
       document.getElementById('label-gloves').textContent = ITEMS_DB.gloves[STATE.equipment.gloves].name;
       document.getElementById('label-belt').textContent = ITEMS_DB.belt[STATE.equipment.belt].name;
@@ -10884,7 +11174,7 @@
       // Equipamiento variado - BOTAS SIEMPRE EQUIPADAS (>= 1, cero pies descalzos)
       STATE.equipment.underlayer = 1 + Math.floor(Math.random() * (ITEMS_DB.underlayer.length - 1));
       STATE.equipment.helmet = 1 + Math.floor(Math.random() * (ITEMS_DB.helmet.length - 1));
-      STATE.equipment.shoulders = 1 + Math.floor(Math.random() * (ITEMS_DB.shoulders.length - 1));
+      STATE.equipment.shoulders = 0; // integradas en el peto
       STATE.equipment.torso = 1 + Math.floor(Math.random() * (ITEMS_DB.torso.length - 1));
       STATE.equipment.gloves = 1 + Math.floor(Math.random() * (ITEMS_DB.gloves.length - 1));
       STATE.equipment.belt = 1 + Math.floor(Math.random() * (ITEMS_DB.belt.length - 1));
