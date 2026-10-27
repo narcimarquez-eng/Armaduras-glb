@@ -104,9 +104,15 @@
         <option value="run">Carrera (Run)</option>
         <option value="attack">Combo de Ataque</option>
         <option value="kick">Patada Giratoria</option>
+        <option value="dodge">Esquiva Rápida</option>
+        <option value="hit">Bloqueo e Impacto</option>
         <option value="jump">Salto Acrobático</option>
+        <option value="crouch">Sigilo / Agachado</option>
+        <option value="swim">Nadar (Crol)</option>
         <option value="victory">Postura de Victoria</option>
         <option value="ultimate_nova">Explosión Nova</option>
+        <option value="ultimate_slam">Impacto Sísmico</option>
+        <option value="ultimate_beam">Cañón de Energía</option>
         <option value="archery">Tiro con Arco</option>
       </select>
     </div>
@@ -9878,6 +9884,7 @@
       if (rig.serving) {
         setSegment(rig.serving, nock.clone().lerp(tUp, 0.10), nock.clone().lerp(tLo, 0.10));
       }
+      rig.stringState = { nock: nock.clone(), bend };   // para devolverla tal cual tras hornear el clip
     }
 
     function createArrowMesh() {
@@ -10155,6 +10162,17 @@
       const u = archeryT % ARCHERY_CYCLE;
       if (u < archeryLastU) archeryLastU = 0;   // nuevo ciclo
 
+      if (!rig.arrow && u < AR_T_HOLD) { rig.arrow = createArrowMesh(); rig.bow.add(rig.arrow); }
+      if (archeryLastU < AR_T_HOLD && u >= AR_T_HOLD) releaseArrow(rig);
+      archeryLastU = u;
+
+      archeryApplyPose(rig, u);
+    }
+
+    // Pose del ciclo de tiro en el instante 'u' (0..ARCHERY_CYCLE). Sólo coloca huesos,
+    // cuerda y flecha: no toca el reloj ni dispara nada, así que vale igual para el visor
+    // y para hornear el clip que se mete en el .GLB.
+    function archeryApplyPose(rig, u) {
       let pull = 0;
       if (u >= AR_T_AIM && u < AR_T_DRAW) pull = smooth01((u - AR_T_AIM) / (AR_T_DRAW - AR_T_AIM));
       else if (u >= AR_T_DRAW && u < AR_T_HOLD) pull = 1;
@@ -10166,10 +10184,6 @@
       const sinceShot = u - AR_T_HOLD;
       const vib = (sinceShot > 0 && sinceShot < 0.6)
         ? Math.sin(sinceShot * 62) * 0.016 * Math.exp(-sinceShot * 8.5) : 0;
-
-      if (!rig.arrow && u < AR_T_HOLD) { rig.arrow = createArrowMesh(); rig.bow.add(rig.arrow); }
-      if (archeryLastU < AR_T_HOLD && u >= AR_T_HOLD) releaseArrow(rig);
-      archeryLastU = u;
 
       // Los dedos de verdad: la izquierda ya abraza el riser (cierre fijado al equipar) y la
       // derecha pasa de mano abierta a gancho apretado sobre la cuerda conforme la tensa.
@@ -10975,6 +10989,16 @@
     let animTime = 0;
     let gltfClips = [];
 
+    // Un .GLB importado que no traiga sus propias pistas se mueve con la cinemática escrita
+    // a mano de más abajo, que sólo cubre unas pocas claves. Las demás se reconducen a la más
+    // parecida en lugar de dejar al personaje congelado en la pose del fotograma anterior.
+    // (El personaje nativo y el .GLB que exporta el estudio sí llevan los 15 ciclos completos.)
+    const IMPORTED_RIG_ANIM_ALIAS = {
+      punch: 'attack', dodge: 'attack', hit: 'attack',
+      crouch: 'idle', swim: 'walk',
+      ultimate_slam: 'ultimate_nova', ultimate_beam: 'ultimate_nova'
+    };
+
     function updateCharacterAnimation(delta) {
       if (animMixer && gltfClips.length > 0) { animMixer.update(delta); return; }
       animTime += delta;
@@ -10996,9 +11020,15 @@
           run: 'run',
           attack: 'punch',
           kick: 'kick',
+          dodge: 'dodge',
+          hit: 'hit',
           jump: 'jump',
+          crouch: 'crouch',
+          swim: 'swim',
           victory: 'jump',
-          ultimate_nova: 'ultimate_nova'
+          ultimate_nova: 'ultimate_nova',
+          ultimate_slam: 'ultimate_slam',
+          ultimate_beam: 'ultimate_beam'
         };
         CH.CONFIG.items.animation = animMap[anim] || 'idle';
         CH.CONFIG.items.animPlaying = true;
@@ -11014,6 +11044,7 @@
       }
 
       if (!bonesMap.Pelvis) return;
+      const kAnim = IMPORTED_RIG_ANIM_ALIAS[anim] || anim;
       if (typeof bonesMap.Pelvis.userData.restY !== 'number') {
         bonesMap.Pelvis.userData.restY = bonesMap.Pelvis.position.y;
       }
@@ -11021,7 +11052,7 @@
       const bindShZ_L = (bonesMap.UpperArm_L && bonesMap.UpperArm_L.userData.bindPose) ? bonesMap.UpperArm_L.userData.bindPose.rot.z : 0.16;
       const bindShZ_R = (bonesMap.UpperArm_R && bonesMap.UpperArm_R.userData.bindPose) ? bonesMap.UpperArm_R.userData.bindPose.rot.z : -0.16;
 
-      if (anim === 'idle' || anim === 'archery') {
+      if (kAnim === 'idle' || kAnim === 'archery') {
         const breath = Math.sin(t * 2.0);
         bonesMap.Pelvis.position.y = basePelvisY + breath * 0.008;
         bonesMap.Pelvis.rotation.set(0, Math.sin(t * 0.7) * 0.025, 0);
@@ -11029,7 +11060,7 @@
         if (bonesMap.Head) bonesMap.Head.rotation.x = -breath * 0.02;
         if (bonesMap.UpperArm_L) bonesMap.UpperArm_L.rotation.set(0, 0, bindShZ_L + breath * 0.018);
         if (bonesMap.UpperArm_R) bonesMap.UpperArm_R.rotation.set(0, 0, bindShZ_R - breath * 0.018);
-      } else if (anim === 'walk') {
+      } else if (kAnim === 'walk') {
         const c = t * 4.5;
         bonesMap.Pelvis.position.y = (basePelvisY - 0.01) + Math.abs(Math.sin(c)) * 0.032;
         bonesMap.Pelvis.rotation.y = Math.sin(c) * 0.07;
@@ -11040,7 +11071,7 @@
         if (bonesMap.Shin_R) bonesMap.Shin_R.rotation.x = Math.max(0, Math.sin(c)) * 0.55;
         if (bonesMap.UpperArm_L) bonesMap.UpperArm_L.rotation.x = -Math.sin(c) * 0.35;
         if (bonesMap.UpperArm_R) bonesMap.UpperArm_R.rotation.x = Math.sin(c) * 0.35;
-      } else if (anim === 'run') {
+      } else if (kAnim === 'run') {
         const c = t * 7.5;
         bonesMap.Pelvis.position.y = (basePelvisY - 0.025) + Math.abs(Math.sin(c)) * 0.055;
         if (bonesMap.Torso) bonesMap.Torso.rotation.x = 0.14;
@@ -11050,13 +11081,13 @@
         if (bonesMap.Shin_R) bonesMap.Shin_R.rotation.x = Math.max(0, Math.sin(c)) * 0.85;
         if (bonesMap.UpperArm_L) bonesMap.UpperArm_L.rotation.x = -Math.sin(c) * 0.65;
         if (bonesMap.UpperArm_R) bonesMap.UpperArm_R.rotation.x = Math.sin(c) * 0.65;
-      } else if (anim === 'attack' || anim === 'kick' || anim === 'jump' || anim === 'ultimate_nova') {
+      } else if (kAnim === 'attack' || kAnim === 'kick' || kAnim === 'jump' || kAnim === 'ultimate_nova') {
         const s = Math.sin(t * 4.0);
         if (bonesMap.Torso) bonesMap.Torso.rotation.y = s * 0.35;
         if (bonesMap.UpperArm_R) { bonesMap.UpperArm_R.rotation.x = -0.5 + s * 0.85; bonesMap.UpperArm_R.rotation.z = -0.25; }
         if (bonesMap.Forearm_R) bonesMap.Forearm_R.rotation.x = 0.45;
         if (bonesMap.UpperArm_L) bonesMap.UpperArm_L.rotation.x = 0.35;
-      } else if (anim === 'victory') {
+      } else if (kAnim === 'victory') {
         const w = Math.sin(t * 3.5) * 0.08;
         if (bonesMap.UpperArm_L) bonesMap.UpperArm_L.rotation.set(0, 0, 2.35 + w);
         if (bonesMap.UpperArm_R) bonesMap.UpperArm_R.rotation.set(0, 0, -2.35 - w);
@@ -13685,12 +13716,13 @@
       mannequinRoot.updateMatrixWorld(true);
 
       if (slotName === 'full_character') {
-        const exportClips = (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0)
+        const baseClips = (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0)
           ? gltfClips
           : (window.CreadorHumano ? window.CreadorHumano.bakeAllGameAnimationClips(30) : []);
+        const exportClips = withArcheryClip(baseClips, 30);
         runWithCleanUserData(mannequinRoot, () => exporter.parse(mannequinRoot, function (r) {
           saveArrayBuffer(r, `Personaje_Armadura_Unificada.glb`);
-          showToast(`¡Personaje + Armadura (.GLB) con ${exportClips.length} animaciones!`);
+          showToast(`¡Personaje + Armadura (.GLB) con ${exportClips.length} animaciones!${archeryRig ? '' : ' Equipa un arco para incluir el tiro.'}`);
         }, { binary: true, animations: exportClips }));
         return;
       }
@@ -13756,12 +13788,78 @@
       return true;
     }
 
-    function getLightExportClips(fps) {
-      if (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0) return gltfClips;
-      if (window.CreadorHumano && mannequinRoot && mannequinRoot.userData.isCreadorNative) {
-        try { return window.CreadorHumano.bakeAllGameAnimationClips(fps); } catch (e) { console.warn(e); }
+    /* -------------------------------------------------------------------------
+       HORNEADO DEL TIRO CON ARCO
+       El ciclo de tiro no vive en GAME_ANIMATIONS: es cinemática inversa sobre el rig vivo
+       (anclaje en el pómulo, cuerda siguiendo los dedos), así que no se puede evaluar como
+       las demás. Para que el .GLB lo lleve dentro se muestrea el propio esqueleto paso a
+       paso y se guardan las rotaciones locales resultantes.
+       La flexión de los limbos y el recorrido de la cuerda son geometría, no huesos: eso
+       se queda en el estudio y en el .GLB el arco sale braceado.
+       ------------------------------------------------------------------------- */
+    const ARCHERY_BAKE_BONES = AR_JOINTS.concat(['Hip_L', 'Hip_R', 'Knee_L', 'Knee_R', 'Ankle_L', 'Ankle_R']);
+
+    function bakeArcheryClip(fps = 15) {
+      const rig = archeryRig;
+      if (!rig || !mannequinRoot || !bonesMap.Pelvis) return null;
+      const bones = ARCHERY_BAKE_BONES.map(n => [n, bonesMap[n]]).filter(e => e[1]);
+      if (bones.length === 0) return null;
+
+      // Estado vivo que el muestreo pisa: pose completa, reloj del ciclo, cierre de manos,
+      // flecha montada y recorrido de la cuerda
+      const pose = [];
+      Object.values(bonesMap).forEach(b => { if (b) pose.push([b, b.position.clone(), b.quaternion.clone()]); });
+      const savedT = archeryT, savedLastU = archeryLastU;
+      const savedGripL = HAND_GRIP_FRAME.L, savedGripR = HAND_GRIP_FRAME.R;
+      const savedArrow = rig.arrow;
+      const savedString = rig.stringState ? { nock: rig.stringState.nock.clone(), bend: rig.stringState.bend } : null;
+      rig.arrow = null;                      // ni se monta ni se suelta flecha alguna al hornear
+
+      const steps = Math.max(24, Math.round(ARCHERY_CYCLE * fps));
+      const times = [];
+      const pelvisPos = [];
+      const quats = new Map(bones.map(e => [e[0], []]));
+      try {
+        for (let i = 0; i <= steps; i++) {
+          const t = (i / steps) * ARCHERY_CYCLE;
+          times.push(t);
+          restoreBindPose();                 // base limpia: el ciclo abre y cierra en reposo, así cicla
+          archeryApplyPose(rig, Math.min(t, ARCHERY_CYCLE - 1e-4));
+          mannequinRoot.updateMatrixWorld(true);
+          const pp = bonesMap.Pelvis.position;
+          pelvisPos.push(pp.x, pp.y, pp.z);
+          bones.forEach(e => { const q = e[1].quaternion; quats.get(e[0]).push(q.x, q.y, q.z, q.w); });
+        }
+      } catch (err) {
+        console.warn('No se pudo hornear el tiro con arco', err);
+        return null;
+      } finally {
+        pose.forEach(e => { e[0].position.copy(e[1]); e[0].quaternion.copy(e[2]); });
+        mannequinRoot.updateMatrixWorld(true);
+        archeryT = savedT; archeryLastU = savedLastU;
+        HAND_GRIP_FRAME.L = savedGripL; HAND_GRIP_FRAME.R = savedGripR;
+        rig.arrow = savedArrow;
+        if (savedString) wfBowSetString(rig, savedString.nock, savedString.bend);
       }
-      return [];
+
+      const tracks = [new THREE.VectorKeyframeTrack('Pelvis.position', times, pelvisPos)];
+      bones.forEach(e => tracks.push(new THREE.QuaternionKeyframeTrack(`${e[0]}.quaternion`, times, quats.get(e[0]))));
+      return new THREE.AnimationClip('archery', ARCHERY_CYCLE, tracks);
+    }
+
+    // Añade (o reemplaza) el ciclo de tiro con arco en la lista de clips que va al .GLB
+    function withArcheryClip(clips, fps) {
+      const ar = bakeArcheryClip(fps);
+      if (!ar) return clips;
+      return clips.filter(c => c.name !== 'archery').concat(ar);
+    }
+
+    function getLightExportClips(fps) {
+      if (typeof gltfClips !== 'undefined' && gltfClips && gltfClips.length > 0) return withArcheryClip(gltfClips, fps);
+      if (window.CreadorHumano && mannequinRoot && mannequinRoot.userData.isCreadorNative) {
+        try { return withArcheryClip(window.CreadorHumano.bakeAllGameAnimationClips(fps), fps); } catch (e) { console.warn(e); }
+      }
+      return withArcheryClip([], fps);
     }
 
     function buildLightweightExportScene(opts = {}) {
@@ -14229,7 +14327,7 @@
             const glb = quantizeGLBBuffer(rawGlb);
             const mb = (glb.byteLength / (1024 * 1024)).toFixed(2);
             saveArrayBuffer(glb, armorOnly ? `Armadura_Ligera_${Date.now()}.glb` : `Personaje_Armadura_Ligero_${Date.now()}.glb`);
-            showToast(`GLB ligero: ${mb} MB · ${Math.round(built.triangles / 1000)}k triángulos · ${clips.length} animaciones`);
+            showToast(`GLB ligero: ${mb} MB · ${Math.round(built.triangles / 1000)}k triángulos · ${clips.length} animaciones${archeryRig ? '' : ' (sin tiro con arco: equipa un arco)'}`);
             built.scene.traverse(n => { if (n.isMesh) n.geometry.dispose(); });
           }, { binary: true, animations: clips, maxTextureSize: 512 });
         } catch (err) {
@@ -19231,7 +19329,8 @@ function resetCharacter() {
       get controls() { return controls; },
       get archeryTime() { return archeryT; },
       setArcheryTime(t) { archeryT = t; archeryLastU = 0; },
-      updateWardrobePieces, applyHandGrip, getHandGripAnchor, handGripWorld
+      updateWardrobePieces, applyHandGrip, getHandGripAnchor, handGripWorld,
+      archeryApplyPose, bakeArcheryClip, getLightExportClips
     };
   </script>
 </body>
