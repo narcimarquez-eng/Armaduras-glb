@@ -9295,26 +9295,198 @@
       return targetScale / Math.max(0.0001, worldScale.x);
     }
 
+    /* -------------------------------------------------------------------------
+       EMPUÑADURA REAL: el arma se monta dentro del puño, no sobre la muñeca.
+       Convención única para todas las familias y para ambas manos:
+         · +Y del arma (mango / limbos del arco)  ->  +Z de la mano (lado del pulgar)
+         · +Z del arma (cara frontal / dirección de tiro) -> -Y de la mano (hacia los dedos)
+       El punto de anclaje es el centro del túnel que forma el puño cerrado, apoyado
+       sobre la cara interna de la palma (gripAnchor de la mano procedural).
+       ------------------------------------------------------------------------- */
+    function getHandGripAnchor(side) {
+      const CH = window.CreadorHumano;
+      if (CH && CH.getHandGripAnchor) {
+        const a = CH.getHandGripAnchor(side);
+        if (a) return a;
+      }
+      // Cuerpos .GLB externos: no se conoce la anatomía de la mano, se usa una estimación suave
+      const dir = side === 'L' ? 1 : -1;
+      return { palmX: -dir * 0.012, palmHalf: 0.018, y: -0.042, z: 0.012, dir };
+    }
+
+    // Radio del mango de cada familia (cuero + cordón), para encajarlo en el puño
+    const WF_GRIP_R = { espada: 0.0170, hacha: 0.0215, maza: 0.0215, daga: 0.0155, lanza: 0.0215, baculo: 0.0225, arco: 0.0300 };
+
+    // kind: 'weapon' (mango en el puño) | 'shield' (asa cruzando el puño)
+    function applyGripMount(group, side, kind = 'weapon', gripRadius = 0.016) {
+      const a = getHandGripAnchor(side);
+      const socket = armorSockets[side === 'R' ? 'weaponR' : 'shieldL'];
+      const scale = getNormalizedAttachmentScale(socket);
+      const rLocal = gripRadius * scale;                  // radio del mango en unidades de la mano
+      group.position.set(a.palmX - a.dir * rLocal, a.y, a.z);
+      if (socket) socket.userData.gripLocal = group.position.clone();   // centro real del mango en la mano
+      group.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+      // El escudo se empuña por el centro: el antebrazo apunta perpendicular a la plancha,
+      // que se adelanta para no atravesar los nudillos.
+      if (kind === 'shield') group.position.y -= 0.052;
+      group.scale.setScalar(scale);
+      group.userData.gripWrap = rLocal;      // radio que los dedos tienen que envolver
+      return group;
+    }
+
+    // Cada mano guarda, o un cierre simple de puño ({ curl }), o el radio del mango que
+    // envuelve ({ wrap }); las animaciones pueden pedir otro valor por fotograma. Se aplica al
+    // final de cada frame porque restoreBindPose() devuelve los dedos a la pose base.
+    const HAND_GRIP = { L: { curl: 0.12 }, R: { curl: 0.12 } };
+    const HAND_GRIP_FRAME = { L: null, R: null };
+    function setHandGripCurl(side, state) { HAND_GRIP[side] = state; }
+    function requestHandGrip(side, state) { HAND_GRIP_FRAME[side] = state; }
+    function applyHandGrip() {
+      const CH = window.CreadorHumano;
+      if (!CH || !CH.setHandCurl) return;
+      ['L', 'R'].forEach(sd => {
+        const v = HAND_GRIP_FRAME[sd] || HAND_GRIP[sd] || { curl: 0.12 };
+        if (v.wrap != null && CH.setHandWrap) CH.setHandWrap(sd, v.wrap);
+        else CH.setHandCurl(sd, v.curl != null ? v.curl : 0.12);
+        HAND_GRIP_FRAME[sd] = null;
+      });
+    }
+
     function wfExtrude(shape, depth, bevel = 0.004) {
       const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * 0.8, bevelSegments: 2, curveSegments: 10 });
       geo.translate(0, 0, -depth / 2);
       return geo;
     }
-    // Hoja parametrizada: anchura w0 que se estrecha (taper), curvatura lateral (curve) y ondulación (wave)
+
+    /* -------------------------------------------------------------------------
+       FILOS REALES: materiales compartidos y dos generadores de geometría cortante
+       (sección lenticular para siluetas cerradas y sección de diamante para hojas).
+       ------------------------------------------------------------------------- */
+    const WF_MATS = {
+      leather: new THREE.MeshStandardMaterial({ color: 0x4a2a18, roughness: 0.82, metalness: 0.06 }),
+      cord: new THREE.MeshStandardMaterial({ color: 0x2b1708, roughness: 0.90, metalness: 0.04 }),
+      wood: new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.68, metalness: 0.05 })
+    };
+
+    // Infla una silueta 2D cerrada en un sólido lenticular: nervio central con espesor
+    // completo y filo de espesor nulo en todo el contorno (hachas, puntas, gavilanes).
+    function wfLensGeo(shape, { thick = 0.016, inset = 0.022, segs = 20 } = {}) {
+      const raw = shape.getPoints(segs);
+      const pts = raw.map(q => new THREE.Vector2(q.x, q.y));
+      while (pts.length > 3 && pts[0].distanceTo(pts[pts.length - 1]) < 1e-6) pts.pop();
+      const n = pts.length;
+      if (n < 3) return wfExtrude(shape, thick, thick * 0.3);
+
+      let area = 0;
+      for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; area += a.x * b.y - b.x * a.y; }
+      if (area < 0) pts.reverse();
+
+      // El desplazamiento interior no puede superar la mitad del lado corto de la silueta
+      const bb = new THREE.Box2().setFromPoints(pts);
+      const sz = bb.getSize(new THREE.Vector2());
+      const ins = Math.min(inset, Math.min(sz.x, sz.y) * 0.30);
+
+      const inner = pts.map((pt, i) => {
+        const prev = pts[(i - 1 + n) % n], next = pts[(i + 1) % n];
+        const e1 = new THREE.Vector2(pt.x - prev.x, pt.y - prev.y);
+        const e2 = new THREE.Vector2(next.x - pt.x, next.y - pt.y);
+        const n1 = new THREE.Vector2(-e1.y, e1.x).normalize();   // normal interior (contorno CCW)
+        const n2 = new THREE.Vector2(-e2.y, e2.x).normalize();
+        const nn = n1.clone().add(n2);
+        if (nn.lengthSq() < 1e-9) nn.copy(n1);
+        nn.normalize();
+        return new THREE.Vector2(pt.x + nn.x * ins, pt.y + nn.y * ins);
+      });
+
+      let caps = [];
+      try { caps = THREE.ShapeUtils.triangulateShape(inner, []); } catch (e) { caps = []; }
+
+      const verts = [], idx = [];
+      const push = (v, z) => { verts.push(v.x, v.y, z); return verts.length / 3 - 1; };
+      const h = thick * 0.5;
+      const O = pts.map(v => push(v, 0));              // contorno (filo)
+      const F = inner.map(v => push(v, h));            // nervio cara frontal
+      const B = inner.map(v => push(v, -h));           // nervio cara posterior
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        idx.push(O[i], O[j], F[j], O[i], F[j], F[i]);  // bisel frontal
+        idx.push(O[j], O[i], B[i], O[j], B[i], B[j]);  // bisel posterior
+      }
+      caps.forEach(f => {
+        idx.push(F[f[0]], F[f[1]], F[f[2]]);
+        idx.push(B[f[2]], B[f[1]], B[f[0]]);
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    // Hoja de sección de diamante (o con acanaladura): filos de espesor nulo a izquierda
+    // y derecha, nervio o vaceo en el centro y punta convergente.
+    // p: len, w0, taper (estrechamiento), curve (curvatura lateral), wave (ondulación), fuller
     function wfBladeGeo(p) {
-      const N = 14, shp = new THREE.Shape(), Lft = [], Rgt = [];
+      const N = 26;
+      const half = (p.thick ?? 0.013) * 0.5;
+      // Perfil transversal: u = posición normalizada en la anchura, k = espesor relativo
+      const prof = p.fuller
+        ? [[-1, 0], [-0.62, 1], [-0.22, 0.52], [0, 0.62], [0.22, 0.52], [0.62, 1], [1, 0]]
+        : [[-1, 0], [-0.52, 0.72], [0, 1], [0.52, 0.72], [1, 0]];
+      const M = prof.length;
+      const ring = [];                       // columnas alrededor de la sección (cara frontal + posterior)
+      for (let j = 0; j < M; j++) ring.push([prof[j][0], prof[j][1]]);
+      for (let j = M - 2; j >= 1; j--) ring.push([prof[j][0], -prof[j][1]]);
+      const K = ring.length;
+
+      const verts = [], idx = [];
       for (let i = 0; i <= N; i++) {
         const t = i / N;
         const y = 0.10 + p.len * t;
-        const w = p.w0 * (1 - p.taper * t) * Math.pow(1 - t, 0.55);
+        const w = p.w0 * (1 - p.taper * t) * Math.pow(1 - t, 0.42);
         const cx = p.curve * t * t + p.wave * Math.sin(t * Math.PI * 4) * t;
-        Lft.push([cx - w, y]); Rgt.push([cx + w, y]);
+        const taperZ = Math.pow(1 - t, 0.40);           // la hoja adelgaza hacia la punta
+        for (let j = 0; j < K; j++) {
+          verts.push(cx + ring[j][0] * w, y, ring[j][1] * half * taperZ);
+        }
       }
-      shp.moveTo(Lft[0][0], Lft[0][1]);
-      for (let i = 1; i <= N; i++) shp.lineTo(Lft[i][0], Lft[i][1]);
-      for (let i = N; i >= 0; i--) shp.lineTo(Rgt[i][0], Rgt[i][1]);
-      shp.closePath();
-      return wfExtrude(shp, 0.014);
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < K; j++) {
+          const a = i * K + j, b = i * K + (j + 1) % K;
+          const c = (i + 1) * K + j, d = (i + 1) * K + (j + 1) % K;
+          idx.push(a, b, d, a, d, c);
+        }
+      }
+      // Tapa de la base (recazo)
+      const base = verts.length / 3;
+      verts.push(0, 0.10, 0);
+      for (let j = 0; j < K; j++) idx.push(base, (j + 1) % K, j);
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    // Empuñadura forrada en cuero con cordón helicoidal y virolas metálicas
+    function wfGripWrap(g, M, y0, y1, r, opts = {}) {
+      const len = Math.max(0.02, y1 - y0), mid = (y0 + y1) * 0.5;
+      const core = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.94, len, 18), WF_MATS.leather);
+      core.position.y = mid; g.add(core);
+      const turns = Math.max(3, Math.round(len / (r * 2.1)));
+      const steps = turns * 14, pts = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps, a = t * turns * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a) * r * 1.02, y0 + t * len, Math.sin(a) * r * 1.02));
+      }
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), steps, r * 0.16, 6, false), WF_MATS.cord));
+      if (opts.ferrules !== false) {
+        [y0, y1].forEach(y => {
+          const f = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.20, r * 1.20, Math.max(0.010, r * 0.62), 18), M.trim);
+          f.position.y = y; g.add(f);
+        });
+      }
     }
     function wfGuard(kind, w, g, M, y) {
       if (kind === 'none') return;
@@ -9337,7 +9509,7 @@
         sh.quadraticCurveTo(0.15 * k, -0.024, 0.17 * k, -0.048); sh.quadraticCurveTo(0.13 * k, -0.010, 0.0, 0.016);
         sh.quadraticCurveTo(-0.13 * k, -0.010, -0.17 * k, -0.048); sh.quadraticCurveTo(-0.15 * k, -0.024, -0.12 * k, -0.016);
       }
-      const geo = wfExtrude(sh, 0.024, 0.005); geo.translate(0, y, 0);
+      const geo = wfLensGeo(sh, { thick: 0.028, inset: 0.012, segs: 16 }); geo.translate(0, y, 0);
       g.add(new THREE.Mesh(geo, M.trim));
     }
     function wfPommel(kind, g, M, y) {
@@ -9374,12 +9546,15 @@
     ];
     function wfEspada(g, v, M) {
       const p = WF_SWORD[v];
-      g.add(new THREE.Mesh(wfBladeGeo(p), M.main));
+      g.add(new THREE.Mesh(wfBladeGeo({ ...p, thick: 0.014 }), M.main));
       wfGuard(p.guard, p.gw, g, M, 0.095);
       wfPommel(p.pom, g, M, -0.11);
-      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.18, 14), M.trim); g.add(grip);
-      if (p.fuller) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.008, p.len * 0.6, 0.008), M.trim); f.position.set(0, 0.10 + p.len * 0.45, 0.012); g.add(f); }
-      addFacetedJewel(g, new THREE.Vector3(0, 0.095, 0.014), new THREE.Vector3(0, 0, 1), 0.02, M.glow, M.trim, M.glow, 6);
+      // Puño de cuero trenzado entre el pomo y la guarda (lo que realmente agarra la mano)
+      wfGripWrap(g, M, -0.090, 0.082, 0.0165);
+      // Recazo: collarín que cierra el encaje de la hoja sobre la guarda
+      const ric = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.026, 0.030, 16), M.trim);
+      ric.position.y = 0.112; g.add(ric);
+      addFacetedJewel(g, new THREE.Vector3(0, 0.095, 0.016), new THREE.Vector3(0, 0, 1), 0.02, M.glow, M.trim, M.glow, 6);
     }
 
     const WF_AXE = ['crescent', 'square', 'double', 'spike', 'lunate', 'hook', 'pick', 'fork', 'twin', 'solar'];
@@ -9395,21 +9570,31 @@
     }
     function wfAxe(g, v, M) {
       const kind = WF_AXE[v];
-      const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 1.02, 14), M.trim); haft.position.y = 0.39; g.add(haft);
-      const butt = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.10, 8), M.trim); butt.rotation.x = Math.PI; butt.position.y = -0.12; g.add(butt);
-      // La cabeza se gira alrededor del mango: el filo sube/baja y el grosor queda de lado, como un hacha real
-      const hd = new THREE.Group(); hd.rotation.y = Math.PI / 2; hd.scale.setScalar(0.65); hd.position.y = 0.72 * (1 - 0.65); g.add(hd);
-      hd.add(new THREE.Mesh(wfExtrude(wfAxeShape(kind), 0.05, 0.007), M.main));
-      if (kind === 'double' || kind === 'twin') { const h2 = new THREE.Mesh(wfExtrude(wfAxeShape(kind), 0.05, 0.007), M.main); h2.scale.x = -1; hd.add(h2); }
+      const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 1.02, 18), WF_MATS.wood); haft.position.y = 0.39; g.add(haft);
+      const butt = new THREE.Mesh(new THREE.ConeGeometry(0.023, 0.10, 10), M.trim); butt.rotation.x = Math.PI; butt.position.y = -0.12; g.add(butt);
+      wfGripWrap(g, M, -0.070, 0.115, 0.0195);
+      // La cabeza gira alrededor del mango: el filo sale hacia el lado exterior de la mano
+      // y el grosor queda de canto, como en un hacha real
+      const hd = new THREE.Group(); hd.rotation.y = Math.PI; hd.scale.setScalar(0.65); hd.position.y = 0.72 * (1 - 0.65); g.add(hd);
+      const headGeo = wfLensGeo(wfAxeShape(kind), { thick: 0.062, inset: 0.034, segs: 18 });
+      hd.add(new THREE.Mesh(headGeo, M.main));
+      if (kind === 'double' || kind === 'twin') { const h2 = new THREE.Mesh(headGeo.clone(), M.main); h2.scale.x = -1; hd.add(h2); }
       if (kind === 'pick') { const back = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 4), M.trim); back.rotation.z = Math.PI / 2; back.position.set(-0.12, 0.72, 0); hd.add(back); }
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 4), M.trim); tip.position.y = 1.02; g.add(tip);
-      addFacetedJewel(hd, new THREE.Vector3(0.10, 0.72, 0.026), new THREE.Vector3(0, 0, 1), kind === 'solar' ? 0.032 : 0.022, M.glow, M.trim, M.glow, 6);
+      // Ojo del hacha y lengüetas que amarran la cabeza al astil
+      const eye = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.185, 18), M.trim); eye.position.y = 0.72; g.add(eye);
+      [-1, 1].forEach(sg => {
+        const lang = new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.17, 0.034), M.trim);
+        lang.position.set(0, 0.555, sg * 0.020); lang.rotation.y = Math.PI / 2; g.add(lang);
+      });
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.030, 0.14, 8), M.trim); tip.position.y = 1.02; g.add(tip);
+      addFacetedJewel(hd, new THREE.Vector3(0.10, 0.72, 0.032), new THREE.Vector3(0, 0, 1), kind === 'solar' ? 0.032 : 0.022, M.glow, M.trim, M.glow, 6);
     }
 
     const WF_MACE = ['spiked', 'flanged', 'star', 'hammer', 'hex', 'skull', 'flail', 'triple', 'ring', 'cone'];
     function wfMace(g, v, M) {
       const kind = WF_MACE[v];
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.72, 14), M.trim); shaft.position.y = 0.22; g.add(shaft);
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.72, 18), M.trim); shaft.position.y = 0.22; g.add(shaft);
+      wfGripWrap(g, M, -0.095, 0.085, 0.0195);
       const headY = 0.62;
       const radial = (count, radius, geo, mat, y) => {
         for (let k = 0; k < count; k++) {
@@ -9469,30 +9654,36 @@
     ];
     function wfDagger(g, v, M) {
       const p = WF_DAGGER[v];
-      g.add(new THREE.Mesh(wfBladeGeo(p), M.main));
+      g.add(new THREE.Mesh(wfBladeGeo({ ...p, thick: 0.011 }), M.main));
       wfGuard(p.guard, p.gw, g, M, 0.095);
       wfPommel(p.pom, g, M, -0.07);
-      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.013, 0.10, 12), M.trim); grip.position.y = -0.02; g.add(grip);
-      addFacetedJewel(g, new THREE.Vector3(0, 0.095, 0.014), new THREE.Vector3(0, 0, 1), 0.016, M.glow, M.trim, M.glow, 6);
+      wfGripWrap(g, M, -0.052, 0.082, 0.0150);
+      addFacetedJewel(g, new THREE.Vector3(0, 0.095, 0.013), new THREE.Vector3(0, 0, 1), 0.016, M.glow, M.trim, M.glow, 6);
     }
 
     const WF_LANCE = ['leaf', 'lozenge', 'spade', 'glaive', 'trident', 'fork', 'bearded', 'tri', 'pike', 'leaf'];
     function wfLance(g, v, M) {
       const kind = WF_LANCE[v];
-      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.013, 1.38, 16), M.trim); rod.position.y = 0.40; g.add(rod);
-      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.020, 0.08, 16), M.trim); collar.position.y = 1.06; g.add(collar);
-      const scale = kind === 'pike' ? 1.0 : 1.0;
-      const tipGeo = wfExtrude(wfLanceShape(kind), 0.018, 0.005);
-      const tip = new THREE.Mesh(tipGeo, M.main); tip.position.y = 1.10; tip.scale.setScalar(scale); g.add(tip);
-      if (kind === 'leaf' || kind === 'pike') { const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.30, 0.010), M.trim); ridge.position.set(0, 1.27, 0.014); g.add(ridge); }
-      addFacetedJewel(g, new THREE.Vector3(0, 1.10, 0.016), new THREE.Vector3(0, 0, 1), 0.024, M.glow, M.trim, M.glow, 6);
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 1.38, 18), WF_MATS.wood); rod.position.y = 0.40; g.add(rod);
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.020, 0.08, 18), M.trim); collar.position.y = 1.06; g.add(collar);
+      // Lengüetas que bajan desde el cubo y amarran la punta al astil
+      [-1, 1].forEach(sg => {
+        const lang = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.26, 0.030), M.trim);
+        lang.position.set(sg * 0.013, 0.90, 0); g.add(lang);
+      });
+      const tipGeo = wfLensGeo(wfLanceShape(kind), { thick: 0.024, inset: 0.013, segs: 18 });
+      const tip = new THREE.Mesh(tipGeo, M.main); tip.position.y = 1.10; g.add(tip);
+      wfGripWrap(g, M, -0.085, 0.120, 0.0195);
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.020, 0.12, 8), M.trim); spike.rotation.x = Math.PI; spike.position.y = -0.34; g.add(spike);
+      addFacetedJewel(g, new THREE.Vector3(0, 1.10, 0.020), new THREE.Vector3(0, 0, 1), 0.024, M.glow, M.trim, M.glow, 6);
     }
 
     const WF_STAFF = ['orb', 'crystal', 'spiral', 'crescent', 'leaf', 'triple', 'skull', 'roots', 'sunring', 'thorn'];
     function wfStaff(g, v, M) {
       const kind = WF_STAFF[v];
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 1.30, 16), M.trim); shaft.position.y = 0.45; g.add(shaft);
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.10, 8), M.trim); cap.rotation.x = Math.PI; cap.position.y = -0.18; g.add(cap);
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 1.30, 18), WF_MATS.wood); shaft.position.y = 0.45; g.add(shaft);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.10, 10), M.trim); cap.rotation.x = Math.PI; cap.position.y = -0.18; g.add(cap);
+      wfGripWrap(g, M, -0.095, 0.120, 0.0205);
       const hy = 1.12;
       if (kind === 'orb') { const o = new THREE.Mesh(new THREE.SphereGeometry(0.085, 24, 18), M.glow); o.position.y = hy; g.add(o); }
       else if (kind === 'crystal') { const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), M.glow); c.scale.y = 1.8; c.position.y = hy; g.add(c); }
@@ -9502,7 +9693,7 @@
         const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.012, 8, false), M.trim); g.add(coil);
         const gemS = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 10), M.glow); gemS.position.y = hy + 0.12; g.add(gemS);
       } else if (kind === 'crescent') { const a = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.014, 8, 24, Math.PI), M.trim); a.position.y = hy; a.rotation.z = Math.PI; g.add(a); }
-      else if (kind === 'leaf') { const lf = new THREE.Mesh(wfExtrude(wfLanceShape('leaf'), 0.02, 0.005), M.main); lf.scale.setScalar(1.3); lf.position.y = hy - 0.18; g.add(lf); }
+      else if (kind === 'leaf') { const lf = new THREE.Mesh(wfLensGeo(wfLanceShape('leaf'), { thick: 0.024, inset: 0.013, segs: 18 }), M.main); lf.scale.setScalar(1.3); lf.position.y = hy - 0.18; g.add(lf); }
       else if (kind === 'triple') {
         const core = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), M.glow); core.position.y = hy; g.add(core);
         for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2; const o = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), M.main); o.position.set(Math.cos(a) * 0.09, hy, Math.sin(a) * 0.09); g.add(o); }
@@ -9525,14 +9716,42 @@
     ];
     // ---------- Arco: limbos con runas, puntas doradas, cuerda luminosa y flechas ----------
     const ARCHERY_SHARED = {
-      shaftGeo: (() => { const x = new THREE.CylinderGeometry(0.006, 0.006, 0.7, 6); x.rotateX(Math.PI / 2); return x; })(),
-      headGeo: (() => { const x = new THREE.ConeGeometry(0.022, 0.08, 6); x.rotateX(Math.PI / 2); x.translate(0, 0, 0.40); return x; })(),
-      fletchGeo: (() => { const x = new THREE.PlaneGeometry(0.05, 0.07); x.rotateY(Math.PI / 2); x.translate(0, 0, -0.31); return x; })(),
-      stringGeo: new THREE.CylinderGeometry(0.004, 0.004, 1, 6),
+      // Astil afilado hacia la punta, puntera de dos filos, culatín y tres plumas perfiladas
+      shaftGeo: (() => { const x = new THREE.CylinderGeometry(0.0046, 0.0056, 0.70, 10); x.rotateX(Math.PI / 2); return x; })(),
+      headGeo: (() => {
+        const sh = new THREE.Shape();
+        sh.moveTo(0, -0.045);
+        sh.lineTo(0.021, 0.004);
+        sh.lineTo(0.009, 0.010);
+        sh.lineTo(0, 0.050);
+        sh.lineTo(-0.009, 0.010);
+        sh.lineTo(-0.021, 0.004);
+        sh.closePath();
+        const x = wfLensGeo(sh, { thick: 0.010, inset: 0.006, segs: 10 });
+        x.rotateX(Math.PI / 2);     // la punta mira a +Z
+        x.translate(0, 0, 0.395);
+        return x;
+      })(),
+      nockGeo: (() => { const x = new THREE.CylinderGeometry(0.0078, 0.0062, 0.030, 10); x.rotateX(Math.PI / 2); x.translate(0, 0, -0.345); return x; })(),
+      fletchGeo: (() => {
+        const sh = new THREE.Shape();
+        sh.moveTo(0, 0);
+        sh.lineTo(0.010, 0.030);
+        sh.quadraticCurveTo(0.052, 0.046, 0.060, 0.016);
+        sh.quadraticCurveTo(0.040, 0.004, 0.012, -0.004);
+        sh.closePath();
+        const x = new THREE.ShapeGeometry(sh, 8);
+        x.rotateY(-Math.PI / 2);    // el largo de la pluma corre por el astil (+Z)
+        x.translate(0, 0, -0.345);
+        return x;
+      })(),
+      stringGeo: new THREE.CylinderGeometry(0.0032, 0.0032, 1, 6),
+      servingGeo: new THREE.CylinderGeometry(0.0055, 0.0055, 1, 8),
       runeGeo: new THREE.SphereGeometry(0.011, 8, 6),
       trailGeo: new THREE.SphereGeometry(0.022, 8, 6),
       shaftMat: new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.6, metalness: 0.1 }),
       headMat: new THREE.MeshStandardMaterial({ color: 0xfde68a, emissive: 0xf59e0b, emissiveIntensity: 1.4, metalness: 0.6, roughness: 0.3 }),
+      nockMat: new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.5, metalness: 0.25 }),
       fletchMat: new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8, side: THREE.DoubleSide })
     };
     function wfBowTipShape() {
@@ -9540,36 +9759,101 @@
       s.moveTo(0, 0); s.quadraticCurveTo(0.055, 0.03, 0.0, 0.09); s.quadraticCurveTo(0.02, 0.035, 0, 0);
       return s;
     }
+
+    // Tubo de radio variable y sección achatada (limbos de arco: finos en el plano de flexión)
+    function wfTaperTube(curve, tubular, radial, r0, r1, sx = 1, sz = 1) {
+      const geo = new THREE.TubeGeometry(curve, tubular, 1, radial, false);
+      const pos = geo.attributes.position, nor = geo.attributes.normal;
+      const c = new THREE.Vector3();
+      for (let i = 0; i <= tubular; i++) {
+        curve.getPointAt(i / tubular, c);
+        const rr = THREE.MathUtils.lerp(r0, r1, i / tubular);
+        for (let j = 0; j <= radial; j++) {
+          const k = i * (radial + 1) + j;
+          pos.setXYZ(k,
+            c.x + nor.getX(k) * rr * sx,
+            c.y + nor.getY(k) * rr,
+            c.z + nor.getZ(k) * rr * sz);
+        }
+      }
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    /* -------------------------------------------------------------------------
+       ARCO: riser rígido con ventana y balda, limbos recurvos que flexionan en el
+       plano de tiro (+Z = dirección de la flecha), cuerda con servidura y culatín.
+       El eje de los limbos es +Y local, que applyGripMount alinea con el eje del
+       puño, de modo que el arco queda vertical cuando el brazo apunta al objetivo.
+       ------------------------------------------------------------------------- */
+    const AR_RISER_HALF = 0.115;   // mitad de la empuñadura rígida
+    const AR_BRACE = 0.018;        // altura de montaje de la cuerda en reposo
+    const AR_REST = new THREE.Vector3(-0.032, 0.054, 0.012);  // balda / reposaflechas
+
     function wfBow(g, v, M) {
       const p = WF_BOW[v];
       const limbs = {};
+      const span = Math.max(0.28, p.h - AR_RISER_HALF);
+
       [1, -1].forEach(sg => {
         const pivot = new THREE.Group();
+        pivot.name = sg > 0 ? 'BowLimbUpper' : 'BowLimbLower';
         const pts = [];
-        for (let i = 0; i <= 6; i++) { const t = i / 6; pts.push(new THREE.Vector3(p.c * Math.pow(t, 1.5), sg * t * p.h, 0)); }
-        const curve = new THREE.CatmullRomCurve3(pts);
-        pivot.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, p.r * 1.8, 10, false), M.main));
-        for (let k = 0; k < 5; k++) {
-          const rp = curve.getPointAt(0.18 + k * 0.17);
-          const rune = new THREE.Mesh(ARCHERY_SHARED.runeGeo, M.glow); rune.position.set(rp.x, rp.y, 0.026); pivot.add(rune);
+        for (let i = 0; i <= 8; i++) {
+          const t = i / 8;
+          // Reflejo del limbo hacia delante (+Z) y recurva de la pala en el último tramo
+          const z = p.c * 1.9 * Math.pow(t, 1.5) - p.c * 2.6 * Math.pow(t, 6);
+          pts.push(new THREE.Vector3(0, sg * t * span, z));
         }
+        pivot.position.y = sg * AR_RISER_HALF;   // el limbo pivota en el extremo del riser
+        const curve = new THREE.CatmullRomCurve3(pts);
+        pivot.add(new THREE.Mesh(wfTaperTube(curve, 40, 12, p.r * 2.1, p.r * 1.05, 1.55, 0.62), M.main));
+
+        for (let k = 0; k < 4; k++) {
+          const rp = curve.getPointAt(0.22 + k * 0.20);
+          const rune = new THREE.Mesh(ARCHERY_SHARED.runeGeo, M.glow);
+          rune.position.set(rp.x + p.r * 1.9, rp.y, rp.z); pivot.add(rune);
+        }
+
+        const tipPt = pts[pts.length - 1];
         const tipT = curve.getTangentAt(1);
         const tip = new THREE.Mesh(wfExtrude(wfBowTipShape(), 0.012, 0.003), M.trim);
-        tip.position.copy(pts[pts.length - 1]);
-        tip.rotation.z = Math.atan2(tipT.y, tipT.x) - Math.PI / 2;
+        tip.position.copy(tipPt);
+        tip.rotation.x = Math.atan2(tipT.z, tipT.y);
         pivot.add(tip);
+        // Garganta donde asienta la gaza de la cuerda
+        const nockRing = new THREE.Mesh(new THREE.TorusGeometry(p.r * 1.5, p.r * 0.45, 6, 14), M.trim);
+        nockRing.position.copy(tipPt); nockRing.rotation.y = Math.PI / 2; pivot.add(nockRing);
+
         g.add(pivot);
-        limbs[sg > 0 ? 'up' : 'lo'] = { pivot, tip: pts[pts.length - 1].clone() };
+        limbs[sg > 0 ? 'up' : 'lo'] = { pivot, local: tipPt.clone() };
       });
-      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.18, 14), M.trim); g.add(grip);
-      [-0.055, 0.055].forEach(y => { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.007, 8, 18), M.glow); ring.rotation.x = Math.PI / 2; ring.position.y = y; g.add(ring); });
-      addFacetedJewel(g, new THREE.Vector3(0, 0, 0.034), new THREE.Vector3(0, 0, 1), 0.03, M.glow, M.trim, M.glow, 6);
+
+      // Riser: alma central, ventana abierta y balda para la flecha
+      const core = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.027, AR_RISER_HALF * 2 * 0.92, 18), M.main);
+      g.add(core);
+      wfGripWrap(g, M, -0.085, 0.028, 0.0285, { ferrules: true });
+      // Puente de la ventana del riser, por el lado por el que pasa la flecha
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.098, 0.028), M.main);
+      bridge.position.set(-0.044, 0.064, 0.012); g.add(bridge);
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.011, 0.030), M.trim);
+      shelf.position.set(-0.032, AR_REST.y - 0.009, 0.012); g.add(shelf);
+      const rest = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), M.glow);
+      rest.position.copy(AR_REST); g.add(rest);
+      const sight = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.004, 6, 18), M.trim);
+      sight.position.set(-0.052, 0.090, 0.016); sight.rotation.y = Math.PI / 2; g.add(sight);
+      const sightGem = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), M.glow);
+      sightGem.position.copy(sight.position); g.add(sightGem);
+      addFacetedJewel(g, new THREE.Vector3(0, 0, 0.030), new THREE.Vector3(0, 0, 1), 0.026, M.glow, M.trim, M.glow, 6);
+
       const stringTop = new THREE.Mesh(ARCHERY_SHARED.stringGeo, M.glow);
       const stringBot = new THREE.Mesh(ARCHERY_SHARED.stringGeo, M.glow);
-      g.add(stringTop, stringBot);
-      g.userData.archery = { bow: g, limbs, stringTop, stringBot, arrow: null };
-      setSegment(stringTop, limbs.up.tip, new THREE.Vector3(0, 0, -0.02));
-      setSegment(stringBot, limbs.lo.tip, new THREE.Vector3(0, 0, -0.02));
+      const serving = new THREE.Mesh(ARCHERY_SHARED.servingGeo, M.trim);
+      g.add(stringTop, stringBot, serving);
+
+      g.userData.archery = { bow: g, limbs, stringTop, stringBot, serving, arrow: null };
+      wfBowSetString(g.userData.archery, new THREE.Vector3(0, 0, -AR_BRACE), 0);
     }
 
     function setSegment(mesh, a, b) {
@@ -9578,11 +9862,33 @@
       mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
       mesh.scale.set(1, Math.max(d.length(), 1e-4), 1);
     }
+
+    // Coloca cuerda y servidura con los limbos flexionados un ángulo 'bend'
+    function wfBowSetString(rig, nock, bend) {
+      const rotX = (pt, a) => new THREE.Vector3(
+        pt.x,
+        pt.y * Math.cos(a) - pt.z * Math.sin(a),
+        pt.y * Math.sin(a) + pt.z * Math.cos(a));
+      const tUp = rotX(rig.limbs.up.local, -bend).add(new THREE.Vector3(0, AR_RISER_HALF, 0));
+      const tLo = rotX(rig.limbs.lo.local, bend).add(new THREE.Vector3(0, -AR_RISER_HALF, 0));
+      rig.limbs.up.pivot.rotation.x = -bend;
+      rig.limbs.lo.pivot.rotation.x = bend;
+      setSegment(rig.stringTop, tUp, nock);
+      setSegment(rig.stringBot, tLo, nock);
+      if (rig.serving) {
+        setSegment(rig.serving, nock.clone().lerp(tUp, 0.10), nock.clone().lerp(tLo, 0.10));
+      }
+    }
+
     function createArrowMesh() {
       const a = new THREE.Group();
       a.add(new THREE.Mesh(ARCHERY_SHARED.shaftGeo, ARCHERY_SHARED.shaftMat));
       a.add(new THREE.Mesh(ARCHERY_SHARED.headGeo, ARCHERY_SHARED.headMat));
-      for (let k = 0; k < 3; k++) { const f = new THREE.Mesh(ARCHERY_SHARED.fletchGeo, ARCHERY_SHARED.fletchMat); f.rotation.z = k * 2.094; a.add(f); }
+      a.add(new THREE.Mesh(ARCHERY_SHARED.nockGeo, ARCHERY_SHARED.nockMat));
+      for (let k = 0; k < 3; k++) {
+        const f = new THREE.Mesh(ARCHERY_SHARED.fletchGeo, ARCHERY_SHARED.fletchMat);
+        f.rotation.z = k * 2.094; a.add(f);
+      }
       return a;
     }
 
@@ -9591,8 +9897,16 @@
     let archeryRig = null;
     let archeryT = 0;
     let archeryLastU = 0;
-    const ARCHERY_CYCLE = 2.6;
+    const ARCHERY_CYCLE = 3.40;
+    const AR_T_AIM = 0.60;    // alzar el arco y encarar
+    const AR_T_DRAW = 1.90;   // tensar hasta el anclaje
+    const AR_T_HOLD = 2.35;   // suelta
+    const AR_T_RELAX = 2.75;  // bajar el arco
     const smooth01 = (x) => { const c = Math.min(1, Math.max(0, x)); return c * c * (3 - 2 * c); };
+    const AR_UP = new THREE.Vector3(0, 1, 0);
+    const AR_DOWN = new THREE.Vector3(0, -1, 0);
+    const AR_AIM_DIR = new THREE.Vector3(0, -0.03, 1);        // se dispara al frente del personaje
+    const AR_TURN = 1.45;                                     // el arquero se pone de costado al objetivo
 
     function spawnArrowTrail(pos) {
       const mat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -9604,16 +9918,18 @@
     }
     function releaseArrow(rig) {
       const arrow = rig.arrow;
+      if (!arrow) return;
       rig.arrow = null;
-      rig.bow.updateWorldMatrix(true, false);
-      const dir = new THREE.Vector3(0, 0, 1).transformDirection(rig.bow.matrixWorld).normalize();
+      arrow.updateWorldMatrix(true, false);
+      // La flecha sale por su propio eje: nunca hacia arriba, sino hacia donde apunta la punta
+      const dir = new THREE.Vector3(0, 0, 1).transformDirection(arrow.matrixWorld).normalize();
       scene.attach(arrow);
-      ARROWS_IN_FLIGHT.push({ obj: arrow, vel: dir.multiplyScalar(16).add(new THREE.Vector3(0, 1.2, 0)), age: 0, trailT: 0 });
+      ARROWS_IN_FLIGHT.push({ obj: arrow, vel: dir.multiplyScalar(30).addScaledVector(AR_UP, 0.8), age: 0, trailT: 0 });
     }
     function updateArrowFlight(delta) {
       for (let i = ARROWS_IN_FLIGHT.length - 1; i >= 0; i--) {
         const f = ARROWS_IN_FLIGHT[i];
-        f.vel.y -= 7.0 * delta;
+        f.vel.y -= 9.8 * delta;
         f.obj.position.addScaledVector(f.vel, delta);
         f.obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), f.vel.clone().normalize());
         f.age += delta;
@@ -9630,46 +9946,325 @@
         tr.mesh.material.opacity = 0.9 * k;
       }
     }
-    // Pose de tiro: brazo izquierdo sostiene el arco; el derecho tensa la cuerda hasta la mejilla
+
+    /* -------------------------------------------------------------------------
+       CINEMÁTICA INVERSA DE DOS HUESOS sobre el rig nativo
+       (Shoulder -> [UpperArm] -> Elbow -> [Forearm] -> Wrist -> mano)
+       ------------------------------------------------------------------------- */
+    const _ikM = new THREE.Matrix4();
+    const _ikT = new THREE.Vector3();
+    const _ikV = new THREE.Vector3();
+    const _ikW = new THREE.Vector3();
+    const _ikX = new THREE.Vector3(1, 0, 0);
+    const _ikQ = new THREE.Quaternion();
+
+    function armChain(side) {
+      const sh = bonesMap[`Shoulder_${side}`];
+      const el = bonesMap[`Elbow_${side}`];
+      const wr = bonesMap[`Wrist_${side}`];
+      if (!sh || !el || !wr) return null;
+      return {
+        sh, el, wr,
+        up: bonesMap[`UpperArm_${side}`],
+        fo: bonesMap[`Forearm_${side}`],
+        L1: el.position.length() || 0.28,
+        L2: wr.position.length() || 0.26
+      };
+    }
+
+    // Punto del puño (centro de lo que se agarra) en coordenadas de mundo
+    function handGripWorld(side, out) {
+      const hand = bonesMap[`hand_${side}`];
+      if (!hand) return null;
+      const a = getHandGripAnchor(side);
+      const g = armorSockets[side === 'R' ? 'weaponR' : 'shieldL'];
+      const p = (g && g.userData.gripLocal) || new THREE.Vector3(a.palmX - a.dir * 0.016, a.y, a.z);
+      hand.updateWorldMatrix(true, false);
+      return out.copy(p).applyMatrix4(hand.matrixWorld);
+    }
+
+    // Distancia rígida muñeca -> centro del puño (alarga la cadena hasta lo que se agarra)
+    function handGripReach(side) {
+      const hand = bonesMap[`hand_${side}`];
+      const wr = bonesMap[`Wrist_${side}`];
+      if (!hand || !wr) return 0;
+      const g = handGripWorld(side, _ikW);
+      if (!g) return 0;
+      wr.updateWorldMatrix(true, false);
+      return g.distanceTo(_ikV.setFromMatrixPosition(wr.matrixWorld));
+    }
+
+    function solveArmIK(side, targetWorld, extraReach = 0) {
+      const c = armChain(side);
+      if (!c) return null;
+      if (c.up) c.up.rotation.set(0, 0, 0);
+      if (c.fo) c.fo.rotation.set(0, 0, 0);
+      const L1 = c.L1, L2 = c.L2 + extraReach;
+      const parent = c.sh.parent;
+      if (!parent) return null;
+      parent.updateWorldMatrix(true, false);
+      _ikT.copy(targetWorld).applyMatrix4(_ikM.copy(parent.matrixWorld).invert()).sub(c.sh.position);
+      const dRaw = _ikT.length();
+      if (dRaw < 1e-5) return c;
+      const d = THREE.MathUtils.clamp(dRaw, Math.abs(L1 - L2) + 1e-3, (L1 + L2) * 0.998);
+      const cosA = (L1 * L1 + L2 * L2 - d * d) / (2 * L1 * L2);
+      const bend = Math.PI - Math.acos(THREE.MathUtils.clamp(cosA, -1, 1));
+      c.el.rotation.set(-bend, 0, 0);        // el codo flexiona hacia delante
+      _ikV.set(0, -L2, 0).applyAxisAngle(_ikX, -bend).add(_ikW.set(0, -L1, 0));
+      c.sh.quaternion.setFromUnitVectors(_ikV.normalize(), _ikT.normalize());
+      return c;
+    }
+
+    // Gira el brazo sobre el eje hombro-mano (sin mover la mano) hasta que el eje del
+    // puño (+Z de la mano) apunte lo más posible a 'desiredWorld'.
+    function alignArmRoll(side, desiredWorld) {
+      const c = armChain(side);
+      const hand = bonesMap[`hand_${side}`];
+      if (!c || !hand) return;
+      c.sh.updateWorldMatrix(true, true);
+      const shW = new THREE.Vector3().setFromMatrixPosition(c.sh.matrixWorld);
+      const axis = new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld).sub(shW);
+      if (axis.lengthSq() < 1e-8) return;
+      axis.normalize();
+      const cur = new THREE.Vector3(0, 0, 1).transformDirection(hand.matrixWorld);
+      const des = desiredWorld.clone();
+      cur.addScaledVector(axis, -cur.dot(axis));
+      des.addScaledVector(axis, -des.dot(axis));
+      if (cur.lengthSq() < 1e-6 || des.lengthSq() < 1e-6) return;
+      cur.normalize(); des.normalize();
+      let ang = Math.acos(THREE.MathUtils.clamp(cur.dot(des), -1, 1));
+      if (cur.clone().cross(des).dot(axis) < 0) ang = -ang;
+      const axisLocal = axis.clone().transformDirection(_ikM.copy(c.sh.parent.matrixWorld).invert()).normalize();
+      c.sh.quaternion.premultiply(_ikQ.setFromAxisAngle(axisLocal, ang));
+      c.sh.updateWorldMatrix(false, true);
+    }
+
+    // Gira el brazo sobre el eje hombro-muñeca (sin mover la mano) hasta llevar el codo
+    // hacia 'poleWorld': así el codo del arco cae y el de la cuerda sube, como en un arquero.
+    function setElbowPole(side, poleWorld) {
+      const c = armChain(side);
+      if (!c || !c.sh.parent) return;
+      c.sh.updateWorldMatrix(true, true);
+      const sp = new THREE.Vector3().setFromMatrixPosition(c.sh.matrixWorld);
+      const wp = new THREE.Vector3().setFromMatrixPosition(c.wr.matrixWorld);
+      const ep = new THREE.Vector3().setFromMatrixPosition(c.el.matrixWorld);
+      const axis = wp.sub(sp);
+      if (axis.lengthSq() < 1e-8) return;
+      axis.normalize();
+      const cur = ep.sub(sp); cur.addScaledVector(axis, -cur.dot(axis));
+      const des = poleWorld.clone(); des.addScaledVector(axis, -des.dot(axis));
+      if (cur.lengthSq() < 1e-7 || des.lengthSq() < 1e-7) return;
+      cur.normalize(); des.normalize();
+      let ang = Math.acos(THREE.MathUtils.clamp(cur.dot(des), -1, 1));
+      if (cur.clone().cross(des).dot(axis) < 0) ang = -ang;
+      const axisLocal = axis.clone().transformDirection(_ikM.copy(c.sh.parent.matrixWorld).invert()).normalize();
+      c.sh.quaternion.premultiply(_ikQ.setFromAxisAngle(axisLocal, ang));
+      c.sh.updateWorldMatrix(false, true);
+    }
+
+    // Fija la orientación exacta de la mano (y de lo que empuña) girando la muñeca:
+    // yDir = hacia dónde mira +Y de la mano (del puño al codo), zDir = eje del puño.
+    function alignHandFrame(side, yDir, zDir) {
+      const wr = bonesMap[`Wrist_${side}`];
+      if (!wr || !wr.parent) return;
+      const ey = yDir.clone().normalize();
+      const ez = zDir.clone().addScaledVector(ey, -zDir.dot(ey));
+      if (ez.lengthSq() < 1e-8) return;
+      ez.normalize();
+      const ex = new THREE.Vector3().crossVectors(ey, ez);
+      const qWorld = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(ex, ey, ez));
+      const pq = new THREE.Quaternion();
+      wr.parent.updateWorldMatrix(true, false);
+      wr.parent.getWorldQuaternion(pq);
+      wr.quaternion.copy(pq.invert()).multiply(qWorld);
+      wr.updateWorldMatrix(false, true);
+    }
+
+    /* -------------------------------------------------------------------------
+       TIRO CON ARCO: el brazo izquierdo sostiene el arco vertical hacia el objetivo
+       y la mano derecha engancha el culatín y TENSA la cuerda hasta el anclaje de
+       la mandíbula (IK real, la cuerda sigue a los dedos). La flecha sale por su eje.
+       ------------------------------------------------------------------------- */
+    const AR_JOINTS = ['Pelvis', 'Torso', 'Neck', 'Head',
+                       'Shoulder_L', 'UpperArm_L', 'Elbow_L', 'Forearm_L', 'Wrist_L',
+                       'Shoulder_R', 'UpperArm_R', 'Elbow_R', 'Forearm_R', 'Wrist_R'];
+    const _arFrom = new Map();
+    const _arTo = new Map();
+    const _arQ = (map, key) => { let q = map.get(key); if (!q) { q = new THREE.Quaternion(); map.set(key, q); } return q; };
+
+    function archeryIdleBow(rig) {
+      wfBowSetString(rig, _ikV.set(0, 0, -AR_BRACE), 0);
+      if (rig.arrow) { rig.bow.remove(rig.arrow); rig.arrow = null; }
+    }
+
+    /* -------------------------------------------------------------------------
+       POSTURA DE PORTE: con la pieza ya encajada en el puño, los brazos adoptan
+       la postura con la que de verdad se lleva cada cosa (hoja en guardia, escudo
+       cruzado delante del pecho, arco vertical) en lugar de colgar en pose A.
+       ------------------------------------------------------------------------- */
+    function updateHeldStance() {
+      if (STATE.currentAnim === 'archery') return;        // el tiro con arco manda sobre los brazos
+      if (!(STATE.currentAnim === 'idle' || STATE.currentAnim === 'none')) return;
+      const LD = WEAPON_LOADOUT[STATE.equipment.weapon];
+      if (!LD || !bonesMap.Shoulder_R) return;
+
+      // Arma en la derecha: codo recogido y muñeca en guardia (la hoja sube hacia delante)
+      if (LD.hand === 'R') {
+        const el = bonesMap.Elbow_R, wr = bonesMap.Wrist_R, sh = bonesMap.Shoulder_R;
+        const poleWeapon = LD.fam === 'lanza' || LD.fam === 'baculo' || LD.fam === 'hacha';
+        if (sh) sh.rotation.z += 0.16;
+        if (el) el.rotation.x = poleWeapon ? -0.30 : -0.55;
+        if (wr) wr.rotation.x = poleWeapon ? -1.05 : -0.78;
+      }
+
+      // Escudo en la izquierda: antebrazo cruzado delante, plancha de cara al frente
+      const carriesShield = LD.hand !== 'L' && LD.shield > 0;
+      if (carriesShield && bonesMap.Torso) {
+        const cL = armChain('L');
+        if (cL) {
+          bonesMap.Torso.updateWorldMatrix(true, false);
+          const fwd = new THREE.Vector3(0, 0, 1).transformDirection(bonesMap.Torso.matrixWorld).normalize();
+          const side = new THREE.Vector3(1, 0, 0).transformDirection(bonesMap.Torso.matrixWorld).normalize();
+          cL.sh.updateWorldMatrix(true, false);
+          const shW = new THREE.Vector3().setFromMatrixPosition(cL.sh.matrixWorld);
+          const reach = handGripReach('L');
+          const len = cL.L1 + cL.L2 + reach;
+          const target = shW.clone()
+            .addScaledVector(fwd, len * 0.54)
+            .addScaledVector(side, len * 0.46)
+            .addScaledVector(AR_UP, -len * 0.46);
+          solveArmIK('L', target, reach);
+          alignArmRoll('L', AR_UP);         // la plancha queda derecha y de cara al frente
+        }
+      } else if (LD.fam === 'arco') {
+        alignArmRoll('L', AR_UP);           // el arco cuelga vertical, no atravesado
+      }
+    }
+
     function updateArchery(delta) {
       updateArrowFlight(delta);
       const rig = archeryRig;
       if (!rig) return;
       if (STATE.currentAnim !== 'archery') {
-        if (rig.arrow) { rig.bow.remove(rig.arrow); rig.arrow = null; }
+        archeryT = 0; archeryLastU = 0;
+        archeryIdleBow(rig);
         return;
       }
+
       archeryT += delta;
       const u = archeryT % ARCHERY_CYCLE;
-      if (!rig.arrow && u < 1.5) { rig.arrow = createArrowMesh(); rig.bow.add(rig.arrow); }
-      if (archeryLastU < 1.5 && u >= 1.5 && rig.arrow) releaseArrow(rig);
-      archeryLastU = u;
+      if (u < archeryLastU) archeryLastU = 0;   // nuevo ciclo
 
       let pull = 0;
-      if (u >= 0.5 && u < 1.3) pull = smooth01((u - 0.5) / 0.8);
-      else if (u >= 1.3 && u < 1.5) pull = 1;
-      else if (u >= 1.5 && u < 1.62) pull = 1 - smooth01((u - 1.5) / 0.12);
-      const aim = u < 1.6 ? smooth01(u / 0.5) : 1 - smooth01((u - 1.6) / 0.9);
+      if (u >= AR_T_AIM && u < AR_T_DRAW) pull = smooth01((u - AR_T_AIM) / (AR_T_DRAW - AR_T_AIM));
+      else if (u >= AR_T_DRAW && u < AR_T_HOLD) pull = 1;
+      else if (u >= AR_T_HOLD && u < AR_T_HOLD + 0.17) pull = 1 - smooth01((u - AR_T_HOLD) / 0.17);
+      const aim = u < AR_T_RELAX
+        ? smooth01(u / AR_T_AIM)
+        : Math.max(0, 1 - smooth01((u - AR_T_RELAX) / (ARCHERY_CYCLE - AR_T_RELAX - 0.15)));
+      // Vibración amortiguada de la cuerda justo tras la suelta
+      const sinceShot = u - AR_T_HOLD;
+      const vib = (sinceShot > 0 && sinceShot < 0.6)
+        ? Math.sin(sinceShot * 62) * 0.016 * Math.exp(-sinceShot * 8.5) : 0;
 
-      const blend = (bone, tx, ty, tz) => {
-        if (!bone) return;
-        bone.rotation.x += (tx - bone.rotation.x) * aim;
-        bone.rotation.y += (ty - bone.rotation.y) * aim;
-        bone.rotation.z += (tz - bone.rotation.z) * aim;
-      };
-      blend(bonesMap.UpperArm_L, -1.3, 0, 0.08);
-      blend(bonesMap.Forearm_L, 0.35, 0, 0);
-      blend(bonesMap.UpperArm_R, -0.2 + 0.5 * pull, 0, -0.55 - 0.35 * pull);
-      blend(bonesMap.Forearm_R, 0.35 + 1.45 * pull, 0, 0);
+      if (!rig.arrow && u < AR_T_HOLD) { rig.arrow = createArrowMesh(); rig.bow.add(rig.arrow); }
+      if (archeryLastU < AR_T_HOLD && u >= AR_T_HOLD) releaseArrow(rig);
+      archeryLastU = u;
 
-      const th = pull * 0.12;
-      rig.limbs.up.pivot.rotation.z = th;
-      rig.limbs.lo.pivot.rotation.z = -th;
-      const rot = (pt, a) => new THREE.Vector3(pt.x * Math.cos(a) - pt.y * Math.sin(a), pt.x * Math.sin(a) + pt.y * Math.cos(a), 0);
-      const nock = new THREE.Vector3(0, 0, -0.02 - 0.28 * pull);
-      setSegment(rig.stringTop, rot(rig.limbs.up.tip, th), nock);
-      setSegment(rig.stringBot, rot(rig.limbs.lo.tip, -th), nock);
-      if (rig.arrow) rig.arrow.position.set(0, 0, nock.z + 0.35);
+      // Los dedos de verdad: la izquierda ya abraza el riser (cierre fijado al equipar) y la
+      // derecha pasa de mano abierta a gancho apretado sobre la cuerda conforme la tensa.
+      requestHandGrip('R', { wrap: THREE.MathUtils.lerp(0.034, 0.0055, aim * (0.35 + 0.65 * pull)) });
+
+      const cL = armChain('L'), cR = armChain('R');
+      if (!cL || !cR) return;
+
+      AR_JOINTS.forEach(n => { const b = bonesMap[n]; if (b) _arQ(_arFrom, n).copy(b.quaternion); });
+
+      // 1. Estancia de arquero: el cuerpo se pone de costado para que los dos hombros y la
+      //    cara queden en el plano de tiro (así el anclaje cae en la mandíbula, no cruzado).
+      const pelvis = bonesMap.Pelvis, torso = bonesMap.Torso;
+      if (pelvis) pelvis.rotation.y = -AR_TURN * 0.38;
+      if (torso) torso.rotation.set(0.02, -AR_TURN * 0.62, 0);
+      if (bonesMap.Neck) bonesMap.Neck.rotation.set(0, AR_TURN * 0.30, 0);
+      if (bonesMap.Head) bonesMap.Head.rotation.set(-0.04, AR_TURN * 0.68, 0);
+      const frame = mannequinRoot || torso;
+      frame.updateWorldMatrix(true, false);
+      const aimW = AR_AIM_DIR.clone().transformDirection(frame.matrixWorld).normalize();
+
+      // 2. Brazo del arco: casi extendido hacia el objetivo, puño vertical
+      const reachL = handGripReach('L');
+      cL.sh.updateWorldMatrix(true, false);
+      const shLW = new THREE.Vector3().setFromMatrixPosition(cL.sh.matrixWorld);
+      const targetL = shLW.clone().addScaledVector(aimW, (cL.L1 + cL.L2 + reachL) * 0.985);
+      solveArmIK('L', targetL, reachL);
+      setElbowPole('L', AR_DOWN);          // codo del arco caído, fuera del paso de la cuerda
+      // El arco queda vertical y encarado al objetivo pase lo que pase con el codo
+      alignHandFrame('L', aimW.clone().negate(), AR_UP);
+
+      // 3. Punto de anclaje (pómulo del lado de la cuerda) y recorrido real de tensión
+      if (mannequinRoot) mannequinRoot.updateMatrixWorld(true);
+      rig.bow.updateWorldMatrix(true, false);
+      const bowO = new THREE.Vector3().setFromMatrixPosition(rig.bow.matrixWorld);
+      const shootW = new THREE.Vector3(0, 0, 1).transformDirection(rig.bow.matrixWorld).normalize();
+      const bowScale = new THREE.Vector3(); rig.bow.getWorldScale(bowScale);
+      const sc = Math.max(1e-4, bowScale.z);
+      let drawFull = 0.46;
+      const head = bonesMap.Head;
+      if (head) {
+        head.updateWorldMatrix(true, false);
+        const anchorW = new THREE.Vector3(-0.040, -0.052, 0.062).applyMatrix4(head.matrixWorld);
+        drawFull = THREE.MathUtils.clamp(anchorW.sub(bowO).dot(shootW) / sc * -1, 0.24, 0.80);
+      }
+      const drawLocal = AR_BRACE + drawFull * pull;
+
+      // 4. Mano de la cuerda: IK hasta el culatín, con el puño vertical para enganchar
+      const reachR = handGripReach('R');
+      const nockTargetW = rig.bow.localToWorld(new THREE.Vector3(0, 0, -drawLocal));
+      // Dos pasadas: la segunda corrige el desfase que deja el giro del brazo, de modo
+      // que los dedos acaban exactamente sobre el culatín.
+      const aimTarget = nockTargetW.clone();
+      for (let it = 0; it < 2; it++) {
+        solveArmIK('R', aimTarget, reachR);
+        setElbowPole('R', AR_UP);          // codo de la cuerda alto, en línea con la flecha
+        alignHandFrame('R', aimW.clone().negate(), AR_UP);
+        const hw = handGripWorld('R', _ikW);
+        if (!hw) break;
+        aimTarget.add(_ikV.copy(nockTargetW).sub(hw));
+      }
+
+      // 5. Mezcla con la pose de reposo según el peso de la animación
+      AR_JOINTS.forEach(n => {
+        const b = bonesMap[n];
+        if (!b) return;
+        _arQ(_arTo, n).copy(b.quaternion);
+        b.quaternion.copy(_arQ(_arFrom, n)).slerp(_arQ(_arTo, n), aim);
+      });
+      if (mannequinRoot) mannequinRoot.updateMatrixWorld(true);
+
+      // 6. La cuerda se clava en los dedos reales de la mano derecha
+      rig.bow.updateWorldMatrix(true, false);
+      const nock = new THREE.Vector3(0, 0, -drawLocal + vib);
+      const hookW = handGripWorld('R', _ikW);
+      if (hookW) {
+        const hookL = rig.bow.worldToLocal(hookW.clone());
+        // Sólo se deja arrastrar por la mano mientras hay tensión: así no se "estira"
+        // sola mientras el arquero levanta el arco.
+        const w = smooth01((aim - 0.55) / 0.45) * smooth01(pull / 0.12);
+        nock.lerp(new THREE.Vector3(hookL.x * 0.40, hookL.y * 0.40, Math.min(-AR_BRACE, hookL.z + vib)), w);
+      }
+      // Los limbos flexionan lo que marca el recorrido real de la cuerda
+      const bend = THREE.MathUtils.clamp((-nock.z - AR_BRACE) / 0.70, 0, 1.1) * 0.21;
+      wfBowSetString(rig, nock, bend);
+
+      // 7. La flecha descansa en la balda y su culatín va en la cuerda
+      if (rig.arrow) {
+        // Eje de la flecha: del culatín, por encima de la balda, hacia donde se dispara
+        const dir = AR_REST.clone().setZ(AR_REST.z + 0.55).sub(nock);
+        if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
+        dir.normalize();
+        rig.arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+        rig.arrow.position.copy(nock).addScaledVector(dir, 0.35);
+      }
     }
 
     const WF_BUILDERS = { espada: wfEspada, hacha: wfAxe, maza: wfMace, daga: wfDagger, lanza: wfLance, baculo: wfStaff, arco: wfBow };
@@ -9680,11 +10275,9 @@
       const M = { main: getPBRMaterial('primary', 'weapon'), trim: getPBRMaterial('trim', 'weapon'), glow: getGlowMaterial('weapon') };
       const root = new THREE.Group();
       WF_BUILDERS[L.fam](root, L.v, M);
-      if (hand === 'R') { root.position.set(0, -0.03, 0.02); root.rotation.x = Math.PI / 2; }
-      else { root.position.set(0, 0.0, 0.02); }
       group.add(root);
       group.userData.archery = root.userData.archery || null;
-      group.scale.setScalar(getNormalizedAttachmentScale(armorSockets[hand === 'R' ? 'weaponR' : 'shieldL']));
+      applyGripMount(group, hand, 'weapon', WF_GRIP_R[L.fam] ?? 0.017);
       return group;
     }
 
@@ -9740,7 +10333,7 @@
         swordBladeGeo.translate(0, 0.10, -0.008);
         sword.add(new THREE.Mesh(swordBladeGeo, mainMat));
         const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.50, 0.010), trimMat); fuller.position.set(0, 0.38, 0.012); sword.add(fuller);
-        sword.position.set(0, -0.03, 0.02); sword.rotation.x = Math.PI / 2; group.add(sword);
+        group.add(sword);
       } else if (typeIndex === 2) {
         // Mandoble Real con Gavilanes en V
         // Hoja larga biselada, gavilanes en V y runa luminosa en la acanaladura
@@ -9772,7 +10365,7 @@
         gsBladeGeo.translate(0, 0.15, -0.010);
         gs.add(new THREE.Mesh(gsBladeGeo, mainMat));
         const rune = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.64, 0.010), glowMat); rune.position.set(0, 0.55, 0.016); gs.add(rune);
-        gs.position.set(0, -0.04, 0.02); gs.rotation.x = Math.PI / 2; group.add(gs);
+        group.add(gs);
       } else if (typeIndex === 3) {
         // Martillo de Guerra de Comandante
         // Cabeza biselada con cara de impacto, púa lateral y gema facetada
@@ -9792,7 +10385,7 @@
         const spike = new THREE.Mesh(spikeGeo, trimMat);
         spike.rotation.z = Math.PI / 2; spike.position.set(-0.16, 0.58, 0); wh.add(spike);
         addFacetedJewel(wh, new THREE.Vector3(0, 0.58, 0.058), new THREE.Vector3(0, 0, 1), 0.026, glowMat, trimMat, glowMat, 6);
-        wh.position.set(0, -0.04, 0.02); wh.rotation.x = Math.PI / 2; wh.rotation.y = Math.PI / 2; group.add(wh);
+        wh.rotation.y = Math.PI / 2; group.add(wh);
       } else if (typeIndex === 4) {
         // Lanza / Alabarda de Guardián Élfico
         // Punta de hoja biselada con nervio central y collarín con gema facetada
@@ -9808,7 +10401,7 @@
         spear.add(new THREE.Mesh(tipGeo, mainMat));
         const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.30, 0.010), trimMat); ridge.position.set(0, 1.27, 0.014); spear.add(ridge);
         addFacetedJewel(spear, new THREE.Vector3(0, 1.10, 0.016), new THREE.Vector3(0, 0, 1), 0.024, glowMat, trimMat, glowMat, 6);
-        spear.position.set(0, -0.05, 0.02); spear.rotation.x = Math.PI / 2 - 0.12; group.add(spear);
+        spear.rotation.x = -0.12; group.add(spear);
       } else if (typeIndex === 5) {
         // Sable Dinástico Curvo con guarda en voluta y gema solar
         const sab = new THREE.Group();
@@ -9828,7 +10421,7 @@
         curvedShape.closePath();
         const curvedGeo = new THREE.ExtrudeGeometry(curvedShape, { depth: 0.014, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.003, bevelSegments: 2, curveSegments: 16 });
         curvedGeo.translate(0, 0, -0.007); sab.add(new THREE.Mesh(curvedGeo, mainMat));
-        sab.position.set(0, -0.03, 0.02); sab.rotation.x = Math.PI / 2; group.add(sab);
+        group.add(sab);
 
       } else if (typeIndex === 6) {
         // Hacha de Torre de doble filo con gema y pico inferior
@@ -9847,7 +10440,7 @@
         const topSpike = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 4), trimMat); topSpike.position.y = 1.02; ax.add(topSpike);
         const collarR = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01, 8, 16), trimMat); collarR.position.y = 0.66; ax.add(collarR);
         addFacetedJewel(ax, new THREE.Vector3(0, 0.72, 0.018), new THREE.Vector3(0, 0, 1), 0.022, glowMat, trimMat, glowMat, 6);
-        ax.position.set(0, -0.05, 0.02); ax.rotation.x = Math.PI / 2; group.add(ax);
+        group.add(ax);
 
       } else if (typeIndex === 7) {
         // Maza Estrellada con seis púas radiales y brida de refuerzo
@@ -9864,7 +10457,7 @@
         }
         addFacetedJewel(mz, new THREE.Vector3(0, 0.62, 0.09), new THREE.Vector3(0, 0, 1), 0.022, glowMat, trimMat, glowMat, 6);
         const pommelM = new THREE.Mesh(new THREE.SphereGeometry(0.028, 14, 10), trimMat); pommelM.position.y = -0.14; mz.add(pommelM);
-        mz.position.set(0, -0.04, 0.02); mz.rotation.x = Math.PI / 2; group.add(mz);
+        group.add(mz);
 
       } else if (typeIndex === 8) {
         // Estoque Élfico de hoja estrecha con guarda en cruz de aletas
@@ -9878,7 +10471,7 @@
         rapShape.lineTo(0.012, 0.80); rapShape.lineTo(0.018, 0.09); rapShape.closePath();
         const rapGeo = new THREE.ExtrudeGeometry(rapShape, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.002, bevelSegments: 2 });
         rapGeo.translate(0, 0, -0.004); rp.add(new THREE.Mesh(rapGeo, mainMat));
-        rp.position.set(0, -0.03, 0.02); rp.rotation.x = Math.PI / 2; group.add(rp);
+        group.add(rp);
 
       } else if (typeIndex === 9) {
         // Hoz Abismal de hoja curva sobre asta larga
@@ -9894,7 +10487,7 @@
         sickleGeo.translate(0, 0, -0.012); hz.add(new THREE.Mesh(sickleGeo, mainMat));
         const socket = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01, 8, 18), trimMat); socket.position.y = 0.96; hz.add(socket);
         addFacetedJewel(hz, new THREE.Vector3(0.10, 0.94, 0.016), new THREE.Vector3(0, 0, 1), 0.02, glowMat, trimMat, glowMat, 6);
-        hz.position.set(0, -0.04, 0.02); hz.rotation.x = Math.PI / 2; group.add(hz);
+        group.add(hz);
 
       } else if (typeIndex === 10) {
         // Cetro de Mando Solar con orbe radiante
@@ -9909,11 +10502,10 @@
           ray.rotation.z = -ang + Math.PI / 2; ct.add(ray);
         }
         const finial = new THREE.Mesh(new THREE.OctahedronGeometry(0.03), trimMat); finial.position.y = 1.16; ct.add(finial);
-        ct.position.set(0, -0.04, 0.02); ct.rotation.x = Math.PI / 2; group.add(ct);
+        group.add(ct);
       }
 
-      const s = getNormalizedAttachmentScale(armorSockets.weaponR);
-      group.scale.setScalar(s);
+      applyGripMount(group, 'R', 'weapon', 0.017);
       return group;
     }
 
@@ -10217,12 +10809,25 @@
         addFacetedJewel(shieldHolder, new THREE.Vector3(0, 0.0, 0.04), new THREE.Vector3(0, 0, 1), 0.026, glowMat, trimMat, glowMat, 6);
       }
 
-      shieldHolder.position.set(0.06, 0.0, 0.0);
-      shieldHolder.rotation.y = Math.PI / 2;
+      // Centrar la plancha sobre el puño: cada modelo se construye a una distancia distinta
+      // de su origen, así que se recoloca para que su dorso quede justo delante de la mano.
+      shieldHolder.updateMatrixWorld(true);
+      const shBox = new THREE.Box3().setFromObject(shieldHolder);
+      if (!shBox.isEmpty()) {
+        const shC = shBox.getCenter(new THREE.Vector3());
+        shieldHolder.position.set(-shC.x, -shC.y, -shBox.min.z + 0.014);
+      }
       group.add(shieldHolder);
-
-      const s = getNormalizedAttachmentScale(armorSockets.shieldL);
-      group.scale.setScalar(s);
+      // Asa (enarmes) que cruza el puño: la mano agarra el travesaño, no el aire
+      const gripBar = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.165, 14), WF_MATS.leather);
+      gripBar.position.set(0, 0, -0.052);    // el travesaño corre por el eje del puño
+      group.add(gripBar);
+      [-1, 1].forEach(sg => {               // enarmes que unen el travesaño con la plancha
+        const brace = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.018, 0.056), trimMat);
+        brace.position.set(0, sg * 0.070, -0.026);
+        group.add(brace);
+      });
+      applyGripMount(group, 'L', 'shield', 0.016);
       return group;
     }
 
@@ -10256,6 +10861,11 @@
       armorSockets.shieldL.add(sLeft);
       slotArmorMeshes.weapon = [wRight, sLeft];
       archeryRig = sLeft.userData.archery || null;
+      // Los dedos se cierran sobre lo que sostiene cada mano (y se relajan si va desarmada)
+      const LD = WEAPON_LOADOUT[STATE.equipment.weapon] || {};
+      setHandGripCurl('R', LD.hand === 'R' && wRight.userData.gripWrap ? { wrap: wRight.userData.gripWrap } : { curl: 0.12 });
+      setHandGripCurl('L', (LD.hand === 'L' || (LD.shield && LD.shield > 0)) && sLeft.userData.gripWrap
+        ? { wrap: sLeft.userData.gripWrap } : { curl: 0.12 });
       document.getElementById('label-weapon').textContent = ITEMS_DB.weapon[STATE.equipment.weapon].name;
 
       let count = 0;
@@ -15694,11 +16304,20 @@ function buildSculptedForearmGeometry(side, length, forearmFactor = 1.0, mDef = 
 
 /**
  * Construye una mano articulada procedural (Palma cerrada, 4 dedos segmentados y pulgar oponible)
+ * Cada pivote de falange queda nombrado y etiquetado con su curva de cierre (curlBase/curlGain)
+ * para que el puño pueda cerrarse en tiempo real alrededor del mango de un arma.
  */
 function buildHandGroup(side, skinMat, fistCurl = 0.12) {
   const dir = side === 'L' ? 1 : -1;
   const handGroup = new THREE.Group();
   handGroup.name = `hand_${side}`;
+  const curlJoints = [];
+  const addCurlJoint = (node, base, gain) => {
+    node.userData.curlBase = base;
+    node.userData.curlGain = gain;
+    node.rotation.z = base + gain * fistCurl;
+    curlJoints.push(node);
+  };
 
   // Palma esculpida (metacarpo) con extremos redondeados cerrados
   const palmProfile = [
@@ -15730,51 +16349,130 @@ function buildHandGroup(side, skinMat, fistCurl = 0.12) {
     { zOffset: -0.022, len: 0.046, r: 0.0062 },
   ];
 
-  fingerConfigs.forEach((f) => {
-    const fingerPivot = new THREE.Group();
-    fingerPivot.position.set(0, -0.068, f.zOffset);
-    fingerPivot.rotation.z = -dir * (0.08 + fistCurl * 0.92);
-
-    const phalanx1 = new THREE.Mesh(
-      new THREE.CapsuleGeometry(f.r, f.len * 0.45, 6, 12),
-      skinMat
-    );
-    phalanx1.position.y = -f.len * 0.24;
-    phalanx1.castShadow = true;
-    fingerPivot.add(phalanx1);
-
-    const distalPivot = new THREE.Group();
-    distalPivot.position.set(0, -f.len * 0.48, 0);
-    distalPivot.rotation.z = -dir * (0.10 + fistCurl * 1.05);
-
-    const phalanx2 = new THREE.Mesh(
-      new THREE.CapsuleGeometry(f.r * 0.85, f.len * 0.40, 6, 12),
-      skinMat
-    );
-    phalanx2.position.y = -f.len * 0.21;
-    phalanx2.castShadow = true;
-    distalPivot.add(phalanx2);
-
-    fingerPivot.add(distalPivot);
-    handGroup.add(fingerPivot);
+  // Tres falanges por dedo (proximal, media y distal): con dos no es posible envolver
+  // un mango, la punta siempre acababa cortando el cilindro.
+  const fingers = [];
+  fingerConfigs.forEach((f, fi) => {
+    const segs = [0.42, 0.33, 0.25].map(k => f.len * k);
+    const gains = [1.25, 0.95, 0.70];
+    const bases = [0.08, 0.10, 0.08];
+    let parent = handGroup, joints = [];
+    for (let k = 0; k < 3; k++) {
+      const pivot = new THREE.Group();
+      pivot.name = k === 0 ? `Hand_${side}_Finger${fi + 1}`
+                 : `Hand_${side}_Finger${fi + 1}_${k === 1 ? 'Mid' : 'Distal'}`;
+      pivot.position.set(0, k === 0 ? -0.068 : -segs[k - 1], k === 0 ? f.zOffset : 0);
+      addCurlJoint(pivot, -dir * bases[k], -dir * gains[k]);
+      const rr = f.r * (k === 0 ? 1.0 : k === 1 ? 0.90 : 0.80);
+      const ph = new THREE.Mesh(new THREE.CapsuleGeometry(rr, Math.max(0.004, segs[k] - rr * 1.5), 6, 12), skinMat);
+      ph.position.y = -segs[k] * 0.5;
+      ph.castShadow = true;
+      pivot.add(ph);
+      parent.add(pivot);
+      parent = pivot;
+      joints.push(pivot);
+    }
+    fingers.push({ joints, lens: segs, r: f.r });
   });
 
-  // Pulgar oponible en el borde radial anterior (+Z)
+  // Pulgar oponible en el borde radial anterior (+Z), con falange distal que cierra sobre el mango
   const thumbPivot = new THREE.Group();
+  thumbPivot.name = `Hand_${side}_Thumb`;
   thumbPivot.position.set(-dir * 0.008, -0.028, 0.032);
   thumbPivot.rotation.x = 0.48;
-  thumbPivot.rotation.z = -dir * (0.18 + fistCurl * 0.55);
+  addCurlJoint(thumbPivot, -dir * 0.20, -dir * 0.78);
 
   const thumbMesh = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.0082, 0.036, 6, 12),
+    new THREE.CapsuleGeometry(0.0082, 0.024, 6, 12),
     skinMat
   );
-  thumbMesh.position.y = -0.020;
+  thumbMesh.position.y = -0.016;
   thumbMesh.castShadow = true;
   thumbPivot.add(thumbMesh);
+
+  const thumbDistal = new THREE.Group();
+  thumbDistal.name = `Hand_${side}_Thumb_Distal`;
+  thumbDistal.position.set(0, -0.030, 0);
+  addCurlJoint(thumbDistal, -dir * 0.14, -dir * 0.62);
+  const thumbTip = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.0072, 0.020, 6, 12),
+    skinMat
+  );
+  thumbTip.position.y = -0.013;
+  thumbTip.castShadow = true;
+  thumbDistal.add(thumbTip);
+  thumbPivot.add(thumbDistal);
   handGroup.add(thumbPivot);
 
+  handGroup.userData.curlJoints = curlJoints;
+  handGroup.userData.fingers = fingers;
+  handGroup.userData.thumb = { pivot: thumbPivot, distal: thumbDistal };
+  handGroup.userData.restCurl = fistCurl;
+  handGroup.userData.currentCurl = fistCurl;
+  // Cara interna de la palma y altura de los nudillos: cualquier mango se apoya ahí,
+  // desplazado su propio radio, con el eje alineado con +Z local de la mano.
+  handGroup.userData.gripAnchor = { palmX: -dir * 0.021, palmHalf: 0.021, y: -0.068, z: 0.002, dir };
+
   return handGroup;
+}
+
+/**
+ * Cierra los dedos siguiendo el contorno de un mango cilíndrico de radio r (unidades
+ * locales de la mano) apoyado contra la cara interna de la palma: la falange proximal
+ * entra tangente y cada falange siguiente gira lo que marca su cuerda sobre el cilindro.
+ */
+function setHandWrap(side, r) {
+  const hand = getHandGroup(side);
+  if (!hand || !hand.userData.fingers) return false;
+  const a = hand.userData.gripAnchor;
+  const rad = Math.max(0.004, r);
+  hand.userData.fingers.forEach(f => {
+    const Rp = rad + f.r;                            // el eje del dedo rodea a radio mango + dedo
+    const d = a.palmHalf + rad;                      // nudillo -> eje del mango
+    // La falange proximal entra tangente al cilindro
+    const entry = Math.PI / 2 - Math.asin(THREE.MathUtils.clamp(Rp / Math.max(d, Rp * 1.02), 0, 1));
+    // Cada falange siguiente gira la mitad de la cuerda que abarca sobre el cilindro
+    const turn = f.lens.map(L => 2 * Math.asin(THREE.MathUtils.clamp(L / (2 * Rp), 0, 0.985)));
+    const local = [entry, turn[1] * 0.5, (turn[1] + turn[2]) * 0.5];
+    f.joints.forEach((j, k) => {
+      j.rotation.z = -a.dir * THREE.MathUtils.clamp(local[k], 0, 1.80);
+    });
+  });
+  const th = hand.userData.thumb;
+  if (th) {
+    const k = THREE.MathUtils.clamp(1 - (rad - 0.006) / 0.030, 0.2, 1);
+    th.pivot.rotation.z = -a.dir * (0.28 + 0.55 * k);
+    th.distal.rotation.z = -a.dir * (0.18 + 0.62 * k);
+  }
+  hand.userData.currentCurl = null;
+  return true;
+}
+
+/**
+ * Cierra (1) o abre (0) el puño en tiempo real sin reconstruir la mano.
+ * Las láminas del guantelete son hijas de cada falange, por lo que siguen la flexión.
+ */
+function setHandCurl(side, amount) {
+  const hand = getHandGroup(side);
+  if (!hand || !hand.userData.curlJoints) return false;
+  const a = THREE.MathUtils.clamp(amount, 0, 1);
+  hand.userData.curlJoints.forEach((j) => {
+    j.rotation.z = j.userData.curlBase + j.userData.curlGain * a;
+  });
+  hand.userData.currentCurl = a;
+  return true;
+}
+
+function getHandGroup(side) {
+  const wrist = rig[`wrist${side}`];
+  return wrist ? wrist.getObjectByName(`hand_${side}`) : null;
+}
+
+/** Punto y radio del mango en el espacio local de la mano (para encajar armas en el puño) */
+function getHandGripAnchor(side) {
+  const hand = getHandGroup(side);
+  if (!hand || !hand.userData.gripAnchor) return null;
+  return { hand, ...hand.userData.gripAnchor };
 }
 
 /**
@@ -18330,7 +19028,8 @@ function resetCharacter() {
         characterGroup, rig,
         rebuildCharacter, randomizeCharacter, randomizeArchetype, applyArchetype, resetCharacter,
         updateCharacterAnimation, applyPoseTransformations, alignCharacterToGround,
-        bakeAllGameAnimationClips, syncMaterialColors
+        bakeAllGameAnimationClips, syncMaterialColors,
+        setHandCurl, setHandWrap, getHandGroup, getHandGripAnchor
       };
     })(window.THREE);
 
@@ -18502,7 +19201,9 @@ function resetCharacter() {
       const delta = clock.getDelta();
       hairUniforms.uTime.value = clock.getElapsed();
       updateCharacterAnimation(delta);
+      updateHeldStance();
       updateArchery(delta);
+      applyHandGrip();
       controls.update();
       renderer.render(scene, camera);
     }
@@ -18519,6 +19220,19 @@ function resetCharacter() {
       }
     });
     window.setHairPresetColor = setHairPresetColor;
+
+    // Acceso de inspección/QA al estudio (encajar armas en el puño, revisar el tiro con arco)
+    window.__studio = {
+      STATE, ITEMS_DB, WEAPON_LOADOUT, bonesMap, armorSockets,
+      get mannequinRoot() { return mannequinRoot; },
+      get archeryRig() { return archeryRig; },
+      get camera() { return camera; },
+      get clock() { return clock; },
+      get controls() { return controls; },
+      get archeryTime() { return archeryT; },
+      setArcheryTime(t) { archeryT = t; archeryLastU = 0; },
+      updateWardrobePieces, applyHandGrip, getHandGripAnchor, handGripWorld
+    };
   </script>
 </body>
 </html>
