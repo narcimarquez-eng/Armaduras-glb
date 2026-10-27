@@ -3378,7 +3378,7 @@
           const d = p.clone().sub(centroid).projectOnPlane(nrm[k]);
           return d.lengthSq() > 1e-12 ? d.normalize() : new THREE.Vector3(0, 1, 0);
         });
-        const gap = R * 3.4;
+        const gap = R * 3.8;
         const outerPts = pts.map((p, k) => p.clone().addScaledVector(away[k], gap).addScaledVector(nrm[k], R * 0.45));
         const outerCurve = new THREE.CatmullRomCurve3(outerPts, true, 'centripetal');
         const outer = new THREE.Mesh(new THREE.TubeGeometry(outerCurve, segs, R * 0.55, 6, true), frameMat);
@@ -3388,14 +3388,14 @@
         // Engastes de diamante repartidos entre las dos molduras
         const midCurve = new THREE.CatmullRomCurve3(pts.map((p, k) => p.clone().addScaledVector(away[k], gap * 0.5).addScaledVector(nrm[k], R * 0.7)), true, 'centripetal');
         const perim = midCurve.getLength();
-        const count = Math.max(4, Math.min(18, Math.round(perim / (R * 7.5))));
+        const count = Math.max(6, Math.min(26, Math.round(perim / (R * 5.2))));
         const zAxis = new THREE.Vector3(0, 0, 1);
         for (let g = 0; g < count; g++) {
           const t = g / count;
           const p = midCurve.getPointAt(t);
           let best = 0, bd = Infinity;
           pts.forEach((q, k) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; best = k; } });
-          const gemMesh = new THREE.Mesh(new THREE.OctahedronGeometry(R * 1.05, 0), gemMat || frameMat);
+          const gemMesh = new THREE.Mesh(new THREE.OctahedronGeometry(R * 1.55, 0), gemMat || frameMat);
           gemMesh.quaternion.setFromUnitVectors(zAxis, nrm[best]);
           gemMesh.scale.set(1, 1, 0.55);
           gemMesh.position.copy(p);
