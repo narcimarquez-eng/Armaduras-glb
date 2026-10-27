@@ -897,6 +897,60 @@
       ]
     };
 
+    // ---------- Familias de armas: 10 variantes por familia ----------
+    const WEAPON_FAMILY_SPECS = [
+      { key: 'espada', hand: 'R', shield: true, icon: 'swords', variants: [
+        { name: 'Espada Ropera Élfica', short: 'Ropera' }, { name: 'Espada Larga de Caballero', short: 'Larga' },
+        { name: 'Montante de Dos Manos', short: 'Montante' }, { name: 'Falcata de Guerra', short: 'Falcata' },
+        { name: 'Cimitarra Dorada', short: 'Cimitarra' }, { name: 'Espada Bastarda Gótica', short: 'Bastarda' },
+        { name: 'Estoque de Torneo', short: 'Estoque T.' }, { name: 'Espada Flamígera Ondulada', short: 'Flamígera' },
+        { name: 'Claymore de Clan', short: 'Claymore' }, { name: 'Gladius Imperial', short: 'Gladius' } ] },
+      { key: 'hacha', hand: 'R', shield: true, icon: 'flame', variants: [
+        { name: 'Hacha de Guerra Lunar', short: 'Lunar' }, { name: 'Hacha de Torre de Doble Filo', short: 'Torre' },
+        { name: 'Hacha Vikinga de Filo Único', short: 'Vikinga' }, { name: 'Hacha Pico de Cuervo', short: 'Cuervo' },
+        { name: 'Hacha de Abordaje', short: 'Abordaje' }, { name: 'Alabarda Hacha de Luz', short: 'Luz' },
+        { name: 'Hacha Doble Gótica', short: 'Doble G.' }, { name: 'Tomahawk Espinado', short: 'Tomahawk' },
+        { name: 'Hacha de Verdugo', short: 'Verdugo' }, { name: 'Labrys Solar', short: 'Labrys' } ] },
+      { key: 'maza', hand: 'R', shield: true, icon: 'zap', variants: [
+        { name: 'Maza Estrellada', short: 'Estrella' }, { name: 'Maza de Pinchos', short: 'Pinchos' },
+        { name: 'Martillo de Guerra', short: 'Martillo' }, { name: 'Maza de Tres Cabezas', short: 'Triple' },
+        { name: 'Maza Flanjeada', short: 'Flanjeada' }, { name: 'Mangual de Cadena', short: 'Mangual' },
+        { name: 'Macuahuitl de Vidrio', short: 'Macuahuitl' }, { name: 'Maza Hexagonal', short: 'Hexagonal' },
+        { name: 'Porra Ceremonial', short: 'Porra' }, { name: 'Maza Cráneo Abisal', short: 'Cráneo' } ] },
+      { key: 'daga', hand: 'R', shield: true, icon: 'target', variants: [
+        { name: 'Daga Élfica', short: 'Élfica' }, { name: 'Kris Ondulado', short: 'Kris' },
+        { name: 'Daga de Asesino', short: 'Asesino' }, { name: 'Misericordia', short: 'Misericordia' },
+        { name: 'Cuchillo de Caza', short: 'Caza' }, { name: 'Daga Gótica de Dos Filos', short: 'Gótica' },
+        { name: 'Punzón de Mago', short: 'Punzón' }, { name: 'Daga Parada', short: 'Parada' },
+        { name: 'Daga Lunar', short: 'Lunar D.' }, { name: 'Daga de Cristal', short: 'Cristal' } ] },
+      { key: 'lanza', hand: 'R', shield: false, icon: 'star', variants: [
+        { name: 'Lanza de Caballería', short: 'Caballería' }, { name: 'Lanza Élfica de Hoja Larga', short: 'Élfica L.' },
+        { name: 'Alabarda de Guardián', short: 'Alabarda' }, { name: 'Pica de Falange', short: 'Falange' },
+        { name: 'Tridente Solar', short: 'Tridente' }, { name: 'Glaive de Luna', short: 'Glaive' },
+        { name: 'Lanza de Espino', short: 'Espino' }, { name: 'Partesana', short: 'Partesana' },
+        { name: 'Lanza Gótica de Púas', short: 'Gótica L.' }, { name: 'Bisarma Dorada', short: 'Bisarma' } ] },
+      { key: 'baculo', hand: 'R', shield: false, icon: 'crown', variants: [
+        { name: 'Báculo Solar', short: 'Solar' }, { name: 'Cetro Arcano de Cristal', short: 'Cristal' },
+        { name: 'Báculo Espiral Élfico', short: 'Espiral' }, { name: 'Bastón de Druida', short: 'Druida' },
+        { name: 'Báculo de Triple Orbe', short: 'Triorbe' }, { name: 'Vara de Runas', short: 'Runas' },
+        { name: 'Báculo Cráneo Abisal', short: 'Cráneo B.' }, { name: 'Báculo de Raíces', short: 'Raíces' },
+        { name: 'Cetro del Alba', short: 'Alba' }, { name: 'Báculo Lunar de Plata', short: 'Lunar B.' } ] },
+      { key: 'arco', hand: 'L', shield: false, icon: 'moon', variants: [
+        { name: 'Arco Largo Élfico', short: 'Élfico' }, { name: 'Arco Recurvo de Caballero', short: 'Recurvo' },
+        { name: 'Arco Compuesto Gótico', short: 'Compuesto' }, { name: 'Arco Reflejo Solar', short: 'Reflejo' },
+        { name: 'Arco de Caza', short: 'Caza A.' }, { name: 'Arco de Cristal', short: 'Cristal A.' },
+        { name: 'Arco Espinado', short: 'Espinado' }, { name: 'Arco de Raíces', short: 'Raíces A.' },
+        { name: 'Arco Lunar', short: 'Lunar A.' }, { name: 'Arco de Torneo', short: 'Torneo' } ] }
+    ];
+    // Índice de ITEMS_DB.weapon -> cómo se construye (las 11 entradas históricas se mantienen)
+    const WEAPON_LOADOUT = ITEMS_DB.weapon.map((_, i) => (i === 0
+      ? { legacy: true, hand: 'none', shield: 0 }
+      : { legacy: true, hand: 'R', shield: i }));
+    WEAPON_FAMILY_SPECS.forEach(spec => spec.variants.forEach((vr, v) => {
+      ITEMS_DB.weapon.push({ name: vr.name, shortName: vr.short, icon: spec.icon });
+      WEAPON_LOADOUT.push({ legacy: false, hand: spec.hand, fam: spec.key, v, shield: spec.shield ? (v % 10) + 1 : 0 });
+    }));
+
     const TEXTURE_PRESETS = [
       // === CATEGORÍA 1: PALADÍN & ORDEN SAGRADA (1 - 7) ===
       { id: 'dynasty_celestial_rose',  category: 'paladin', name: '01. Dinastía Celestial (Nácar & Oro Rosa)',    primary: '#f8fafc', secondary: '#f43f5e', cloth: '#064e3b', glow: '#f43f5e', metalness: 0.90, roughness: 0.18, texture: 'dynasty_celestial_rose',  bump: 0.85, tiling: 1.0, pattern: 'dynasty_celestial_rose' },
@@ -9240,7 +9294,276 @@
       return targetScale / Math.max(0.0001, worldScale.x);
     }
 
-    function buildWeaponRight(typeIndex) {
+    function wfExtrude(shape, depth, bevel = 0.004) {
+      const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel * 0.8, bevelSegments: 2, curveSegments: 10 });
+      geo.translate(0, 0, -depth / 2);
+      return geo;
+    }
+    // Hoja parametrizada: anchura w0 que se estrecha (taper), curvatura lateral (curve) y ondulación (wave)
+    function wfBladeGeo(p) {
+      const N = 14, shp = new THREE.Shape(), Lft = [], Rgt = [];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        const y = 0.10 + p.len * t;
+        const w = p.w0 * (1 - p.taper * t) * Math.pow(1 - t, 0.55);
+        const cx = p.curve * t * t + p.wave * Math.sin(t * Math.PI * 4) * t;
+        Lft.push([cx - w, y]); Rgt.push([cx + w, y]);
+      }
+      shp.moveTo(Lft[0][0], Lft[0][1]);
+      for (let i = 1; i <= N; i++) shp.lineTo(Lft[i][0], Lft[i][1]);
+      for (let i = N; i >= 0; i--) shp.lineTo(Rgt[i][0], Rgt[i][1]);
+      shp.closePath();
+      return wfExtrude(shp, 0.014);
+    }
+    function wfGuard(kind, w, g, M, y) {
+      if (kind === 'none') return;
+      if (kind === 'bar') { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.018, 0.024), M.trim); m.position.y = y; g.add(m); return; }
+      if (kind === 'ring') { const t = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.008, 8, 20), M.trim); t.rotation.x = Math.PI / 2; t.position.y = y; g.add(t); return; }
+      if (kind === 'cross') {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, 0.024), M.trim); m.position.y = y; g.add(m);
+        [-1, 1].forEach(sg => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), M.trim); b.position.set(sg * w / 2, y, 0); g.add(b); });
+        return;
+      }
+      const sh = new THREE.Shape();
+      if (kind === 'wing') {
+        const k = w / 0.22;
+        sh.moveTo(-0.11 * k, -0.012); sh.lineTo(0.11 * k, -0.012);
+        sh.quadraticCurveTo(0.14 * k, -0.005, 0.125 * k, 0.032); sh.quadraticCurveTo(0.10 * k, 0.012, 0.0, 0.014);
+        sh.quadraticCurveTo(-0.10 * k, 0.012, -0.125 * k, 0.032); sh.quadraticCurveTo(-0.14 * k, -0.005, -0.11 * k, -0.012);
+      } else { // down: gavilanes en V
+        const k = w / 0.34;
+        sh.moveTo(-0.12 * k, -0.016); sh.lineTo(0.12 * k, -0.016);
+        sh.quadraticCurveTo(0.15 * k, -0.024, 0.17 * k, -0.048); sh.quadraticCurveTo(0.13 * k, -0.010, 0.0, 0.016);
+        sh.quadraticCurveTo(-0.13 * k, -0.010, -0.17 * k, -0.048); sh.quadraticCurveTo(-0.15 * k, -0.024, -0.12 * k, -0.016);
+      }
+      const geo = wfExtrude(sh, 0.024, 0.005); geo.translate(0, y, 0);
+      g.add(new THREE.Mesh(geo, M.trim));
+    }
+    function wfPommel(kind, g, M, y) {
+      if (kind === 'ball') { const m = new THREE.Mesh(new THREE.SphereGeometry(0.03, 14, 10), M.trim); m.position.y = y; g.add(m); }
+      else if (kind === 'spike') { const m = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.10, 6), M.trim); m.rotation.x = Math.PI; m.position.y = y - 0.04; g.add(m); }
+      else { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.026), M.trim); m.position.y = y; g.add(m); }
+    }
+    // Forma de cabeza de lanza, origen en la base (y = 0), altura ~ h
+    function wfLanceShape(kind) {
+      const s = new THREE.Shape();
+      if (kind === 'lozenge') { s.moveTo(0, 0); s.lineTo(0.04, 0.14); s.lineTo(0, 0.32); s.lineTo(-0.04, 0.14); s.closePath(); }
+      else if (kind === 'spade') { s.moveTo(0, 0); s.quadraticCurveTo(0.07, 0.12, 0.02, 0.22); s.lineTo(0, 0.34); s.lineTo(-0.02, 0.22); s.quadraticCurveTo(-0.07, 0.12, 0, 0); }
+      else if (kind === 'glaive') { s.moveTo(0, 0); s.bezierCurveTo(0.14, 0.08, 0.16, 0.30, 0.02, 0.40); s.lineTo(0.0, 0.34); s.bezierCurveTo(0.08, 0.24, 0.08, 0.12, 0, 0.02); }
+      else if (kind === 'trident') { s.moveTo(-0.05, 0.10); s.lineTo(-0.05, 0.30); s.lineTo(-0.03, 0.32); s.lineTo(-0.02, 0.20); s.lineTo(0, 0.34); s.lineTo(0.02, 0.20); s.lineTo(0.03, 0.32); s.lineTo(0.05, 0.30); s.lineTo(0.05, 0.10); s.closePath(); }
+      else if (kind === 'fork') { s.moveTo(-0.05, 0.10); s.lineTo(-0.05, 0.30); s.lineTo(-0.02, 0.34); s.lineTo(0.0, 0.22); s.lineTo(0.02, 0.34); s.lineTo(0.05, 0.30); s.lineTo(0.05, 0.10); s.closePath(); }
+      else if (kind === 'bearded') { s.moveTo(0, 0); s.quadraticCurveTo(0.05, 0.14, 0.02, 0.26); s.quadraticCurveTo(0.12, 0.20, 0.10, 0.10); s.lineTo(0.03, 0.04); s.lineTo(0.0, 0.28); s.lineTo(-0.02, 0.26); s.quadraticCurveTo(-0.04, 0.14, 0, 0); }
+      else if (kind === 'tri') { s.moveTo(0, 0.34); s.lineTo(0.05, 0.0); s.lineTo(-0.05, 0.0); s.closePath(); }
+      else if (kind === 'pike') { s.moveTo(0, 0); s.quadraticCurveTo(0.025, 0.25, 0, 0.50); s.quadraticCurveTo(-0.025, 0.25, 0, 0); }
+      else { s.moveTo(0, 0); s.bezierCurveTo(0.052, 0.09, 0.046, 0.24, 0, 0.36); s.bezierCurveTo(-0.046, 0.24, -0.052, 0.09, 0, 0); }
+      return s;
+    }
+
+    const WF_SWORD = [
+      { len: 0.78, w0: 0.024, taper: 0.55, curve: 0, wave: 0, guard: 'bar', gw: 0.20, pom: 'oct', fuller: true },
+      { len: 0.82, w0: 0.032, taper: 0.35, curve: 0, wave: 0, guard: 'wing', gw: 0.24, pom: 'ball', fuller: true },
+      { len: 1.05, w0: 0.040, taper: 0.25, curve: 0, wave: 0, guard: 'down', gw: 0.30, pom: 'oct', fuller: true },
+      { len: 0.74, w0: 0.034, taper: 0.75, curve: 0.06, wave: 0, guard: 'bar', gw: 0.18, pom: 'ball', fuller: false },
+      { len: 0.80, w0: 0.030, taper: 0.60, curve: 0.10, wave: 0, guard: 'wing', gw: 0.22, pom: 'oct', fuller: false },
+      { len: 0.84, w0: 0.030, taper: 0.30, curve: 0, wave: 0, guard: 'cross', gw: 0.24, pom: 'spike', fuller: true },
+      { len: 0.90, w0: 0.016, taper: 0.85, curve: 0, wave: 0, guard: 'bar', gw: 0.12, pom: 'oct', fuller: false },
+      { len: 0.82, w0: 0.030, taper: 0.30, curve: 0, wave: 0.012, guard: 'wing', gw: 0.22, pom: 'oct', fuller: false },
+      { len: 0.86, w0: 0.032, taper: 0.40, curve: 0, wave: 0, guard: 'ring', gw: 0.20, pom: 'ball', fuller: true },
+      { len: 0.76, w0: 0.028, taper: 0.45, curve: 0, wave: 0, guard: 'cross', gw: 0.20, pom: 'oct', fuller: true }
+    ];
+    function wfEspada(g, v, M) {
+      const p = WF_SWORD[v];
+      g.add(new THREE.Mesh(wfBladeGeo(p), M.main));
+      wfGuard(p.guard, p.gw, g, M, 0.095);
+      wfPommel(p.pom, g, M, -0.11);
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.18, 14), M.trim); g.add(grip);
+      if (p.fuller) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.008, p.len * 0.6, 0.008), M.trim); f.position.set(0, 0.10 + p.len * 0.45, 0.012); g.add(f); }
+      addFacetedJewel(g, new THREE.Vector3(0, 0.095, 0.014), new THREE.Vector3(0, 0, 1), 0.02, M.glow, M.trim, M.glow, 6);
+    }
+
+    const WF_AXE = ['crescent', 'square', 'double', 'spike', 'lunate', 'hook', 'pick', 'fork', 'twin', 'solar'];
+    function wfAxeShape(kind) {
+      const s = new THREE.Shape();
+      if (kind === 'square' || kind === 'twin') { s.moveTo(0.02, 0.58); s.lineTo(0.22, 0.58); s.lineTo(0.22, 0.90); s.lineTo(0.02, 0.90); s.closePath(); }
+      else if (kind === 'spike') { s.moveTo(0.02, 0.62); s.lineTo(0.26, 0.74); s.lineTo(0.02, 0.86); s.closePath(); }
+      else if (kind === 'lunate') { s.moveTo(0.02, 0.50); s.quadraticCurveTo(0.32, 0.74, 0.02, 0.98); s.closePath(); }
+      else if (kind === 'hook') { s.moveTo(0.02, 0.56); s.quadraticCurveTo(0.24, 0.50, 0.20, 0.74); s.quadraticCurveTo(0.14, 0.62, 0.02, 0.70); s.closePath(); }
+      else if (kind === 'fork') { s.moveTo(0.02, 0.56); s.lineTo(0.22, 0.52); s.lineTo(0.22, 0.92); s.lineTo(0.02, 0.92); s.lineTo(0.02, 0.82); s.lineTo(0.12, 0.78); s.lineTo(0.02, 0.70); s.closePath(); }
+      else { s.moveTo(0.02, 0.56); s.quadraticCurveTo(0.20, 0.52, 0.22, 0.72); s.quadraticCurveTo(0.20, 0.92, 0.02, 0.88); s.closePath(); }
+      return s;
+    }
+    function wfAxe(g, v, M) {
+      const kind = WF_AXE[v];
+      const haft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.014, 1.02, 14), M.trim); haft.position.y = 0.39; g.add(haft);
+      const butt = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.10, 8), M.trim); butt.rotation.x = Math.PI; butt.position.y = -0.12; g.add(butt);
+      // La cabeza se gira alrededor del mango: el filo sube/baja y el grosor queda de lado, como un hacha real
+      const hd = new THREE.Group(); hd.rotation.y = Math.PI / 2; hd.scale.setScalar(0.65); hd.position.y = 0.72 * (1 - 0.65); g.add(hd);
+      hd.add(new THREE.Mesh(wfExtrude(wfAxeShape(kind), 0.05, 0.007), M.main));
+      if (kind === 'double' || kind === 'twin') { const h2 = new THREE.Mesh(wfExtrude(wfAxeShape(kind), 0.05, 0.007), M.main); h2.scale.x = -1; hd.add(h2); }
+      if (kind === 'pick') { const back = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 4), M.trim); back.rotation.z = Math.PI / 2; back.position.set(-0.12, 0.72, 0); hd.add(back); }
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.14, 4), M.trim); tip.position.y = 1.02; g.add(tip);
+      addFacetedJewel(hd, new THREE.Vector3(0.10, 0.72, 0.026), new THREE.Vector3(0, 0, 1), kind === 'solar' ? 0.032 : 0.022, M.glow, M.trim, M.glow, 6);
+    }
+
+    const WF_MACE = ['spiked', 'flanged', 'star', 'hammer', 'hex', 'skull', 'flail', 'triple', 'ring', 'cone'];
+    function wfMace(g, v, M) {
+      const kind = WF_MACE[v];
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.72, 14), M.trim); shaft.position.y = 0.22; g.add(shaft);
+      const headY = 0.62;
+      const radial = (count, radius, geo, mat, y) => {
+        for (let k = 0; k < count; k++) {
+          const a = (k / count) * Math.PI * 2;
+          const m = new THREE.Mesh(geo, mat);
+          m.position.set(Math.cos(a) * radius, y, Math.sin(a) * radius);
+          m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
+          g.add(m);
+        }
+      };
+      if (kind === 'spiked' || kind === 'ring' || kind === 'cone') {
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.085, 20, 16), M.main); ball.position.y = headY; g.add(ball);
+        radial(kind === 'cone' ? 4 : 8, 0.12, new THREE.ConeGeometry(0.03, 0.13, 6), M.trim, headY);
+        if (kind === 'ring') { const r = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.016, 8, 28), M.trim); r.rotation.x = Math.PI / 2; r.position.y = headY; g.add(r); }
+      } else if (kind === 'flanged') {
+        const ball = new THREE.Mesh(new THREE.SphereGeometry(0.07, 18, 14), M.main); ball.position.y = headY; g.add(ball);
+        radial(6, 0.07, new THREE.BoxGeometry(0.02, 0.2, 0.05), M.main, headY);
+      } else if (kind === 'star') {
+        const st = new THREE.Shape();
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2, r = i % 2 ? 0.06 : 0.12;
+          if (i === 0) st.moveTo(Math.cos(a) * r, Math.sin(a) * r); else st.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        st.closePath();
+        const sm = new THREE.Mesh(wfExtrude(st, 0.08, 0.008), M.main); sm.position.y = headY; sm.rotation.x = Math.PI / 2; g.add(sm);
+      } else if (kind === 'hammer') {
+        const hb = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.11, 0.10), M.main); hb.position.y = headY; g.add(hb);
+        const band = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.026, 0.11), M.trim); band.position.y = headY; g.add(band);
+      } else if (kind === 'hex') {
+        const hx = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.16, 6), M.main); hx.position.y = headY; hx.rotation.y = Math.PI / 6; g.add(hx);
+      } else if (kind === 'skull') {
+        const sk = new THREE.Mesh(new THREE.SphereGeometry(0.085, 18, 14), M.main); sk.position.y = headY; g.add(sk);
+        const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.05, 0.08), M.main); jaw.position.set(0, headY - 0.07, 0.01); g.add(jaw);
+        [-1, 1].forEach(sg => { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), M.glow); eye.position.set(sg * 0.035, headY + 0.01, 0.08); g.add(eye); });
+      } else if (kind === 'flail') {
+        const fb = new THREE.Mesh(new THREE.SphereGeometry(0.075, 18, 14), M.main); fb.position.set(0.14, 0.78, 0); g.add(fb);
+        for (let k = 1; k <= 3; k++) { const link = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.006, 6, 12), M.trim); link.position.set(0.05 * k, 0.58 + 0.07 * k, 0); link.rotation.y = k; g.add(link); }
+      } else if (kind === 'triple') {
+        radial(3, 0.09, new THREE.SphereGeometry(0.05, 14, 10), M.main, headY);
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), M.glow); core.position.y = headY; g.add(core);
+      }
+      addFacetedJewel(g, new THREE.Vector3(0, headY, 0.09), new THREE.Vector3(0, 0, 1), 0.02, M.glow, M.trim, M.glow, 6);
+      const pm = new THREE.Mesh(new THREE.SphereGeometry(0.028, 14, 10), M.trim); pm.position.y = -0.14; g.add(pm);
+    }
+
+    const WF_DAGGER = [
+      { len: 0.34, w0: 0.022, taper: 0.80, curve: 0, wave: 0, guard: 'bar', gw: 0.14, pom: 'oct' },
+      { len: 0.36, w0: 0.024, taper: 0.90, curve: 0, wave: 0.008, guard: 'bar', gw: 0.16, pom: 'ball' },
+      { len: 0.32, w0: 0.030, taper: 0.50, curve: 0, wave: 0, guard: 'wing', gw: 0.18, pom: 'oct' },
+      { len: 0.30, w0: 0.026, taper: 1.00, curve: 0, wave: 0, guard: 'ring', gw: 0.14, pom: 'ball' },
+      { len: 0.28, w0: 0.030, taper: 0.70, curve: 0, wave: 0, guard: 'none', gw: 0, pom: 'oct' },
+      { len: 0.36, w0: 0.028, taper: 0.60, curve: 0.02, wave: 0, guard: 'down', gw: 0.20, pom: 'oct' },
+      { len: 0.22, w0: 0.018, taper: 0.90, curve: 0, wave: 0, guard: 'cross', gw: 0.12, pom: 'spike' },
+      { len: 0.34, w0: 0.022, taper: 0.60, curve: 0, wave: 0, guard: 'wing', gw: 0.16, pom: 'ball' },
+      { len: 0.36, w0: 0.026, taper: 0.70, curve: -0.03, wave: 0, guard: 'bar', gw: 0.16, pom: 'oct' },
+      { len: 0.34, w0: 0.024, taper: 0.80, curve: 0, wave: 0, guard: 'ring', gw: 0.16, pom: 'oct' }
+    ];
+    function wfDagger(g, v, M) {
+      const p = WF_DAGGER[v];
+      g.add(new THREE.Mesh(wfBladeGeo(p), M.main));
+      wfGuard(p.guard, p.gw, g, M, 0.095);
+      wfPommel(p.pom, g, M, -0.07);
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.013, 0.10, 12), M.trim); grip.position.y = -0.02; g.add(grip);
+      addFacetedJewel(g, new THREE.Vector3(0, 0.095, 0.014), new THREE.Vector3(0, 0, 1), 0.016, M.glow, M.trim, M.glow, 6);
+    }
+
+    const WF_LANCE = ['leaf', 'lozenge', 'spade', 'glaive', 'trident', 'fork', 'bearded', 'tri', 'pike', 'leaf'];
+    function wfLance(g, v, M) {
+      const kind = WF_LANCE[v];
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.013, 1.38, 16), M.trim); rod.position.y = 0.40; g.add(rod);
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.020, 0.08, 16), M.trim); collar.position.y = 1.06; g.add(collar);
+      const scale = kind === 'pike' ? 1.0 : 1.0;
+      const tipGeo = wfExtrude(wfLanceShape(kind), 0.018, 0.005);
+      const tip = new THREE.Mesh(tipGeo, M.main); tip.position.y = 1.10; tip.scale.setScalar(scale); g.add(tip);
+      if (kind === 'leaf' || kind === 'pike') { const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.30, 0.010), M.trim); ridge.position.set(0, 1.27, 0.014); g.add(ridge); }
+      addFacetedJewel(g, new THREE.Vector3(0, 1.10, 0.016), new THREE.Vector3(0, 0, 1), 0.024, M.glow, M.trim, M.glow, 6);
+    }
+
+    const WF_STAFF = ['orb', 'crystal', 'spiral', 'crescent', 'leaf', 'triple', 'skull', 'roots', 'sunring', 'thorn'];
+    function wfStaff(g, v, M) {
+      const kind = WF_STAFF[v];
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.016, 1.30, 16), M.trim); shaft.position.y = 0.45; g.add(shaft);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.10, 8), M.trim); cap.rotation.x = Math.PI; cap.position.y = -0.18; g.add(cap);
+      const hy = 1.12;
+      if (kind === 'orb') { const o = new THREE.Mesh(new THREE.SphereGeometry(0.085, 24, 18), M.glow); o.position.y = hy; g.add(o); }
+      else if (kind === 'crystal') { const c = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), M.glow); c.scale.y = 1.8; c.position.y = hy; g.add(c); }
+      else if (kind === 'spiral') {
+        const pts = [];
+        for (let i = 0; i <= 40; i++) pts.push(new THREE.Vector3(Math.cos(i * 0.5) * 0.06, hy - 0.10 + i * 0.005, Math.sin(i * 0.5) * 0.06));
+        const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.012, 8, false), M.trim); g.add(coil);
+        const gemS = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 10), M.glow); gemS.position.y = hy + 0.12; g.add(gemS);
+      } else if (kind === 'crescent') { const a = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.014, 8, 24, Math.PI), M.trim); a.position.y = hy; a.rotation.z = Math.PI; g.add(a); }
+      else if (kind === 'leaf') { const lf = new THREE.Mesh(wfExtrude(wfLanceShape('leaf'), 0.02, 0.005), M.main); lf.scale.setScalar(1.3); lf.position.y = hy - 0.18; g.add(lf); }
+      else if (kind === 'triple') {
+        const core = new THREE.Mesh(new THREE.SphereGeometry(0.05, 14, 10), M.glow); core.position.y = hy; g.add(core);
+        for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2; const o = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), M.main); o.position.set(Math.cos(a) * 0.09, hy, Math.sin(a) * 0.09); g.add(o); }
+      } else if (kind === 'skull') {
+        const sk = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), M.main); sk.position.y = hy; g.add(sk);
+        [-1, 1].forEach(sg => { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), M.glow); eye.position.set(sg * 0.03, hy + 0.01, 0.06); g.add(eye); });
+      } else if (kind === 'roots') {
+        for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; const r = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.22, 6), M.trim); r.position.set(Math.cos(a) * 0.06, hy - 0.04, Math.sin(a) * 0.06); r.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(Math.cos(a) * 0.6, 0.8, Math.sin(a) * 0.6).normalize()); g.add(r); }
+      } else if (kind === 'sunring') {
+        const sr = new THREE.Mesh(new THREE.TorusGeometry(0.10, 0.012, 8, 32), M.trim); sr.rotation.x = Math.PI / 2; sr.position.y = hy; g.add(sr);
+        const sc = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 10), M.glow); sc.position.y = hy; g.add(sc);
+      } else { const th = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.30, 6), M.main); th.position.y = hy + 0.05; g.add(th); }
+      addFacetedJewel(g, new THREE.Vector3(0, hy - 0.22, 0.02), new THREE.Vector3(0, 0, 1), 0.018, M.glow, M.trim, M.glow, 6);
+    }
+
+    const WF_BOW = [
+      { h: 0.72, c: -0.10, r: 0.012 }, { h: 0.85, c: 0.08, r: 0.011 }, { h: 0.66, c: 0.14, r: 0.016 },
+      { h: 0.70, c: -0.06, r: 0.013 }, { h: 0.60, c: 0.06, r: 0.014 }, { h: 0.70, c: 0.10, r: 0.013 },
+      { h: 0.74, c: 0.05, r: 0.015 }, { h: 0.80, c: 0.02, r: 0.018 }, { h: 0.76, c: 0.12, r: 0.012 }, { h: 0.68, c: 0.06, r: 0.020 }
+    ];
+    function wfBow(g, v, M) {
+      const p = WF_BOW[v];
+      [1, -1].forEach(sg => {
+        const pts = [];
+        for (let i = 0; i <= 4; i++) { const t = i / 4; pts.push(new THREE.Vector3(p.c * Math.pow(t, 1.5), sg * t * p.h, 0)); }
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, p.r * 1.8, 10, false), M.main));
+      });
+      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.16, 12), M.trim); g.add(grip);
+      const str = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, p.h * 2, 6), M.glow);
+      str.position.set(p.c, 0, -0.02); g.add(str);
+      addFacetedJewel(g, new THREE.Vector3(0, 0, 0.03), new THREE.Vector3(0, 0, 1), 0.02, M.glow, M.trim, M.glow, 6);
+    }
+
+    const WF_BUILDERS = { espada: wfEspada, hacha: wfAxe, maza: wfMace, daga: wfDagger, lanza: wfLance, baculo: wfStaff, arco: wfBow };
+
+    function buildFamilyModel(L, hand) {
+      const group = new THREE.Group();
+      currentBuildingSlot = 'weapon';
+      const M = { main: getPBRMaterial('primary', 'weapon'), trim: getPBRMaterial('trim', 'weapon'), glow: getGlowMaterial('weapon') };
+      const root = new THREE.Group();
+      WF_BUILDERS[L.fam](root, L.v, M);
+      if (hand === 'R') { root.position.set(0, -0.03, 0.02); root.rotation.x = Math.PI / 2; }
+      else { root.position.set(0, 0.0, 0.02); }
+      group.add(root);
+      group.scale.setScalar(getNormalizedAttachmentScale(armorSockets[hand === 'R' ? 'weaponR' : 'shieldL']));
+      return group;
+    }
+
+    function buildWeaponRight(idx) {
+      const L = WEAPON_LOADOUT[idx];
+      if (!L || L.hand !== 'R') return new THREE.Group();
+      return L.legacy ? buildWeaponModel(idx) : buildFamilyModel(L, 'R');
+    }
+    function buildShieldLeft(idx) {
+      const L = WEAPON_LOADOUT[idx];
+      if (!L || L.hand === 'none') return new THREE.Group();
+      if (!L.legacy && L.hand === 'L') return buildFamilyModel(L, 'L');
+      const shieldId = L.legacy ? idx : L.shield;
+      return shieldId ? buildShieldModel(shieldId) : new THREE.Group();
+    }
+
+    function buildWeaponModel(typeIndex) {
       const group = new THREE.Group();
       if (typeIndex === 0) return group;
       currentBuildingSlot = 'weapon';
@@ -9456,7 +9779,7 @@
       return group;
     }
 
-    function buildShieldLeft(typeIndex) {
+    function buildShieldModel(typeIndex) {
       const group = new THREE.Group();
       if (typeIndex === 0) return group;
       currentBuildingSlot = 'weapon';
