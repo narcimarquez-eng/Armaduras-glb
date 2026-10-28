@@ -17971,7 +17971,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.pelvisRot = [0, -0.26 * wind + 0.40 * hit, 0];
         state.torsoRot = [0.06 + 0.16 * hit, -0.34 * wind + 0.52 * hit, 0];
         state.head = [-0.06, -0.18 * wind + 0.26 * hit, 0];
-        state.shoulderR = [-0.95 * wind + 1.25 * hit, -0.26 * wind + 0.16 * hit, -0.95 * wind - 0.58 * hit];
+        state.shoulderR = [-0.95 * wind + 0.95 * hit, -0.26 * wind + 0.16 * hit, -0.95 * wind - 0.58 * hit];
         state.elbowR = [-0.72 * wind + 0.72 * hit, 0, 0];
         state.shoulderL = GUARD_L; state.elbowL = GUARD_EL;
         state.hipL = [-0.14, 0, 0.10]; state.hipR = [0.10 - 0.22 * hit, 0, -0.10];
@@ -17986,8 +17986,8 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.torsoRot = [0.08, 0.52 - 0.52 * wind - 0.46 * hit, 0];
         state.head = [-0.06, 0.26 - 0.24 * wind - 0.22 * hit, 0];
         // Arranca recogido junto al hombro contrario y barre hasta abrirse del todo
-        state.shoulderR = [0.30 - 0.26 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.28 * hit, -1.53 + 1.25 * wind - 1.42 * hit];
-        state.elbowR = [-1.05 * wind + 1.05 * hit, 0, 0];
+        state.shoulderR = [0.30 - 0.26 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.28 * hit, -1.53 + 0.62 * wind - 0.79 * hit];
+        state.elbowR = [-0.60 * wind + 0.60 * hit, 0, 0];
         state.shoulderL = GUARD_L; state.elbowL = GUARD_EL;
         state.hipL = [-0.12 + 0.10 * hit, 0, 0.10]; state.hipR = [0.06 - 0.10 * hit, 0, -0.10];
         state.kneeL = [0.24, 0, 0]; state.kneeR = [0.24, 0, 0];
@@ -18428,7 +18428,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.torsoRot = [0.05 + 0.12 * t, -0.42 + 0.70 * t, 0];
         state.head = [0.06 * t, 0.26 - 0.32 * t, 0];
         // Hombro cerca de cero y codo a cero: es lo que proyecta la punta al frente
-        state.shoulderR = [0.38 - 0.34 * t, 0.20 - 0.28 * t, -0.38 - 1.16 * t];
+        state.shoulderR = [0.38 - 0.78 * t, 0.20 - 0.28 * t, -0.38 - 1.16 * t];
         state.elbowR = [-1.70 + 1.70 * t, 0, 0];
         state.shoulderL = [-0.30 - 0.10 * t, 0.18, 0.68 + 0.42 * t];
         state.elbowL = [-0.95 - 0.30 * t, 0, 0];
@@ -18441,7 +18441,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.pelvisRot = [0, 0.28, 0];
         state.torsoRot = [0.17, 0.28, 0];
         state.head = [0.06, -0.06, 0];
-        state.shoulderR = [0.04, -0.08, -1.54];
+        state.shoulderR = [-0.40, -0.08, -1.54];
         state.elbowR = [0, 0, 0];
         state.shoulderL = [-0.40, 0.18, 1.10];
         state.elbowL = [-1.25, 0, 0];
@@ -18456,7 +18456,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.pelvisRot = [0, 0.28 * hold, 0];
         state.torsoRot = [0.17 * hold, 0.28 * hold, 0];
         state.head = [0.06 * hold, -0.06 * hold, 0];
-        state.shoulderR = [0.04 * hold - 0.05 * (1 - hold), -0.08 * hold, -1.54 * hold - 0.30 * (1 - hold)];
+        state.shoulderR = [-0.40 * hold - 0.05 * (1 - hold), -0.08 * hold, -1.54 * hold - 0.30 * (1 - hold)];
         state.elbowR = [-0.28 * (1 - hold), 0, 0];
         state.shoulderL = [-0.40 * hold, 0.18 * hold, 1.10 * hold + 0.30 * (1 - hold)];
         state.elbowL = [-1.25 * hold - 0.28 * (1 - hold), 0, 0];
