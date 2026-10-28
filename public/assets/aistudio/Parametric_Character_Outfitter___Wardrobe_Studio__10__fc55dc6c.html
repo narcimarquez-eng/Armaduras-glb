@@ -10337,6 +10337,17 @@
     const ARROWS_IN_FLIGHT = [];
     const ARROW_TRAILS = [];
     let archeryRig = null;
+    let aerialAnimU = null;    // fase de 'aerial_shot' publicada por el motor
+    let aerialLastU = 0;
+
+    // Reparte el ciclo del tiro a lo largo del salto: tensa al subir, mantiene
+    // en la suspensión, suelta arriba y relaja durante la caída
+    function aerialArcheryU(au) {
+      if (au < 0.34) return (au / 0.34) * AR_T_DRAW;
+      if (au < AERIAL_RELEASE_U) return AR_T_DRAW + ((au - 0.34) / (AERIAL_RELEASE_U - 0.34)) * (AR_T_HOLD - AR_T_DRAW);
+      if (au < 0.62) return AR_T_HOLD + ((au - AERIAL_RELEASE_U) / (0.62 - AERIAL_RELEASE_U)) * 0.40;
+      return AR_T_HOLD + 0.40;
+    }
     let archeryT = 0;
     let archeryLastU = 0;
     const ARCHERY_CYCLE = 3.40;
@@ -10618,8 +10629,23 @@
       updateArrowFlight(delta);
       const rig = archeryRig;
       if (!rig) { archeryDrawShoulder(0); return; }   // sin arco (o cambiado en plena tensión)
+      if (STATE.currentAnim === 'aerial_shot') {
+        // Mismo ciclo de tiro que el tiro a pie, pero gobernado por la fase del salto
+        const au = aerialAnimU;
+        if (au === null) { archeryIdleBow(rig); return; }
+        if (au < aerialLastU) aerialLastU = 0;              // ciclo nuevo
+        if (au < 0.62) {
+          if (!rig.arrow && au < AERIAL_RELEASE_U) { rig.arrow = createArrowMesh(); rig.bow.add(rig.arrow); }
+          if (aerialLastU < AERIAL_RELEASE_U && au >= AERIAL_RELEASE_U) releaseArrow(rig);
+          archeryApplyPose(rig, aerialArcheryU(au));
+        } else {
+          archeryIdleBow(rig);                              // durante el mortal, el arco va suelto
+        }
+        aerialLastU = au;
+        return;
+      }
       if (STATE.currentAnim !== 'archery') {
-        archeryT = 0; archeryLastU = 0;
+        archeryT = 0; archeryLastU = 0; aerialLastU = 0;
         archeryIdleBow(rig);
         return;
       }
@@ -11597,7 +11623,9 @@
       // un fotograma cae dentro de una ventana. Con pocos fps la ventana se saltaba entera.
       if (vfx && STATE.currentAnim === 'aerial_shot') {
         const prev = COMBAT_VFX.lastProg;
-        if (prev !== null && prog > prev && prev < AERIAL_RELEASE_U && prog >= AERIAL_RELEASE_U) {
+        // Con arco equipado la suelta la hace el propio ciclo de tiro (updateArchery),
+        // que lanza la flecha encajada. Esto sólo cubre el caso de ir sin arco.
+        if (!archeryRig && prev !== null && prog > prev && prev < AERIAL_RELEASE_U && prog >= AERIAL_RELEASE_U) {
           try { fireAerialArrow(); } catch (e) { }
         }
         COMBAT_VFX.lastProg = prog;
@@ -11719,7 +11747,9 @@
         };
         CH.CONFIG.items.animation = animMap[anim] || 'idle';
         CH.CONFIG.items.animPlaying = true;
-        updateCombatVFX(CH.updateCharacterAnimation(delta), delta);
+        const chVfx = CH.updateCharacterAnimation(delta);
+        aerialAnimU = (chVfx && typeof chVfx.animU === 'number') ? chVfx.animU : null;
+        updateCombatVFX(chVfx, delta);
 
         if (armorSockets.tassetL && bonesMap.Thigh_L) {
           armorSockets.tassetL.rotation.x = Math.max(0, -bonesMap.Thigh_L.rotation.x * 0.72);
@@ -14169,6 +14199,18 @@
 
       document.getElementById('anim-select').addEventListener('change', (e) => {
         STATE.currentAnim = e.target.value;
+        // Sin arco no hay nada que tensar: si la animación es de tiro, se equipa uno
+        if (STATE.currentAnim === 'archery' || STATE.currentAnim === 'aerial_shot') {
+          const cur = WEAPON_LOADOUT[STATE.equipment.weapon];
+          if (!cur || cur.fam !== 'arco') {
+            const bow = WEAPON_LOADOUT.findIndex(l => l.fam === 'arco');
+            if (bow > 0) {
+              STATE.equipment.weapon = bow;
+              updateWardrobePieces();
+              showToast('Arco equipado para el tiro');
+            }
+          }
+        }
         if (STATE.currentAnim === 'none') {
           restoreBindPose();
         }
@@ -17682,6 +17724,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
     ankleR: [...base.ankleR],
     vfxType: null,
     vfxProgress: 0,
+    animU: 0,
   };
 
   if (!animKey || animKey === 'none') {
@@ -18708,6 +18751,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
       state.vfxType = (u >= FOLLOW && u < FLIP) ? 'trail'
         : ((u >= FLIP && u < FLIP + 0.10) ? 'shock' : null);
       state.vfxProgress = (u >= FLIP) ? (0.52 + ((u - FLIP) / 0.10) * 0.20) : u;
+      state.animU = u;   // fase cruda: la usa el arco para tensar la cuerda de verdad
       break;
     }
 
@@ -19856,6 +19900,7 @@ function updateCharacterAnimation(dt) {
   return {
     vfxType: state.vfxType,
     vfxProgress: state.vfxProgress,
+    animU: state.animU,
   };
 }
 
