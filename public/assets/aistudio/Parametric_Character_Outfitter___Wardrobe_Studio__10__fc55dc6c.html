@@ -11509,7 +11509,7 @@
       trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(32 * 2 * 3), 3));
       trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(32 * 2 * 3), 3));
       const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({
-        vertexColors: true, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+        vertexColors: true, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending, depthWrite: false
       }));
       trail.frustumCulled = false;
@@ -11552,7 +11552,7 @@
       }
       w.updateWorldMatrix(true, false);
       const tip = w.localToWorld(w.userData.tipLocal.clone());
-      const mid = w.localToWorld(w.userData.tipLocal.clone().multiplyScalar(0.40));
+      const mid = w.localToWorld(w.userData.tipLocal.clone().multiplyScalar(0.66));
       return { tip, mid };
     }
 
@@ -11569,7 +11569,7 @@
         const span = getBladeSpanWorld();
         if (span) COMBAT_VFX.history.push(span);
       }
-      while (COMBAT_VFX.history.length > 32) COMBAT_VFX.history.shift();
+      while (COMBAT_VFX.history.length > 14) COMBAT_VFX.history.shift();
       if (type !== 'trail' && COMBAT_VFX.history.length) {
         COMBAT_VFX.history.shift();            // se consume sola al terminar el golpe
         if (COMBAT_VFX.history.length) COMBAT_VFX.history.shift();
@@ -18115,7 +18115,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.hipL = [0.12 * hold, 0, 0.10]; state.hipR = [-0.18 * hold, 0, -0.10];
         state.kneeL = [0.35 * hold, 0, 0]; state.kneeR = [0.45 * hold, 0, 0];
       }
-      state.vfxType = 'trail';
+      state.vfxType = (u >= 0.22 && u <= 0.70) ? 'trail' : null;
       state.vfxProgress = u;
       break;
     }
@@ -18153,7 +18153,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.elbowL = [-0.08 - 0.40 * (1 - hold), 0, 0];
         state.kneeL = [0.40 * hold, 0, 0]; state.kneeR = [0.40 * hold, 0, 0];
       }
-      state.vfxType = 'trail';
+      state.vfxType = (u >= 0.14 && u <= 0.84) ? 'trail' : null;
       state.vfxProgress = u;
       break;
     }
@@ -18195,7 +18195,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.hipL = [-0.90 * hold, 0, 0.08]; state.hipR = [-0.38 * hold, 0, -0.08];
         state.kneeL = [1.25 * hold, 0, 0]; state.kneeR = [1.10 * hold, 0, 0];
       }
-      state.vfxType = u > 0.52 && u < 0.72 ? 'shock' : 'trail';
+      state.vfxType = (u > 0.52 && u < 0.72) ? 'shock' : ((u >= 0.36 && u <= 0.52) ? 'trail' : null);
       state.vfxProgress = u;
       break;
     }
@@ -18239,7 +18239,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.hipL = [-0.95 * hold, 0, 0.08]; state.hipR = [0.45 * hold, 0, -0.08];
         state.kneeL = [0.65 * hold, 0, 0]; state.kneeR = [1.30 * hold, 0, 0];
       }
-      state.vfxType = 'trail';
+      state.vfxType = (u >= 0.30 && u <= 0.50) ? 'trail' : null;
       state.vfxProgress = u;
       break;
     }
@@ -18284,7 +18284,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.hipL = [0.15 * hold, 0, 0.10]; state.hipR = [-0.10 * hold, 0, -0.10];
         state.kneeL = [0.15 * hold, 0, 0]; state.kneeR = [0.35 * hold, 0, 0];
       }
-      state.vfxType = 'trail';
+      state.vfxType = (u >= 0.32 && u <= 0.60) ? 'trail' : null;
       state.vfxProgress = u;
       break;
     }
@@ -18344,7 +18344,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.hipL = [-0.05 * hold, 0, 0.10]; state.hipR = [-0.15 * hold, 0, -0.10];
         state.kneeL = [0.20 * hold, 0, 0]; state.kneeR = [0.25 * hold, 0, 0];
       }
-      state.vfxType = u < 0.42 ? 'spark' : 'trail';
+      state.vfxType = (u >= 0.26 && u < 0.42) ? 'spark' : ((u >= 0.42 && u <= 0.66) ? 'trail' : null);
       state.vfxProgress = u;
       break;
     }
