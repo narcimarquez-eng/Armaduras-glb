@@ -18271,15 +18271,21 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.kneeL = [0.95 - 0.60 * ext, 0, 0]; state.kneeR = [1.05 - 0.60 * ext, 0, 0];
       } else {
         const t = (u - 0.68) / 0.32;
-        const hold = 1 - Math.pow(t, 1.6);
-        state.pelvisRot = [0, (Math.PI * 2) * (1 - t) * 0.0 + 0.42 * hold, 0];
-        state.torsoRot = [0.32 * hold, 0.30 * hold, 0.16 * hold];
-        state.shoulderR = [-0.06 * hold - 0.05, -0.06 * hold, -1.66 * hold - 0.30 * (1 - hold)];
-        state.elbowR = [-0.45 * (1 - hold), 0, 0];
-        state.shoulderL = [-0.08 * hold, 0.22 * hold, 1.42 * hold + 0.30 * (1 - hold)];
-        state.elbowL = [-0.22 * hold - 0.28 * (1 - hold), 0, 0];
-        state.hipL = [0.12 * hold, 0, 0.10]; state.hipR = [-0.18 * hold, 0, -0.10];
-        state.kneeL = [0.35 * hold, 0, 0]; state.kneeR = [0.45 * hold, 0, 0];
+        // El giro no se apaga solo: frena clavando la hoja delante, la sostiene y se incorpora
+        const plant = Math.min(1, t / 0.32);                              // baja y clava
+        const rise = Math.pow(Math.max(0, (t - 0.72) / 0.28), 1.5);       // se incorpora al final
+        const k = plant * (1 - rise);                                     // 1 = hoja clavada
+        const sp = (1 - plant) * (1 - rise);                              // resto del barrido
+        state.pelvisRot = [0, 0.42 * (1 - rise), 0];
+        state.pelvisPos = [0, -0.18 * k, 0];
+        state.torsoRot = [0.12 * sp + 0.78 * k, 0.30 * (1 - rise), 0.13 * sp];
+        state.head = [0.16 * k, 0, 0];
+        state.shoulderR = [-0.06 * sp + 0.50 * k - 0.05, -0.06 * sp, -1.66 * sp - 0.30 * k];
+        state.elbowR = [-0.10 * k - 0.28 * rise, 0, 0];
+        state.shoulderL = [-0.08 * sp + 0.15 * k, 0.22 * sp, 1.42 * sp + 0.45 * k + 0.30 * rise];
+        state.elbowL = [-0.22 * sp - 0.55 * k - 0.28 * rise, 0, 0];
+        state.hipL = [0.12 * sp - 0.55 * k, 0, 0.10]; state.hipR = [-0.18 * sp - 0.30 * k, 0, -0.10];
+        state.kneeL = [0.35 * sp + 0.95 * k, 0, 0]; state.kneeR = [0.45 * sp + 0.85 * k, 0, 0];
       }
       state.vfxType = (u >= 0.22 && u <= 0.70) ? 'trail' : null;
       state.vfxProgress = u;
@@ -18314,15 +18320,21 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.kneeL = [1.00 - 0.60 * ext, 0, 0]; state.kneeR = [1.00 - 0.60 * ext, 0, 0];
       } else {
         const t = (u - 0.82) / 0.18;
-        const hold = 1 - Math.pow(t, 1.5);
-        state.pelvisRot = [0, 0.30 * hold, 0];
-        state.pelvisPos = [0, -0.05 * hold, 0];
-        state.torsoRot = [0.38 * hold, 0, 0];
-        state.shoulderR = [-0.04 * hold, -0.08 * hold, -1.70 * hold - 0.30 * (1 - hold)];
-        state.shoulderL = [-0.04 * hold, 0.08 * hold, 1.70 * hold + 0.30 * (1 - hold)];
-        state.elbowR = [-0.40 * (1 - hold), 0, 0];
-        state.elbowL = [-0.40 * (1 - hold), 0, 0];
-        state.kneeL = [0.40 * hold, 0, 0]; state.kneeR = [0.40 * hold, 0, 0];
+        // Frena las dos vueltas hincando la hoja en el suelo y aguanta ahí
+        const plant = Math.min(1, t / 0.40);
+        const rise = Math.pow(Math.max(0, (t - 0.74) / 0.26), 1.5);
+        const k = plant * (1 - rise);
+        const sp = (1 - plant) * (1 - rise);
+        state.pelvisRot = [0, 0.30 * (1 - rise), 0];
+        state.pelvisPos = [0, -0.05 * sp - 0.20 * k, 0];
+        state.torsoRot = [0.38 * sp + 0.80 * k, 0, 0];
+        state.head = [0.18 * k, 0, 0];
+        state.shoulderR = [-0.04 * sp + 0.52 * k, -0.08 * sp, -1.70 * sp - 0.30 * k];
+        state.shoulderL = [-0.04 * sp + 0.12 * k, 0.08 * sp, 1.70 * sp + 0.50 * k + 0.30 * rise];
+        state.elbowR = [-0.10 * k - 0.30 * rise, 0, 0];
+        state.elbowL = [-0.60 * k - 0.30 * rise, 0, 0];
+        state.hipL = [-0.60 * k, 0, 0.12]; state.hipR = [-0.35 * k, 0, -0.12];
+        state.kneeL = [0.40 * sp + 1.00 * k, 0, 0]; state.kneeR = [0.40 * sp + 0.90 * k, 0, 0];
       }
       state.vfxType = (u >= 0.14 && u <= 0.84) ? 'trail' : null;
       state.vfxProgress = u;
@@ -18355,7 +18367,8 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.kneeL = [0.25 + 1.00 * t, 0, 0]; state.kneeR = [0.15 + 0.95 * t, 0, 0];
       } else {
         const t = (u - 0.56) / 0.44;
-        const hold = 1 - Math.pow(t, 1.7);
+        // Aguanta la hoja clavada media recuperación antes de incorporarse
+        const hold = 1 - Math.pow(Math.max(0, (t - 0.55) / 0.45), 1.7);
         state.pelvisPos = [0, -0.25 * hold, 0];
         state.torsoRot = [0.75 * hold, 0, 0];
         state.head = [0.33 * hold, 0, 0];
@@ -18399,7 +18412,8 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.kneeL = [0.30 + 0.35 * t, 0, 0]; state.kneeR = [0.35 + 0.95 * t, 0, 0];
       } else {
         const t = (u - 0.48) / 0.52;
-        const hold = 1 - Math.pow(t, 1.6);
+        // La punta se queda hundida en el blanco antes de recoger el brazo
+        const hold = 1 - Math.pow(Math.max(0, (t - 0.45) / 0.55), 1.6);
         state.pelvisPos = [0, -0.23 * hold, 0];
         state.pelvisRot = [0, 0.20 * hold, 0];
         state.torsoRot = [0.23 * hold, 0.22 * hold, 0];
@@ -18503,7 +18517,8 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.kneeL = [0.45 - 0.25 * t, 0, 0]; state.kneeR = [0.45 - 0.20 * t, 0, 0];
       } else {
         const t = (u - 0.64) / 0.36;
-        const hold = 1 - Math.pow(t, 1.5);
+        // Sostiene el remate del revés antes de volver a la guardia
+        const hold = 1 - Math.pow(Math.max(0, (t - 0.45) / 0.55), 1.5);
         state.pelvisPos = [0, -0.02 * hold, 0];
         state.pelvisRot = [0, -0.57 * hold, 0];
         state.torsoRot = [-0.02 * hold, -0.55 * hold, 0];
