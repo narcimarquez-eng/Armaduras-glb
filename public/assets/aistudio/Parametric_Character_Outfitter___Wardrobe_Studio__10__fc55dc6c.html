@@ -631,7 +631,13 @@
 
       <!-- Pestaña Presets -->
       <div id="tab-presets" class="space-y-3 hidden">
-        <span class="text-xs text-slate-400 block">5 Armaduras de Paladín (Imagen de Referencia):</span>
+        <span class="text-xs text-slate-400 block">Armadura aleatoria por clase:</span>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button id="btn-random-pesada" class="glass-btn py-2 rounded-xl text-[11px] font-semibold text-slate-200 hover:text-white flex items-center justify-center gap-1 border-slate-500/40"><i data-lucide="shield" class="w-3.5 h-3.5"></i> Pesada</button>
+          <button id="btn-random-ligera" class="glass-btn py-2 rounded-xl text-[11px] font-semibold text-emerald-300 hover:text-white flex items-center justify-center gap-1 border-emerald-500/40"><i data-lucide="feather" class="w-3.5 h-3.5"></i> Ligera</button>
+          <button id="btn-random-mago" class="glass-btn py-2 rounded-xl text-[11px] font-semibold text-violet-300 hover:text-white flex items-center justify-center gap-1 border-violet-500/40"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Mago</button>
+        </div>
+        <span class="text-xs text-slate-400 block pt-1">Armaduras de Paladín (Imagen de Referencia):</span>
         <div class="grid grid-cols-1 gap-2" id="presets-container"></div>
         <div class="pt-2 border-t border-slate-800/80 flex flex-col gap-2">
           <button id="btn-export-json" class="glass-btn w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 text-indigo-300 hover:text-white"><i data-lucide="file-code" class="w-4 h-4"></i> Exportar Configuración (JSON)</button>
@@ -1320,6 +1326,41 @@
       syncFitSlidersUI();
       updateWardrobePieces();
       showToast(`Rango ${rank.name} · ${cls.name}: ${look.name}`);
+    }
+
+    // Armadura aleatoria dentro de una clase: rango, equipo y textura al azar,
+    // manteniendo lo que define a la clase (la ligera sigue siendo ligera, el mago sin placas)
+    function randomizeArmorByClass(clsKey) {
+      if (!ARMOR_CLASSES[clsKey]) return;
+      const rankKeys = Object.keys(ARMOR_RANKS);
+      const rank = rankKeys[Math.floor(Math.random() * rankKeys.length)];
+      const tp = TEXTURE_PRESETS[Math.floor(Math.random() * TEXTURE_PRESETS.length)];
+      const pick = arr => 1 + Math.floor(Math.random() * (arr.length - 1));
+
+      const gear = (clsKey === 'mago')
+        ? {
+            underlayer: pick(ITEMS_DB.underlayer),
+            helmet: Math.random() < 0.75 ? pick(ITEMS_DB.helmet) : 0,
+            torso: 0, gloves: 0,
+            belt: pick(ITEMS_DB.belt),
+            tassets: 0, cuisses: 0, knees: 0,
+            boots: pick(ITEMS_DB.boots),
+            weapon: ITEMS_DB.weapon.length - 1   // cetro
+          }
+        : {
+            underlayer: pick(ITEMS_DB.underlayer),
+            helmet: Math.random() < 0.8 ? pick(ITEMS_DB.helmet) : 0,
+            torso: pick(ITEMS_DB.torso),
+            gloves: pick(ITEMS_DB.gloves),
+            belt: pick(ITEMS_DB.belt),
+            tassets: pick(ITEMS_DB.tassets),
+            cuisses: pick(ITEMS_DB.cuisses),
+            knees: pick(ITEMS_DB.knees),
+            boots: pick(ITEMS_DB.boots),
+            weapon: pick(ITEMS_DB.weapon)
+          };
+
+      applyArmorLook({ rank, cls: clsKey, name: tp.name, tex: tp.id, gear });
     }
 
     /* =========================================================================
@@ -8798,7 +8839,7 @@
             thicknessRatio: 0.038,
             yMin: 0.14, yMax: 0.94,          // arranca bajo el cinturón y acaba sobre el muslo
             angleMin: bc - half, angleMax: bc + half,
-            flareBottom: 0.12, vPointBottom: 0.08,
+            flareBottom: 0.40, vPointBottom: 0.08,   // vuelo holgado al llegar al glúteo
             foldStyle: 'scalloped', foldDepth: 0.06,
             bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
           });
@@ -13894,6 +13935,10 @@
       });
 
       document.getElementById('btn-quick-random').addEventListener('click', randomizeArmorSetup);
+      [['btn-random-pesada', 'pesada'], ['btn-random-ligera', 'ligera'], ['btn-random-mago', 'mago']].forEach(([id, cls]) => {
+        const b = document.getElementById(id);
+        if (b) b.addEventListener('click', () => { randomizeArmorByClass(cls); renderTexturePresetsGrid(); });
+      });
       const btnRandHumanTop = document.getElementById('btn-random-human-top');
       if (btnRandHumanTop) {
         btnRandHumanTop.addEventListener('click', () => {
