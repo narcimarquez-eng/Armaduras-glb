@@ -18102,24 +18102,25 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         const spin = Math.pow(t, 0.78);            // arranque rápido, salida frenada
         state.pelvisRot = [0, -0.55 + spin * (Math.PI * 2 + 0.55), 0];
         state.pelvisPos = [0, Math.sin(t * Math.PI) * 0.05, 0];
-        state.torsoRot = [0.10, 0.30 * Math.sin(t * Math.PI), 0];
-        state.head = [0, 0.35 * Math.sin(t * Math.PI * 1.2), 0];
-        // Brazo armado extendido en horizontal durante todo el giro
-        state.shoulderR = [-0.15, -0.10, -1.48];
-        state.elbowR = [-0.12, 0, 0];
-        state.shoulderL = [-0.10, 0.25, 1.15];
-        state.elbowL = [-0.55, 0, 0];
+        // Tronco inclinado hacia delante y hacia el lado contrario al arma: el filo barre más lejos
+        state.torsoRot = [0.32, 0.30 * Math.sin(t * Math.PI), 0.16];
+        state.head = [-0.10, 0.35 * Math.sin(t * Math.PI * 1.2), 0];
+        // Brazo armado estirado del todo (codo a cero) y hombro algo más allá de la horizontal
+        state.shoulderR = [-0.06, -0.06, -1.66];
+        state.elbowR = [0, 0, 0];
+        state.shoulderL = [-0.08, 0.22, 1.42];
+        state.elbowL = [-0.22, 0, 0];
         state.hipL = [0.12, 0, 0.10]; state.hipR = [-0.18, 0, -0.10];
         state.kneeL = [0.35, 0, 0]; state.kneeR = [0.45, 0, 0];
       } else {
         const t = (u - 0.68) / 0.32;
         const hold = 1 - Math.pow(t, 1.6);
         state.pelvisRot = [0, (Math.PI * 2) * (1 - t) * 0.0 + 0.42 * hold, 0];
-        state.torsoRot = [0.12 * hold, 0.30 * hold, 0];
-        state.shoulderR = [-0.15 * hold - 0.05, -0.10 * hold, -1.48 * hold - 0.30 * (1 - hold)];
-        state.elbowR = [-0.12 - 0.45 * (1 - hold), 0, 0];
-        state.shoulderL = [-0.10 * hold, 0.25 * hold, 1.15 * hold + 0.30 * (1 - hold)];
-        state.elbowL = [-0.55 * hold - 0.28 * (1 - hold), 0, 0];
+        state.torsoRot = [0.32 * hold, 0.30 * hold, 0.16 * hold];
+        state.shoulderR = [-0.06 * hold - 0.05, -0.06 * hold, -1.66 * hold - 0.30 * (1 - hold)];
+        state.elbowR = [-0.45 * (1 - hold), 0, 0];
+        state.shoulderL = [-0.08 * hold, 0.22 * hold, 1.42 * hold + 0.30 * (1 - hold)];
+        state.elbowL = [-0.22 * hold - 0.28 * (1 - hold), 0, 0];
         state.hipL = [0.12 * hold, 0, 0.10]; state.hipR = [-0.18 * hold, 0, -0.10];
         state.kneeL = [0.35 * hold, 0, 0]; state.kneeR = [0.45 * hold, 0, 0];
       }
@@ -18133,20 +18134,21 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
       if (u < 0.14) {
         const t = u / 0.14;
         state.pelvisPos = [0, -0.07 * t, 0];
-        state.torsoRot = [0.18 * t, -0.35 * t, 0];
-        state.shoulderR = [-0.30 * t, -0.20 * t, -0.60 - 0.60 * t];
-        state.shoulderL = [-0.20 * t, 0.20 * t, 0.50 + 0.50 * t];
+        state.torsoRot = [0.30 * t, -0.35 * t, 0];
+        state.shoulderR = [-0.30 * t, -0.20 * t, -0.60 - 0.95 * t];
+        state.shoulderL = [-0.20 * t, 0.20 * t, 0.50 + 0.95 * t];
         state.kneeL = [0.42 * t, 0, 0]; state.kneeR = [0.42 * t, 0, 0];
       } else if (u < 0.82) {
         const t = (u - 0.14) / 0.68;
         state.pelvisRot = [0, t * Math.PI * 4, 0];       // dos vueltas
         state.pelvisPos = [0, -0.05 + Math.sin(t * Math.PI * 4) * 0.018, 0];
-        state.torsoRot = [0.20, 0, Math.sin(t * Math.PI * 4) * 0.10];
-        state.head = [0.05, 0, 0];
-        state.shoulderR = [-0.10, -0.12, -1.56];
-        state.elbowR = [-0.08, 0, 0];
-        state.shoulderL = [-0.10, 0.12, 1.56];
-        state.elbowL = [-0.08, 0, 0];
+        // Cuerpo volcado hacia delante, como un aspa: los dos filos barren al máximo radio
+        state.torsoRot = [0.38, 0, Math.sin(t * Math.PI * 4) * 0.14];
+        state.head = [-0.14, 0, 0];
+        state.shoulderR = [-0.04, -0.08, -1.70];
+        state.elbowR = [0, 0, 0];
+        state.shoulderL = [-0.04, 0.08, 1.70];
+        state.elbowL = [0, 0, 0];
         state.hipL = [0.16, 0, 0.12]; state.hipR = [0.16, 0, -0.12];
         state.kneeL = [0.40, 0, 0]; state.kneeR = [0.40, 0, 0];
       } else {
@@ -18154,11 +18156,11 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         const hold = 1 - Math.pow(t, 1.5);
         state.pelvisRot = [0, 0.30 * hold, 0];
         state.pelvisPos = [0, -0.05 * hold, 0];
-        state.torsoRot = [0.20 * hold, 0, 0];
-        state.shoulderR = [-0.10 * hold, -0.12 * hold, -1.56 * hold - 0.30 * (1 - hold)];
-        state.shoulderL = [-0.10 * hold, 0.12 * hold, 1.56 * hold + 0.30 * (1 - hold)];
-        state.elbowR = [-0.08 - 0.40 * (1 - hold), 0, 0];
-        state.elbowL = [-0.08 - 0.40 * (1 - hold), 0, 0];
+        state.torsoRot = [0.38 * hold, 0, 0];
+        state.shoulderR = [-0.04 * hold, -0.08 * hold, -1.70 * hold - 0.30 * (1 - hold)];
+        state.shoulderL = [-0.04 * hold, 0.08 * hold, 1.70 * hold + 0.30 * (1 - hold)];
+        state.elbowR = [-0.40 * (1 - hold), 0, 0];
+        state.elbowL = [-0.40 * (1 - hold), 0, 0];
         state.kneeL = [0.40 * hold, 0, 0]; state.kneeR = [0.40 * hold, 0, 0];
       }
       state.vfxType = (u >= 0.14 && u <= 0.84) ? 'trail' : null;
