@@ -17966,7 +17966,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         // 1. Tajo diagonal de arriba a abajo
         const p = u / 0.34;
         const wind = Math.min(1, p / 0.34);                       // alza
-        const hit = Math.pow(Math.max(0, (p - 0.34) / 0.40), 0.6); // corta
+        const hit = Math.pow(Math.min(1, Math.max(0, (p - 0.34) / 0.40)), 0.6); // corta
         state.pelvisPos = [0, -0.03, 0.06 * hit];
         state.pelvisRot = [0, -0.26 * wind + 0.40 * hit, 0];
         state.torsoRot = [0.06 + 0.16 * hit, -0.34 * wind + 0.52 * hit, 0];
@@ -17980,13 +17980,13 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         // 2. Revés horizontal cruzando el cuerpo
         const p = (u - 0.34) / 0.32;
         const wind = Math.min(1, p / 0.32);
-        const hit = Math.pow(Math.max(0, (p - 0.32) / 0.42), 0.6);
+        const hit = Math.pow(Math.min(1, Math.max(0, (p - 0.32) / 0.42)), 0.6);
         state.pelvisPos = [0, -0.03, 0.05 * hit];
         state.pelvisRot = [0, 0.40 - 0.38 * wind - 0.34 * hit, 0];
         state.torsoRot = [0.08, 0.52 - 0.52 * wind - 0.46 * hit, 0];
         state.head = [-0.06, 0.26 - 0.24 * wind - 0.22 * hit, 0];
         // Arranca recogido junto al hombro contrario y barre hasta abrirse del todo
-        state.shoulderR = [0.30 - 0.26 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.28 * hit, -1.53 + 0.62 * wind - 0.79 * hit];
+        state.shoulderR = [0.30 - 0.26 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.28 * hit, -1.53 + 0.62 * wind - 0.60 * hit];
         state.elbowR = [-0.60 * wind + 0.60 * hit, 0, 0];
         state.shoulderL = GUARD_L; state.elbowL = GUARD_EL;
         state.hipL = [-0.12 + 0.10 * hit, 0, 0.10]; state.hipR = [0.06 - 0.10 * hit, 0, -0.10];
@@ -17995,7 +17995,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         // 3. Estocada de cierre: el cuerpo acompaña y la punta sale al frente
         const p = (u - 0.66) / 0.34;
         const wind = Math.min(1, p / 0.30);
-        const hit = Math.pow(Math.max(0, (p - 0.30) / 0.34), 0.55);
+        const hit = Math.pow(Math.min(1, Math.max(0, (p - 0.30) / 0.34)), 0.55);
         const back = Math.pow(Math.max(0, (p - 0.72) / 0.28), 1.5);
         const k = hit * (1 - back);
         state.pelvisPos = [0, -0.03 - 0.06 * k, 0.26 * k];
