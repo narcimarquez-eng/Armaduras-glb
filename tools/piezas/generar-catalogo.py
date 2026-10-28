@@ -32,15 +32,8 @@ for ranura, items in estudio.items():
         })
     catalogo[ranura] = piezas
 
-# Equipo inicial: la cota (capa interior) y, en cada ranura, la pieza de nivel 1 que tenga modelo
-inicial = {}
-for r, ps in catalogo.items():
-    if r == 'underlayer':
-        inicial[r] = 2
-        continue
-    primera = next((p for p in ps if p['nivel'] == 1 and p['archivo']), None)
-    if primera:
-        inicial[r] = primera['idx']
+# Equipo inicial: solo la cota (capa interior). El arma básica la elige js/equipo.js.
+inicial = {'underlayer': 2}
 
 salida = {
     'version': 1,

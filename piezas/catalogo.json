@@ -2,17 +2,7 @@
   "version": 1,
   "maxNivel": 50,
   "inicial": {
-    "underlayer": 2,
-    "helmet": 1,
-    "shoulders": 1,
-    "torso": 1,
-    "gloves": 1,
-    "belt": 1,
-    "tassets": 1,
-    "cuisses": 1,
-    "knees": 1,
-    "boots": 1,
-    "weapon": 1
+    "underlayer": 2
   },
   "ranuras": {
     "underlayer": [
