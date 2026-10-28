@@ -902,7 +902,13 @@
         { name: 'Botas de Comandante de Acero Pesado', icon: 'footprints' },
         { name: 'Botas Dinastía Celestial (Alas de Oro Rosa - L2)', icon: 'sparkles' },
         { name: 'Botas Élficas de Hoja de Laurel (D&D)', icon: 'feather' },
-        { name: 'Botas de Escamas de Dragón & Puntera Reforzada (D&D)', icon: 'layers' }
+        { name: 'Botas de Escamas de Dragón & Puntera Reforzada (D&D)', icon: 'layers' },
+        { name: 'Botas Rúnicas de Caña Alta con Remaches', icon: 'footprints' },
+        { name: 'Escarpes Dentados de Guiverno con Espolón', icon: 'flame' },
+        { name: 'Botas Lamelares Orientales de Hoja', icon: 'layers' },
+        { name: 'Escarpes Alados de Valquiria (Filigrana)', icon: 'sparkles' },
+        { name: 'Botas Abisales de Espolón y Chevrones', icon: 'shield' },
+        { name: 'Escarpes Celestiales de Ojiva Festoneada', icon: 'sun' }
       ],
       weapon: [
         { name: 'Sin Arma', icon: 'ban' }, 
@@ -1177,15 +1183,27 @@
           tassetScale: 0.92, tassetLength: 0.80, tassetWidth: 0.78,
           clothSides: true,                        // faldones de tela en los lados, como el tabardo
           lightHarness: true,                      // peto de pecho con tirantes
-          bootCollarMin: 0.035,                    // bota solo de tobillo y pie
-          shinTop: 0.14,                           // grebas que no pasan del tobillo
+          bootCollarMin: 0.020,                    // caña mínima: apenas cubre el tobillo
+          shinTop: 0.08,                           // grebas que no pasan del tobillo
           chestThick: 0.45,                        // pechera fina, casi sin volumen
           tabardWidthMult: 2.00                    // tabardo delantero al doble de ancho
         },
         chest: { yMinFront: 0.58, chestContour: 'anatomical', ridgeCenterZ: 0.05, flareTop: 0.0, flareBottom: 0.0 },   // solo el pecho, ceñido
-        boot: { collarFactor: 0.60 }
+        boot: { collarFactor: 0.38 }
       },
       mago: { name: 'Mago', fit: {}, chest: {}, boot: { collarFactor: 0.90 } }
+    };
+
+    // Cortes de culera: uno por tipo de cinturón, para que el faldón trasero acompañe al cinto
+    const CULERA_DESIGNS = {
+      0: { fold: 'scalloped',        depth: 0.06, vTip: 0.08, flare: 0.40, span: 0.26, lames: 1, relief: 'none',    gem: null,       rivets: false },
+      1: { fold: 'scalloped',        depth: 0.07, vTip: 0.08, flare: 0.42, span: 0.27, lames: 1, relief: 'sun',     gem: 'topaz',    rivets: false },
+      2: { fold: 'swallow_tail',     depth: 0.11, vTip: 0.18, flare: 0.34, span: 0.25, lames: 2, relief: 'cross',   gem: 'sapphire', rivets: true,  gemV: 0.58 },
+      3: { fold: 'stepped',          depth: 0.08, vTip: 0.04, flare: 0.48, span: 0.29, lames: 3, relief: 'bands',   gem: null,       rivets: true  },
+      4: { fold: 'triple_v',         depth: 0.13, vTip: 0.22, flare: 0.30, span: 0.24, lames: 1, relief: 'chevron', gem: 'amethyst', rivets: false, waves: 3.0 },
+      5: { fold: 'ogee_conopial',    depth: 0.09, vTip: 0.10, flare: 0.44, span: 0.28, lames: 2, relief: 'bands',   gem: 'ruby',     rivets: true,  flutes: 4 },
+      6: { fold: 'foliate',          depth: 0.08, vTip: 0.12, flare: 0.38, span: 0.27, lames: 1, relief: 'vine',    gem: 'emerald',  rivets: false },
+      7: { fold: 'inverted_v_notch', depth: 0.12, vTip: 0.16, flare: 0.36, span: 0.26, lames: 2, relief: 'chevron', gem: 'diamond',  rivets: true  }
     };
 
     const ARMOR_RANKS = {
@@ -6919,7 +6937,7 @@
       buildPaladinChestOrnament();
       buildArticulatedBelt();
       if (STATE.fit.clothSides) {
-        buildClothSideFlaps({ trimMat: getPBRMaterial('trim', 'tassets'), clothMat: getPBRMaterial('cloth', 'tassets') });
+        buildClothSideFlaps({ mainMat: getPBRMaterial('primary', 'tassets'), trimMat: getPBRMaterial('trim', 'tassets'), clothMat: getPBRMaterial('cloth', 'tassets') });
       } else {
         buildArticulatedTassets();
       }
@@ -6940,7 +6958,13 @@
       3: { toe: 'square', lames: 4, relief: 'bands',    gem: 'sapphire', crest: false, heavyRivets: true },
       4: { toe: 'almond', lames: 4, relief: 'filigree', gem: 'ruby',     crest: true },
       5: { toe: 'round',  lames: 3, relief: 'leaves',   gem: 'emerald',  crest: true },
-      6: { toe: 'wedge',  lames: 5, relief: 'chevrons', gem: 'ruby',     crest: true, scales: true }
+      6: { toe: 'wedge',  lames: 5, relief: 'chevrons', gem: 'ruby',     crest: true, scales: true },
+      7: { toe: 'round',  lames: 4, relief: 'bands',    gem: 'sapphire', crest: false, heavyRivets: true },
+      8: { toe: 'wedge',  lames: 5, relief: 'flutes',   gem: 'ruby',     crest: true, toeSpike: true, scales: true },
+      9: { toe: 'square', lames: 3, relief: 'leaves',   gem: 'emerald',  crest: false },
+      10: { toe: 'almond', lames: 4, relief: 'filigree', gem: 'diamond',  crest: true },
+      11: { toe: 'gothic', lames: 5, relief: 'chevrons', gem: 'amethyst', crest: true, toeSpike: true },
+      12: { toe: 'ogive',  lames: 3, relief: 'sun',      gem: 'topaz',    crest: true }
     };
 
     function buildArticulatedSabaton(group, dims, bootType, mats) {
@@ -7298,6 +7322,24 @@
       return geo;
     }
 
+    /* Arquitectura de cada bota: puntera, cuello, caña y adornos.
+       Fuera de la función porque la greba de la espinilla también la consulta. */
+    const BOOT_ARCHITECTURES = {
+      1:  { toeShape: 'ogive',        cuffStyle: 'v_notch',       ridgeStrength: 0.008, facetPower: 0.00, collarFactor: 1.15, rondels: true,  shinRidge: 0.14, shinFlutes: 2, shinFoldHem: 'scalloped' },
+      2:  { toeShape: 'gothic_point', cuffStyle: 'v_notch',       ridgeStrength: 0.012, facetPower: 0.45, collarFactor: 1.18, spur: true,     tongueHigh: true, shinRidge: 0.18, shinFlutes: 4, shinFoldTop: 'swallow_tail', shinFoldHem: 'swallow_tail' },
+      3:  { toeShape: 'square_chisel',cuffStyle: 'high_cavalier', ridgeStrength: 0.005, facetPower: 0.15, collarFactor: 1.32, buckles: true,  rondels: true, shinRidge: 0.12, shinFlutes: 0 },
+      4:  { toeShape: 'sleek_almond', cuffStyle: 'winged_sweep',  ridgeStrength: 0.009, facetPower: 0.00, collarFactor: 1.18, ankleWings: true, shinRidge: 0.14, shinFlutes: 0, shinLeaf: true },
+      5:  { toeShape: 'imperial_round',cuffStyle: 'scalloped',    ridgeStrength: 0.007, facetPower: 0.00, collarFactor: 1.15, rondels: true,  shinRidge: 0.13, shinFlutes: 0 },
+      6:  { toeShape: 'dragon_wedge', cuffStyle: 'v_notch',       ridgeStrength: 0.013, facetPower: 0.55, collarFactor: 1.22, tongueHigh: true, shinRidge: 0.18, shinFlutes: 3, shinGlowFin: true },
+      // Estilos añadidos: combinaciones nuevas de puntera, cuello y adorno
+      7:  { toeShape: 'imperial_round',cuffStyle: 'high_cavalier',ridgeStrength: 0.006, facetPower: 0.10, collarFactor: 1.42, buckles: true,  rondels: true, shinRidge: 0.10, shinFlutes: 5 },
+      8:  { toeShape: 'dragon_wedge', cuffStyle: 'scalloped',     ridgeStrength: 0.015, facetPower: 0.60, collarFactor: 1.10, spur: true,     tongueHigh: true, shinRidge: 0.22, shinFlutes: 6, shinFoldTop: 'swallow_tail', shinGlowFin: true },
+      9:  { toeShape: 'square_chisel',cuffStyle: 'winged_sweep',  ridgeStrength: 0.004, facetPower: 0.08, collarFactor: 1.26, ankleWings: true, shinRidge: 0.09, shinFlutes: 0, shinFoldHem: 'scalloped', shinLeaf: true },
+      10: { toeShape: 'sleek_almond', cuffStyle: 'scalloped',     ridgeStrength: 0.010, facetPower: 0.00, collarFactor: 1.20, ankleWings: true, rondels: true, shinRidge: 0.16, shinFlutes: 2, shinFoldTop: 'foliate', shinLeaf: true },
+      11: { toeShape: 'gothic_point', cuffStyle: 'high_cavalier', ridgeStrength: 0.014, facetPower: 0.50, collarFactor: 1.38, spur: true,     shinRidge: 0.20, shinFlutes: 4, shinFoldTop: 'swallow_tail', shinGlowFin: true },
+      12: { toeShape: 'ogive',        cuffStyle: 'scalloped',     ridgeStrength: 0.009, facetPower: 0.00, collarFactor: 1.12, rondels: true,  shinRidge: 0.15, shinFlutes: 3, shinFoldTop: 'foliate', shinFoldHem: 'scalloped' }
+    };
+
     function buildArticulatedBoots() {
       const bootType = STATE.equipment.boots;
 
@@ -7320,56 +7362,6 @@
       const glowMat = getGlowMaterial();
       const lBulk = STATE.fit.limbScale;
 
-      const BOOT_ARCHITECTURES = {
-        1: {
-          // 1. Escarpes Solares de Paladín: Ojiva lisa continua con arista central biselada
-          toeShape: 'ogive',
-          cuffStyle: 'v_notch',
-          ridgeStrength: 0.008,
-          facetPower: 0.0,
-          collarFactor: 1.15
-        },
-        2: {
-          // 2. Escarpes Góticos: Poulaine puntiagudo facetado con biseles marcados y espuela
-          toeShape: 'gothic_point',
-          cuffStyle: 'v_notch',
-          ridgeStrength: 0.012,
-          facetPower: 0.45,
-          collarFactor: 1.18
-        },
-        3: {
-          // 3. Botas de Comandante: Puntera cuadrada biselada (Cavalier) con caña alta y hebillas
-          toeShape: 'square_chisel',
-          cuffStyle: 'high_cavalier',
-          ridgeStrength: 0.005,
-          facetPower: 0.15,
-          collarFactor: 1.32
-        },
-        4: {
-          // 4. Grebas Dinastía Celestial: Puntera almendrada esbelta con barrido alado
-          toeShape: 'sleek_almond',
-          cuffStyle: 'winged_sweep',
-          ridgeStrength: 0.009,
-          facetPower: 0.0,
-          collarFactor: 1.18
-        },
-        5: {
-          // 5. Grebas Hoja de Laurel: Escarpe imperial redondeado liso con cuello festoneado
-          toeShape: 'imperial_round',
-          cuffStyle: 'scalloped',
-          ridgeStrength: 0.007,
-          facetPower: 0.0,
-          collarFactor: 1.15
-        },
-        6: {
-          // 6. Escarpes Escamas de Dragón: Puntera en cuña angular acorazada con placas en chevron
-          toeShape: 'dragon_wedge',
-          cuffStyle: 'v_notch',
-          ridgeStrength: 0.013,
-          facetPower: 0.55,
-          collarFactor: 1.22
-        }
-      };
 
       const baseBootCfg = BOOT_ARCHITECTURES[bootType] || BOOT_ARCHITECTURES[1];
       const bootOvr = STATE.fit.bootShapeOverride || null;
@@ -7436,8 +7428,8 @@
         group.add(cuffTrimMesh);
 
         // 4. ORNAMENTOS BISELADOS ESPECÍFICOS DE CADA ESTILO DE BOTA
-        if (bootType === 2) {
-          // Gótico Abisal: Espuela trasera biselada de caballero
+        if (bCfg.spur) {
+          // Espuela trasera biselada de caballero
           const spurSupport = new THREE.Mesh(new THREE.BoxGeometry(realFootW * 0.90, 0.010 * lBulk, 0.022 * lBulk), trimMat);
           spurSupport.position.set(0, -groundDepth * 0.62, -backHeelDist * 0.85);
           group.add(spurSupport);
@@ -7448,12 +7440,12 @@
           spur.position.set(0, -groundDepth * 0.62, -backHeelDist - 0.024 * lBulk);
           group.add(spur);
 
-        } else if (bootType === 3) {
-          // Comandante: Hebillas laterales dobles biseladas
+        } else if (bCfg.buckles) {
+          // Hebillas laterales dobles biseladas
           // (las hebillas se sustituyen por rodelas de tobillo más abajo)
 
-        } else if (bootType === 4) {
-          // Dinastía Celestial: Aletas aladas biseladas en el tobillo exterior + Gema
+        } else if (bCfg.ankleWings) {
+          // Aletas aladas biseladas en el tobillo exterior + Gema
           const wingGroup = new THREE.Group();
           for (let p = 0; p < 3; p++) {
             const plumeW = (0.048 - p * 0.009) * lBulk;
@@ -7477,11 +7469,11 @@
         {
           const flareH = collarH * 0.95;
           const r0x = ankleW * 0.60, r0z = ankleW * 0.68;
-          const tongue = bootType === 2 || bootType === 6 ? 0.75 : 0.45;
+          const tongue = bCfg.tongueHigh ? 0.75 : 0.45;
           const flareSurf = (u, v) => {
             const th = u * Math.PI * 2 - Math.PI; // 0 = frente (+Z)
             const front = Math.pow(Math.max(0, Math.cos(th)), 6);
-            const side = bootType === 4 ? Math.pow(Math.abs(Math.sin(th)), 10) * 0.55 : 0;
+            const side = bCfg.ankleWings ? Math.pow(Math.abs(Math.sin(th)), 10) * 0.55 : 0;
             const top = flareH * (0.72 + tongue * front + side);
             const y = collarH * 0.55 + v * top;
             const fl = 1 + 0.42 * Math.pow(v, 1.5);
@@ -7494,11 +7486,11 @@
           const fBot = createRolledRimAlongRow(fGeo, 0, 0.0030 * lBulk, { closed: true });
           if (fBot) group.add(new THREE.Mesh(fBot, trimMat));
           let gemB = glowMat, dmB = glowMat;
-          try { gemB = getFacetedGemMaterial(bootType === 6 ? 'ruby' : (bootType === 5 ? 'emerald' : (bootType === 2 ? 'amethyst' : 'sapphire')), 'boots'); dmB = getFacetedGemMaterial('diamond', 'boots'); } catch (e) { }
+          try { gemB = getFacetedGemMaterial((SABATON_DESIGNS[bootType] || SABATON_DESIGNS[1]).gem || 'sapphire', 'boots'); dmB = getFacetedGemMaterial('diamond', 'boots'); } catch (e) { }
           const gp = flareSurf(0.5, 0.55);
           addFacetedJewel(group, gp, new THREE.Vector3(0, 0.15, 1).normalize(), 0.0105 * lBulk, gemB, trimMat, dmB, 6);
           // Rodelas de tobillo a ambos lados
-          if (bootType === 1 || bootType === 3 || bootType === 5) {
+          if (bCfg.rondels) {
             [-1, 1].forEach(xs => {
               const rondel = new THREE.Mesh(new THREE.CylinderGeometry(0.020 * lBulk, 0.022 * lBulk, 0.005 * lBulk, 20), trimMat);
               rondel.rotation.z = Math.PI / 2;
@@ -8791,7 +8783,7 @@
 
     /* === LIGERA: faldones de tela a los lados, colgando del cinturón igual que el tabardo === */
     function buildClothSideFlaps(mats) {
-      const { trimMat, clothMat } = mats;
+      const { mainMat, trimMat, clothMat } = mats;
       const pelvisBox = getWorldBoxOfParts(['pelvis']);
       if (!pelvisBox) return;
       const pSize = pelvisBox.getSize(new THREE.Vector3());
@@ -8827,22 +8819,62 @@
 
       // Culera: dos faldones curvos que siguen el glúteo (uno por nalga, para no cruzar el eje trasero).
       // Se amoldan a la malla como las escarcelas, así que nunca quedan como un plano recto.
+      // El corte y el adorno los marca el cinturón equipado, así cada cinturón trae su culera.
+      const des = CULERA_DESIGNS[STATE.equipment.belt] || CULERA_DESIGNS[1];
       const prevSlot = currentBuildingSlot;
       currentBuildingSlot = 'tassets';
+      let culGem = trimMat, culDm = trimMat;
+      try {
+        if (des.gem) culGem = getFacetedGemMaterial(des.gem, 'tassets');
+        culDm = getFacetedGemMaterial('diamond', 'tassets');
+      } catch (e) { }
       const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
       [1, -1].forEach(sg => {
         const bc = sg * Math.PI * 0.80;          // centro sobre la nalga
-        const half = Math.PI * 0.26;
+        const half = Math.PI * des.span;
         pelvisMeshes.forEach(pMesh => {
-          createFormFittedShell(pMesh, clothMat, {
-            targetPart: 'pelvis', slotName: 'tassets',
-            thicknessRatio: 0.038,
-            yMin: 0.14, yMax: 0.94,          // arranca bajo el cinturón y acaba sobre el muslo
-            angleMin: bc - half, angleMax: bc + half,
-            flareBottom: 0.40, vPointBottom: 0.08,   // vuelo holgado al llegar al glúteo
-            foldStyle: 'scalloped', foldDepth: 0.06,
-            bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
-          });
+          // Faldones superpuestos: uno solo para los cortes lisos, varios para los lamelares
+          const top0 = 0.94, bot0 = 0.14;
+          const step = (top0 - bot0) / des.lames;
+          for (let L = 0; L < des.lames; L++) {
+            const isLast = L === des.lames - 1;
+            const yTop = top0 - L * step * 0.88;
+            const yBot = isLast ? bot0 : Math.max(bot0, yTop - step * 1.18);
+            const sh = createFormFittedShell(pMesh, (des.lames > 1 && L % 2 === 1) ? mainMat : clothMat, {
+              targetPart: 'pelvis', slotName: 'tassets',
+              thicknessRatio: 0.038 - L * 0.003,
+              yMin: yBot, yMax: yTop,
+              angleMin: bc - half, angleMax: bc + half,
+              flareBottom: isLast ? des.flare : des.flare * 0.45,
+              vPointBottom: isLast ? des.vTip : 0.04,
+              foldStyle: des.fold, foldDepth: des.depth, foldWaves: des.waves || 3.0,
+              fluteCount: isLast ? (des.flutes || 0) : 0, fluteDepth: 0.012,
+              bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
+            });
+            if (!sh || !isLast) {
+              if (sh && des.rivets) addShellRivets(sh, [[0.30, 0.80], [0.50, 0.84], [0.70, 0.80]], 0.0030, trimMat);
+              continue;
+            }
+            // Relieve dorado del faldón más bajo
+            const R = 0.0030;
+            if (des.relief === 'bands') {
+              [0.34, 0.60].forEach(v0 => addShellRelief(sh, t => [0.16 + 0.68 * t, v0], R * 1.4, trimMat, 18));
+            } else if (des.relief === 'chevron') {
+              [0.30, 0.52, 0.74].forEach(v0 => addShellRelief(sh, t => [0.22 + 0.56 * t, v0 + 0.09 * Math.abs(t * 2 - 1)], R, trimMat, 16));
+            } else if (des.relief === 'vine') {
+              addShellRelief(sh, t => [0.5 + 0.12 * Math.sin(t * Math.PI * 3), 0.16 + 0.70 * t], R, trimMat, 26);
+            } else if (des.relief === 'sun') {
+              for (let r = 0; r < 5; r++) {
+                const a0 = 0.26 + r * 0.12;
+                addShellRelief(sh, t => [a0, 0.34 + 0.40 * t], R * 0.9, trimMat, 10);
+              }
+            } else if (des.relief === 'cross') {
+              addShellRelief(sh, t => [0.5, 0.20 + 0.62 * t], R * 1.5, trimMat, 18);
+              addShellRelief(sh, t => [0.26 + 0.48 * t, 0.56], R * 1.5, trimMat, 14);
+            }
+            if (des.rivets) addShellRivets(sh, [[0.26, 0.86], [0.50, 0.90], [0.74, 0.86]], 0.0034, trimMat);
+            if (des.gem) addShellJewel(sh, 0.5, des.gemV || 0.62, 0.0105, culGem, trimMat, culDm, 6);
+          }
         });
       });
       currentBuildingSlot = prevSlot;
@@ -9456,14 +9488,15 @@
       if (bootType > 0) {
         ['shin_l', 'shin_r'].forEach(partName => {
           getMeshesByAnatomy([partName]).forEach(sMesh => {
+            const bA = BOOT_ARCHITECTURES[bootType] || BOOT_ARCHITECTURES[1];
             const topRatio = STATE.fit.shinTop ?? (bootType === 1 ? 0.86 : 0.92);
             createFormFittedShell(sMesh, mainMat, {
               targetPart: partName, thicknessRatio: 0.028 * lBulk,
               yMin: 0.04, yMax: topRatio,
               flareBottom: 0.06, flareTop: 0.05,
-              ridgeCenterZ: (bootType === 2 || bootType === 6) ? 0.18 : 0.14,
+              ridgeCenterZ: bA.shinRidge ?? 0.14,
               archTop: 0.08,
-              fluteCount: bootType === 2 ? 4 : (bootType === 1 ? 2 : 0),
+              fluteCount: bA.shinFlutes ?? 0,
               fluteDepth: 0.011,
               bevelRadius: 0.008
             });
@@ -9471,7 +9504,7 @@
               targetPart: partName, thicknessRatio: 0.033 * lBulk,
               yMin: topRatio - 0.13, yMax: topRatio,
               ridgeCenterZ: 0.16, archTop: 0.08,
-              foldStyle: bootType === 2 ? 'swallow_tail' : 'ogee_conopial',
+              foldStyle: bA.shinFoldTop || 'ogee_conopial',
               foldDepth: 0.07,
               bevelRadius: 0.007
             });
@@ -9481,18 +9514,18 @@
               yMin: 0.04, yMax: 0.18,
               flareBottom: 0.07,
               ridgeCenterZ: 0.15,
-              foldStyle: bootType === 1 ? 'scalloped' : (bootType === 2 ? 'swallow_tail' : 'v_point'),
+              foldStyle: bA.shinFoldHem || 'v_point',
               foldDepth: 0.05, foldWaves: 3.0,
               bevelRadius: 0.007
             });
-            if (bootType === 4) {
+            if (bA.shinLeaf) {
               createFormFittedShell(sMesh, trimMat, {
                 targetPart: partName, thicknessRatio: 0.035 * lBulk,
                 yMin: 0.40, yMax: 0.75, flareTop: 0.07, archTop: 0.10,
                 foldStyle: 'foliate', foldWaves: 3.0, foldDepth: 0.10,
                 bevelRadius: 0.007
               });
-            } else if (bootType === 6) {
+            } else if (bA.shinGlowFin) {
               createFormFittedShell(sMesh, glowMat, {
                 targetPart: partName, thicknessRatio: 0.034 * lBulk,
                 yMin: 0.28, yMax: 0.46, angleMin: -0.4, angleMax: 0.4,
