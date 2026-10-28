@@ -1,0 +1,760 @@
+{
+  "underlayer": [
+    {
+      "idx": 0,
+      "name": "Sin Malla (Piel Natural)"
+    },
+    {
+      "idx": 1,
+      "name": "Gambesón Real Acolchado en Rombo"
+    },
+    {
+      "idx": 2,
+      "name": "Cota de Malla Europea 4-en-1 (Acero)"
+    },
+    {
+      "idx": 3,
+      "name": "Cuero Oscuro Articulado con Correas"
+    },
+    {
+      "idx": 4,
+      "name": "Seda Esmeralda Imperial de Dinastía"
+    },
+    {
+      "idx": 5,
+      "name": "Brigantina de Cuero Tachonado en Oro"
+    },
+    {
+      "idx": 6,
+      "name": "Cota de Malla Remachada de Cruzado"
+    },
+    {
+      "idx": 7,
+      "name": "Cota Élfica Fina de Mithril Plateado"
+    },
+    {
+      "idx": 8,
+      "name": "Cota de Malla Solar de Bronce y Oro"
+    },
+    {
+      "idx": 9,
+      "name": "Cota Persa Densa 6-en-1 Trenzada"
+    },
+    {
+      "idx": 10,
+      "name": "Cota de Escamas Redondas (Jazerant)"
+    },
+    {
+      "idx": 11,
+      "name": "Cota de Escamas Puntiagudas de Dragón"
+    },
+    {
+      "idx": 12,
+      "name": "Cota Lamelar Oriental Lazada en Carmesí"
+    },
+    {
+      "idx": 13,
+      "name": "Gambesón Gótico de Costillas Verticales"
+    },
+    {
+      "idx": 14,
+      "name": "Gambesón de Espiga en Chevron"
+    },
+    {
+      "idx": 15,
+      "name": "Terciopelo Heráldico Real Bordado"
+    }
+  ],
+  "helmet": [
+    {
+      "idx": 0,
+      "name": "Sin Corona (Rostro Visible)"
+    },
+    {
+      "idx": 1,
+      "name": "Corona Real de Paladín con Flores de Lis"
+    },
+    {
+      "idx": 2,
+      "name": "Diadema Dinastía Alada con Rubí (L2)"
+    },
+    {
+      "idx": 3,
+      "name": "Tiara Élfica de Hojas con Esmeraldas"
+    },
+    {
+      "idx": 4,
+      "name": "Corona Dracónica con Cuernos (L2)"
+    },
+    {
+      "idx": 5,
+      "name": "Corona Astral con Halo de Rayos (L2)"
+    },
+    {
+      "idx": 6,
+      "name": "Visera Solar con Nasal y Alas"
+    },
+    {
+      "idx": 7,
+      "name": "Visera Dracónica con Cuernos y Ala Dentada"
+    },
+    {
+      "idx": 8,
+      "name": "Visera de Cristal Arcano con Aletas"
+    }
+  ],
+  "shoulders": [
+    {
+      "idx": 0,
+      "name": "Sin Hombreras"
+    },
+    {
+      "idx": 1,
+      "name": "Hombreras Solares con Guarda-Cuello"
+    },
+    {
+      "idx": 2,
+      "name": "Hombreras Abisales de Cuchillas Estridentes"
+    },
+    {
+      "idx": 3,
+      "name": "Hombreras Aladas de Guardián Celestial"
+    },
+    {
+      "idx": 4,
+      "name": "Hombreras Dinastía de Planchas Flotantes (L2)"
+    },
+    {
+      "idx": 5,
+      "name": "Hombreras Dracónicas de Planchas Cortantes (L2)"
+    },
+    {
+      "idx": 6,
+      "name": "Hombreras Imperial Crusader de Muralla Alta (L2)"
+    },
+    {
+      "idx": 7,
+      "name": "Hombreras Majestic de Filigrana Cortante (L2)"
+    },
+    {
+      "idx": 8,
+      "name": "Hombreras Nightmare de Espolones Estridentes (L2)"
+    },
+    {
+      "idx": 9,
+      "name": "Hombreras Valquiria de Plumas de Acero Biseladas"
+    },
+    {
+      "idx": 10,
+      "name": "Hombreras Prisma de Facetas Cortantes a 45°"
+    },
+    {
+      "idx": 11,
+      "name": "Hombreras Arconte de Clavícula y Paletilla (L2)"
+    }
+  ],
+  "torso": [
+    {
+      "idx": 0,
+      "name": "Sin Coraza"
+    },
+    {
+      "idx": 1,
+      "name": "Peto Solar con Emblema & Sobrebarriga"
+    },
+    {
+      "idx": 2,
+      "name": "Coraza Real de Alianza (Cresta en V)"
+    },
+    {
+      "idx": 3,
+      "name": "Coraza Gótica Abisal Escalonada"
+    },
+    {
+      "idx": 4,
+      "name": "Coraza Élfica con Filigrana & Gema"
+    },
+    {
+      "idx": 5,
+      "name": "Peto Dinastía (Corazón Alado & Rubí - L2)"
+    },
+    {
+      "idx": 6,
+      "name": "Peto de Hoja de Laurel en Relieve (D&D)"
+    },
+    {
+      "idx": 7,
+      "name": "Coraza Triskele con Espirales Celtas (D&D)"
+    },
+    {
+      "idx": 8,
+      "name": "Cota de Escamas de Dragón & Rubí (D&D)"
+    },
+    {
+      "idx": 9,
+      "name": "Brigantina Tachonada con Tachuelas Oro (D&D)"
+    },
+    {
+      "idx": 10,
+      "name": "Peto Alto Arconte (Cubre Cuello, Clavícula y Paletilla - L2)"
+    },
+    {
+      "idx": 11,
+      "name": "Coraza Extraña de Mandíbula, Clavícula y Escápula Cortante"
+    },
+    {
+      "idx": 12,
+      "name": "Armadura Dinastía de Yugo Clavicular y Hombro (L2)"
+    },
+    {
+      "idx": 13,
+      "name": "Peto Abisal Exótico de Costillas Abiertas y Gola Alta"
+    },
+    {
+      "idx": 14,
+      "name": "Coraza Valquiria de Cuello Alto y Aletas de Paletilla"
+    },
+    {
+      "idx": 15,
+      "name": "Peto Dracónico Imperial de Clavícula y Espina Dorsal (L2)"
+    },
+    {
+      "idx": 16,
+      "name": "Peto Estridente de Proa Cortante y Alas Dorsales en X (L2)"
+    },
+    {
+      "idx": 17,
+      "name": "Coraza Serafín Ceñida de 6 Alas Espinales y Quilla Saliente"
+    },
+    {
+      "idx": 18,
+      "name": "Peto Leviatán de Aletas Dorsales Aserradas y Costillas Cortantes"
+    },
+    {
+      "idx": 19,
+      "name": "Coraza Soberano Astral de Halo Dorsal y Escápula Alada (L2)"
+    }
+  ],
+  "gloves": [
+    {
+      "idx": 0,
+      "name": "Sin Brazales"
+    },
+    {
+      "idx": 1,
+      "name": "Brazales de Paladín & Codera Alada"
+    },
+    {
+      "idx": 2,
+      "name": "Guanteletes Góticos con Púas"
+    },
+    {
+      "idx": 3,
+      "name": "Brazales Reales con Filigrana Oro"
+    },
+    {
+      "idx": 4,
+      "name": "Guanteletes Dinastía con Aletas Aladas (L2)"
+    },
+    {
+      "idx": 5,
+      "name": "Brazales de Escamas de Dragón (D&D)"
+    }
+  ],
+  "belt": [
+    {
+      "idx": 0,
+      "name": "Sin Cinturón"
+    },
+    {
+      "idx": 1,
+      "name": "Cinturón Solar + Tabardo Heráldico Largo"
+    },
+    {
+      "idx": 2,
+      "name": "Cinturón Real + Tabardo Azul & Oro"
+    },
+    {
+      "idx": 3,
+      "name": "Fajín de Guerra con Faldón de Malla"
+    },
+    {
+      "idx": 4,
+      "name": "Cinturón Abisal con Punta Gótica"
+    },
+    {
+      "idx": 5,
+      "name": "Cinturón de Comandante con Hebilla"
+    },
+    {
+      "idx": 6,
+      "name": "Cinturón Dinastía + Tabardo Esmeralda & Oro Rosa (L2)"
+    },
+    {
+      "idx": 7,
+      "name": "Cinturón de Brigantina Tachonada (D&D)"
+    }
+  ],
+  "tassets": [
+    {
+      "idx": 0,
+      "name": "Sin Escarcelas"
+    },
+    {
+      "idx": 1,
+      "name": "Escarcelas de Paladín (3 Placas Oro)"
+    },
+    {
+      "idx": 2,
+      "name": "Escarcelas Góticas en Punta V"
+    },
+    {
+      "idx": 3,
+      "name": "Placas Pesadas de Comandante"
+    },
+    {
+      "idx": 4,
+      "name": "Escarcelas Élficas Biseladas"
+    },
+    {
+      "idx": 5,
+      "name": "Escarcelas Reales con Blasón"
+    },
+    {
+      "idx": 6,
+      "name": "Escarcelas Dinastía Aladas en Abanico (L2)"
+    },
+    {
+      "idx": 7,
+      "name": "Escarcelas de Escamas de Dragón (D&D)"
+    },
+    {
+      "idx": 8,
+      "name": "Escarcelas de Tablillas / Splint Mail (D&D)"
+    }
+  ],
+  "cuisses": [
+    {
+      "idx": 0,
+      "name": "Sin Musleras"
+    },
+    {
+      "idx": 1,
+      "name": "Quijotes de Paladín con Marco Oro"
+    },
+    {
+      "idx": 2,
+      "name": "Quijotes Góticos con Cresta en V"
+    },
+    {
+      "idx": 3,
+      "name": "Musleras Pesadas de Comandante"
+    },
+    {
+      "idx": 4,
+      "name": "Quijotes Élficos Acanalados"
+    },
+    {
+      "idx": 5,
+      "name": "Quijotes Imperiales de Torneo"
+    },
+    {
+      "idx": 6,
+      "name": "Quijotes Dinastía con Marco de Oro Rosa (L2)"
+    },
+    {
+      "idx": 7,
+      "name": "Quijotes de Bandas Horizontales Lamelar (D&D)"
+    }
+  ],
+  "knees": [
+    {
+      "idx": 0,
+      "name": "Sin Rodilleras"
+    },
+    {
+      "idx": 1,
+      "name": "Rodilleras de Paladín Biseladas"
+    },
+    {
+      "idx": 2,
+      "name": "Rodilleras Facetadas con Ala Lateral"
+    },
+    {
+      "idx": 3,
+      "name": "Rodilleras Abisales con Espolón"
+    },
+    {
+      "idx": 4,
+      "name": "Rodilleras de Comandante Articuladas"
+    },
+    {
+      "idx": 5,
+      "name": "Rodilleras Élficas en Punta Real"
+    },
+    {
+      "idx": 6,
+      "name": "Rodilleras Dinastía con Aletas de Plumas (L2)"
+    },
+    {
+      "idx": 7,
+      "name": "Rodilleras de Escama con Gema Rubí (D&D)"
+    }
+  ],
+  "boots": [
+    {
+      "idx": 0,
+      "name": "Sin Grebas"
+    },
+    {
+      "idx": 1,
+      "name": "Botas & Escarpes de Paladín Solar"
+    },
+    {
+      "idx": 2,
+      "name": "Botas Góticas Abisales en Punta"
+    },
+    {
+      "idx": 3,
+      "name": "Botas de Comandante de Acero Pesado"
+    },
+    {
+      "idx": 4,
+      "name": "Botas Dinastía Celestial (Alas de Oro Rosa - L2)"
+    },
+    {
+      "idx": 5,
+      "name": "Botas Élficas de Hoja de Laurel (D&D)"
+    },
+    {
+      "idx": 6,
+      "name": "Botas de Escamas de Dragón & Puntera Reforzada (D&D)"
+    }
+  ],
+  "weapon": [
+    {
+      "idx": 0,
+      "name": "Sin Arma"
+    },
+    {
+      "idx": 1,
+      "name": "Espada Solar + Escudo Heráldico Sol"
+    },
+    {
+      "idx": 2,
+      "name": "Mandoble + Gran Escudo Torre Pavés Solar (D&D)"
+    },
+    {
+      "idx": 3,
+      "name": "Espada de Acero + Escudo de Espigas Eclipse (D&D)"
+    },
+    {
+      "idx": 4,
+      "name": "Lanza Élfica + Rodela de Hierro / Buckler (D&D)"
+    },
+    {
+      "idx": 5,
+      "name": "Espada Dinastía + Escudo Alado Oro Rosa (L2)"
+    },
+    {
+      "idx": 6,
+      "name": "Hacha de Torre de Doble Filo + Escudo Cometa de Caballero"
+    },
+    {
+      "idx": 7,
+      "name": "Maza Estrellada + Escudo Redondo Vikingo"
+    },
+    {
+      "idx": 8,
+      "name": "Estoque Élfico + Escudo Ojival Gótico"
+    },
+    {
+      "idx": 9,
+      "name": "Hoz Abismal + Escudo Cuadrado de Escamas"
+    },
+    {
+      "idx": 10,
+      "name": "Cetro de Mando Solar + Broquel Élfico de Hoja"
+    },
+    {
+      "idx": 11,
+      "name": "Espada Ropera Élfica"
+    },
+    {
+      "idx": 12,
+      "name": "Espada Larga de Caballero"
+    },
+    {
+      "idx": 13,
+      "name": "Montante de Dos Manos"
+    },
+    {
+      "idx": 14,
+      "name": "Falcata de Guerra"
+    },
+    {
+      "idx": 15,
+      "name": "Cimitarra Dorada"
+    },
+    {
+      "idx": 16,
+      "name": "Espada Bastarda Gótica"
+    },
+    {
+      "idx": 17,
+      "name": "Estoque de Torneo"
+    },
+    {
+      "idx": 18,
+      "name": "Espada Flamígera Ondulada"
+    },
+    {
+      "idx": 19,
+      "name": "Claymore de Clan"
+    },
+    {
+      "idx": 20,
+      "name": "Gladius Imperial"
+    },
+    {
+      "idx": 21,
+      "name": "Hacha de Guerra Lunar"
+    },
+    {
+      "idx": 22,
+      "name": "Hacha de Torre de Doble Filo"
+    },
+    {
+      "idx": 23,
+      "name": "Hacha Vikinga de Filo Único"
+    },
+    {
+      "idx": 24,
+      "name": "Hacha Pico de Cuervo"
+    },
+    {
+      "idx": 25,
+      "name": "Hacha de Abordaje"
+    },
+    {
+      "idx": 26,
+      "name": "Alabarda Hacha de Luz"
+    },
+    {
+      "idx": 27,
+      "name": "Hacha Doble Gótica"
+    },
+    {
+      "idx": 28,
+      "name": "Tomahawk Espinado"
+    },
+    {
+      "idx": 29,
+      "name": "Hacha de Verdugo"
+    },
+    {
+      "idx": 30,
+      "name": "Labrys Solar"
+    },
+    {
+      "idx": 31,
+      "name": "Maza Estrellada"
+    },
+    {
+      "idx": 32,
+      "name": "Maza de Pinchos"
+    },
+    {
+      "idx": 33,
+      "name": "Martillo de Guerra"
+    },
+    {
+      "idx": 34,
+      "name": "Maza de Tres Cabezas"
+    },
+    {
+      "idx": 35,
+      "name": "Maza Flanjeada"
+    },
+    {
+      "idx": 36,
+      "name": "Mangual de Cadena"
+    },
+    {
+      "idx": 37,
+      "name": "Macuahuitl de Vidrio"
+    },
+    {
+      "idx": 38,
+      "name": "Maza Hexagonal"
+    },
+    {
+      "idx": 39,
+      "name": "Porra Ceremonial"
+    },
+    {
+      "idx": 40,
+      "name": "Maza Cráneo Abisal"
+    },
+    {
+      "idx": 41,
+      "name": "Daga Élfica"
+    },
+    {
+      "idx": 42,
+      "name": "Kris Ondulado"
+    },
+    {
+      "idx": 43,
+      "name": "Daga de Asesino"
+    },
+    {
+      "idx": 44,
+      "name": "Misericordia"
+    },
+    {
+      "idx": 45,
+      "name": "Cuchillo de Caza"
+    },
+    {
+      "idx": 46,
+      "name": "Daga Gótica de Dos Filos"
+    },
+    {
+      "idx": 47,
+      "name": "Punzón de Mago"
+    },
+    {
+      "idx": 48,
+      "name": "Daga Parada"
+    },
+    {
+      "idx": 49,
+      "name": "Daga Lunar"
+    },
+    {
+      "idx": 50,
+      "name": "Daga de Cristal"
+    },
+    {
+      "idx": 51,
+      "name": "Lanza de Caballería"
+    },
+    {
+      "idx": 52,
+      "name": "Lanza Élfica de Hoja Larga"
+    },
+    {
+      "idx": 53,
+      "name": "Alabarda de Guardián"
+    },
+    {
+      "idx": 54,
+      "name": "Pica de Falange"
+    },
+    {
+      "idx": 55,
+      "name": "Tridente Solar"
+    },
+    {
+      "idx": 56,
+      "name": "Glaive de Luna"
+    },
+    {
+      "idx": 57,
+      "name": "Lanza de Espino"
+    },
+    {
+      "idx": 58,
+      "name": "Partesana"
+    },
+    {
+      "idx": 59,
+      "name": "Lanza Gótica de Púas"
+    },
+    {
+      "idx": 60,
+      "name": "Bisarma Dorada"
+    },
+    {
+      "idx": 61,
+      "name": "Báculo Solar"
+    },
+    {
+      "idx": 62,
+      "name": "Cetro Arcano de Cristal"
+    },
+    {
+      "idx": 63,
+      "name": "Báculo Espiral Élfico"
+    },
+    {
+      "idx": 64,
+      "name": "Bastón de Druida"
+    },
+    {
+      "idx": 65,
+      "name": "Báculo de Triple Orbe"
+    },
+    {
+      "idx": 66,
+      "name": "Vara de Runas"
+    },
+    {
+      "idx": 67,
+      "name": "Báculo Cráneo Abisal"
+    },
+    {
+      "idx": 68,
+      "name": "Báculo de Raíces"
+    },
+    {
+      "idx": 69,
+      "name": "Cetro del Alba"
+    },
+    {
+      "idx": 70,
+      "name": "Báculo Lunar de Plata"
+    },
+    {
+      "idx": 71,
+      "name": "Arco Largo Élfico"
+    },
+    {
+      "idx": 72,
+      "name": "Arco Recurvo de Caballero"
+    },
+    {
+      "idx": 73,
+      "name": "Arco Compuesto Gótico"
+    },
+    {
+      "idx": 74,
+      "name": "Arco Reflejo Solar"
+    },
+    {
+      "idx": 75,
+      "name": "Arco de Caza"
+    },
+    {
+      "idx": 76,
+      "name": "Arco de Cristal"
+    },
+    {
+      "idx": 77,
+      "name": "Arco Espinado"
+    },
+    {
+      "idx": 78,
+      "name": "Arco de Raíces"
+    },
+    {
+      "idx": 79,
+      "name": "Arco Lunar"
+    },
+    {
+      "idx": 80,
+      "name": "Arco de Torneo"
+    }
+  ]
+}
