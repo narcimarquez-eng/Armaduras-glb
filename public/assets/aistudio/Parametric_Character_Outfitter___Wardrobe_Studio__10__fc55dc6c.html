@@ -120,6 +120,7 @@
         <option value="thrust_lunge">★ Estocada a Fondo</option>
         <option value="rising_slash">★ Tajo Ascendente</option>
         <option value="guard_counter">★ Parada y Contraataque</option>
+        <option value="triple_corkscrew">★ Tornillo Triple con Salto</option>
       </select>
     </div>
     <label for="glb-file-input" class="glass-panel p-2 rounded-2xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-indigo-500/60 transition border border-dashed border-indigo-400/40 text-center group">
@@ -2883,7 +2884,7 @@
       controls.enableDamping = true;
       controls.dampingFactor = 0.06;
       controls.minDistance = 0.6;
-      controls.maxDistance = 5.5;
+      controls.maxDistance = 18.0;   // antes 5.5: hacía falta alejarse para ver los ataques especiales
       controls.maxPolarAngle = Math.PI / 2 + 0.04;
       controls.target.set(0, 1.05, 0);
 
@@ -11490,7 +11491,8 @@
       crouch: 'idle', swim: 'walk',
       ultimate_slam: 'ultimate_nova', ultimate_beam: 'ultimate_nova',
       spin_slash: 'attack', whirlwind: 'attack', overhead_cleave: 'attack',
-      thrust_lunge: 'attack', rising_slash: 'attack', guard_counter: 'attack'
+      thrust_lunge: 'attack', rising_slash: 'attack', guard_counter: 'attack',
+      triple_corkscrew: 'jump'
     };
 
     /* =========================================================================
@@ -11666,7 +11668,8 @@
           overhead_cleave: 'overhead_cleave',
           thrust_lunge: 'thrust_lunge',
           rising_slash: 'rising_slash',
-          guard_counter: 'guard_counter'
+          guard_counter: 'guard_counter',
+          triple_corkscrew: 'triple_corkscrew'
         };
         CH.CONFIG.items.animation = animMap[anim] || 'idle';
         CH.CONFIG.items.animPlaying = true;
@@ -17589,6 +17592,11 @@ const GAME_ANIMATIONS = {
     category: 'Ataque Especial',
     duration: 1.9,
   },
+  triple_corkscrew: {
+    name: 'Ataque Especial: Tornillo Triple con Salto',
+    category: 'Ataque Especial',
+    duration: 2.2,
+  },
 };
 
 /**
@@ -18346,6 +18354,96 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
       }
       state.vfxType = (u >= 0.26 && u < 0.42) ? 'spark' : ((u >= 0.42 && u <= 0.66) ? 'trail' : null);
       state.vfxProgress = u;
+      break;
+    }
+
+    case 'triple_corkscrew': {
+      // Agazapado, impulso, tres tornillos completos en el aire con tijeras rápidas de piernas, y recepción
+      const T_GATHER = 0.16, T_LAUNCH = 0.26, T_LAND = 0.80, T_ABSORB = 0.90;
+      if (u < T_GATHER) {
+        // Agazaparse cargando las piernas
+        const t = Math.sin((u / T_GATHER) * Math.PI * 0.5);
+        state.pelvisPos = [0, -0.30 * t, 0];
+        state.pelvisRot = [0, -0.35 * t, 0];
+        state.torsoRot = [0.40 * t, -0.25 * t, 0];
+        state.head = [-0.12 * t, 0, 0];
+        state.shoulderR = [0.70 * t, -0.20 * t, -0.30 - 0.20 * t];
+        state.shoulderL = [0.70 * t, 0.20 * t, 0.30 + 0.20 * t];
+        state.elbowR = [-0.75 * t, 0, 0];
+        state.elbowL = [-0.75 * t, 0, 0];
+        state.hipL = [-1.00 * t, 0, 0.10]; state.hipR = [-1.00 * t, 0, -0.10];
+        state.kneeL = [1.45 * t, 0, 0]; state.kneeR = [1.45 * t, 0, 0];
+      } else if (u < T_LAUNCH) {
+        // Extensión explosiva: despega
+        const t = Math.pow((u - T_GATHER) / (T_LAUNCH - T_GATHER), 0.55);
+        state.pelvisPos = [0, -0.30 + 0.62 * t, 0];
+        state.pelvisRot = [0, -0.35 + 0.90 * t, 0];
+        state.torsoRot = [0.40 - 0.55 * t, -0.25 + 0.25 * t, 0];
+        state.head = [-0.12 - 0.10 * t, 0, 0];
+        // Los brazos suben y se recogen: es lo que acelera el tornillo
+        state.shoulderR = [0.70 - 2.20 * t, -0.20 + 0.10 * t, -0.50 + 0.25 * t];
+        state.shoulderL = [0.70 - 2.20 * t, 0.20 - 0.10 * t, 0.50 - 0.25 * t];
+        state.elbowR = [-0.75 - 0.55 * t, 0, 0];
+        state.elbowL = [-0.75 - 0.55 * t, 0, 0];
+        state.hipL = [-1.00 + 1.20 * t, 0, 0.10]; state.hipR = [-1.00 + 1.20 * t, 0, -0.10];
+        state.kneeL = [1.45 - 1.30 * t, 0, 0]; state.kneeR = [1.45 - 1.30 * t, 0, 0];
+      } else if (u < T_LAND) {
+        // Vuelo: parábola + tres vueltas sobre el eje del cuerpo
+        const t = (u - T_LAUNCH) / (T_LAND - T_LAUNCH);
+        const arc = Math.sin(t * Math.PI);                 // 0 -> 1 -> 0
+        state.pelvisPos = [0, 0.32 + arc * 0.58, 0];
+        // Tres tornillos completos, arrancando rápido y abriéndose al final
+        const twist = Math.pow(t, 0.88) * Math.PI * 6;
+        state.pelvisRot = [0.18 * arc, 0.55 + twist, 0.10 * Math.sin(t * Math.PI * 2)];
+        state.torsoRot = [-0.15 + 0.20 * arc, 0.12 * Math.sin(t * Math.PI * 3), 0];
+        state.head = [-0.22 * arc, 0, 0];
+        // Brazos recogidos sobre el pecho durante el giro, se abren al final para frenar
+        const open = Math.pow(Math.max(0, (t - 0.68) / 0.32), 1.4);
+        state.shoulderR = [-1.50 + 0.70 * open, -0.10, -0.25 - 1.10 * open];
+        state.shoulderL = [-1.50 + 0.70 * open, 0.10, 0.25 + 1.10 * open];
+        state.elbowR = [-1.30 + 0.95 * open, 0, 0];
+        state.elbowL = [-1.30 + 0.95 * open, 0, 0];
+        // Tijeras rápidas de piernas: cuatro ciclos durante el vuelo
+        const f = t * Math.PI * 2 * 4;
+        const sc = Math.sin(f);
+        state.hipL = [-0.20 + sc * 1.05, 0, 0.10];
+        state.hipR = [-0.20 - sc * 1.05, 0, -0.10];
+        state.kneeL = [0.45 + Math.max(0, -sc) * 1.15, 0, 0];
+        state.kneeR = [0.45 + Math.max(0, sc) * 1.15, 0, 0];
+        state.ankleL = [-0.25 + sc * 0.25, 0, 0];
+        state.ankleR = [-0.25 - sc * 0.25, 0, 0];
+      } else if (u < T_ABSORB) {
+        // Recepción: absorbe con las rodillas
+        const t = (u - T_LAND) / (T_ABSORB - T_LAND);
+        state.pelvisPos = [0, 0.32 * (1 - t) - 0.26 * t, 0];
+        state.pelvisRot = [0, 0.55 + Math.PI * 6, 0];
+        state.torsoRot = [0.05 + 0.40 * t, 0, 0];
+        state.head = [-0.05 + 0.15 * t, 0, 0];
+        state.shoulderR = [-0.80 + 0.55 * t, -0.10, -1.35 + 0.75 * t];
+        state.shoulderL = [-0.80 + 0.55 * t, 0.10, 1.35 - 0.75 * t];
+        state.elbowR = [-0.35 - 0.10 * t, 0, 0];
+        state.elbowL = [-0.35 - 0.10 * t, 0, 0];
+        state.hipL = [-0.95 * t, 0, 0.12]; state.hipR = [-0.95 * t, 0, -0.12];
+        state.kneeL = [1.40 * t, 0, 0]; state.kneeR = [1.40 * t, 0, 0];
+        state.ankleL = [-0.35 * t, 0, 0]; state.ankleR = [-0.35 * t, 0, 0];
+      } else {
+        // Se endereza
+        const t = (u - T_ABSORB) / (1 - T_ABSORB);
+        const hold = 1 - Math.pow(t, 1.5);
+        state.pelvisPos = [0, -0.26 * hold, 0];
+        state.torsoRot = [0.45 * hold, 0, 0];
+        state.head = [0.10 * hold, 0, 0];
+        state.shoulderR = [-0.25 * hold - 0.05, -0.10 * hold, -0.60 * hold - 0.30 * (1 - hold)];
+        state.shoulderL = [-0.25 * hold, 0.10 * hold, 0.60 * hold + 0.30 * (1 - hold)];
+        state.elbowR = [-0.45 * hold - 0.28 * (1 - hold), 0, 0];
+        state.elbowL = [-0.45 * hold - 0.28 * (1 - hold), 0, 0];
+        state.hipL = [-0.95 * hold, 0, 0.12]; state.hipR = [-0.95 * hold, 0, -0.12];
+        state.kneeL = [1.40 * hold, 0, 0]; state.kneeR = [1.40 * hold, 0, 0];
+        state.ankleL = [-0.35 * hold, 0, 0]; state.ankleR = [-0.35 * hold, 0, 0];
+      }
+      // Estela durante el vuelo y onda de choque al tomar tierra
+      state.vfxType = (u >= T_LAUNCH && u < T_LAND) ? 'trail' : ((u >= T_LAND && u < T_LAND + 0.12) ? 'shock' : null);
+      state.vfxProgress = (u >= T_LAND) ? (0.52 + ((u - T_LAND) / 0.12) * 0.20) : u;
       break;
     }
 
