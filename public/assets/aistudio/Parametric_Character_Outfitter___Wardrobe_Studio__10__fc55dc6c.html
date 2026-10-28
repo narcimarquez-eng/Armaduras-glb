@@ -18110,7 +18110,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.pelvisRot = [0, -0.55 + spin * (Math.PI * 2 + 0.55), 0];
         // La apertura crece a lo largo del giro: el arma arranca junto al cuerpo
         // y la punta va alejándose hasta el radio máximo al final
-        const ext = Math.pow(t, 1.35);
+        const ext = Math.pow(t, 0.70);   // abre pronto y sigue abriendo hasta el radio máximo al final
         state.pelvisPos = [0, -0.07 + 0.13 * ext, 0];
         // El tronco se estira a la vez que se abre el brazo
         state.torsoRot = [0.12 + 0.22 * ext, 0.30 * Math.sin(t * Math.PI), 0.05 + 0.13 * ext];
@@ -18154,7 +18154,7 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.pelvisRot = [0, t * Math.PI * 4, 0];       // dos vueltas
         // Los brazos arrancan plegados y se van abriendo vuelta a vuelta,
         // de modo que las puntas acaban describiendo el círculo más ancho
-        const ext = Math.pow(t, 1.25);
+        const ext = Math.pow(t, 0.72);   // abre pronto y sigue abriendo hasta el radio máximo al final
         state.pelvisPos = [0, -0.14 + 0.13 * ext + Math.sin(t * Math.PI * 4) * 0.018, 0];
         state.torsoRot = [0.14 + 0.24 * ext, 0, Math.sin(t * Math.PI * 4) * 0.14];
         state.head = [-0.04 - 0.10 * ext, 0, 0];
