@@ -114,6 +114,12 @@
         <option value="ultimate_slam">Impacto Sísmico</option>
         <option value="ultimate_beam">Cañón de Energía</option>
         <option value="archery">Tiro con Arco</option>
+        <option value="spin_slash">★ Tajo Giratorio (360°)</option>
+        <option value="whirlwind">★ Torbellino (Doble Giro)</option>
+        <option value="overhead_cleave">★ Hendidura Vertical</option>
+        <option value="thrust_lunge">★ Estocada a Fondo</option>
+        <option value="rising_slash">★ Tajo Ascendente</option>
+        <option value="guard_counter">★ Parada y Contraataque</option>
       </select>
     </div>
     <label for="glb-file-input" class="glass-panel p-2 rounded-2xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-indigo-500/60 transition border border-dashed border-indigo-400/40 text-center group">
@@ -11482,11 +11488,151 @@
     const IMPORTED_RIG_ANIM_ALIAS = {
       punch: 'attack', dodge: 'attack', hit: 'attack',
       crouch: 'idle', swim: 'walk',
-      ultimate_slam: 'ultimate_nova', ultimate_beam: 'ultimate_nova'
+      ultimate_slam: 'ultimate_nova', ultimate_beam: 'ultimate_nova',
+      spin_slash: 'attack', whirlwind: 'attack', overhead_cleave: 'attack',
+      thrust_lunge: 'attack', rising_slash: 'attack', guard_counter: 'attack'
     };
 
+    /* =========================================================================
+       EFECTOS DE ATAQUE ESPECIAL: estela del arma, onda de choque y chispas.
+       Todo cuelga de un grupo aparte marcado como VFX, para no exportarlo al .GLB.
+       ========================================================================= */
+    const COMBAT_VFX = { group: null, trail: null, history: [], ring: null, flash: null };
+
+    function ensureCombatVFX() {
+      if (COMBAT_VFX.group) return;
+      const g = new THREE.Group();
+      g.name = 'CombatVFX';
+      g.userData.isVFX = true;
+
+      const trailGeo = new THREE.BufferGeometry();
+      trailGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(32 * 2 * 3), 3));
+      trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(32 * 2 * 3), 3));
+      const trail = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({
+        vertexColors: true, transparent: true, opacity: 0.9, side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      trail.frustumCulled = false;
+      trail.visible = false;
+      g.add(trail);
+
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.30, 0.42, 48),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.visible = false;
+      g.add(ring);
+
+      const flash = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 12, 8),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      flash.visible = false;
+      g.add(flash);
+
+      COMBAT_VFX.group = g; COMBAT_VFX.trail = trail; COMBAT_VFX.ring = ring; COMBAT_VFX.flash = flash;
+      scene.add(g);
+    }
+
+    // Punta y medio del filo, en coordenadas del mundo
+    function getBladeSpanWorld() {
+      const w = armorSockets.weaponR;
+      if (!w || !w.children.length) return null;
+      if (!w.userData.tipLocal) {
+        const box = new THREE.Box3();
+        w.children.forEach(c => box.expandByObject(c));
+        if (box.isEmpty()) return null;
+        let best = null;
+        [box.min.x, box.max.x].forEach(x => [box.min.y, box.max.y].forEach(y => [box.min.z, box.max.z].forEach(z => {
+          const v = new THREE.Vector3(x, y, z);
+          if (!best || v.lengthSq() > best.lengthSq()) best = v;
+        })));
+        w.userData.tipLocal = best;
+      }
+      w.updateWorldMatrix(true, false);
+      const tip = w.localToWorld(w.userData.tipLocal.clone());
+      const mid = w.localToWorld(w.userData.tipLocal.clone().multiplyScalar(0.40));
+      return { tip, mid };
+    }
+
+    function updateCombatVFX(vfx, delta) {
+      const type = vfx && vfx.vfxType;
+      const prog = (vfx && vfx.vfxProgress) || 0;
+      if (!type && !COMBAT_VFX.group) return;   // nada que hacer y nada que limpiar
+      ensureCombatVFX();
+
+      const glow = new THREE.Color(STATE.glowColor || '#fbbf24');
+
+      // --- Estela del filo ---
+      if (type === 'trail') {
+        const span = getBladeSpanWorld();
+        if (span) COMBAT_VFX.history.push(span);
+      }
+      while (COMBAT_VFX.history.length > 32) COMBAT_VFX.history.shift();
+      if (type !== 'trail' && COMBAT_VFX.history.length) {
+        COMBAT_VFX.history.shift();            // se consume sola al terminar el golpe
+        if (COMBAT_VFX.history.length) COMBAT_VFX.history.shift();
+      }
+
+      const h = COMBAT_VFX.history;
+      if (h.length >= 2) {
+        const pos = COMBAT_VFX.trail.geometry.attributes.position;
+        const col = COMBAT_VFX.trail.geometry.attributes.color;
+        const idx = [];
+        for (let i = 0; i < h.length; i++) {
+          const f = i / (h.length - 1);                  // 0 = cola, 1 = filo actual
+          const a = Math.pow(f, 1.6);
+          pos.setXYZ(i * 2,     h[i].mid.x, h[i].mid.y, h[i].mid.z);
+          pos.setXYZ(i * 2 + 1, h[i].tip.x, h[i].tip.y, h[i].tip.z);
+          col.setXYZ(i * 2,     glow.r * a * 0.45, glow.g * a * 0.45, glow.b * a * 0.45);
+          col.setXYZ(i * 2 + 1, glow.r * a, glow.g * a, glow.b * a);
+          if (i < h.length - 1) {
+            const q = i * 2;
+            idx.push(q, q + 1, q + 3, q, q + 3, q + 2);
+          }
+        }
+        COMBAT_VFX.trail.geometry.setIndex(idx);
+        COMBAT_VFX.trail.geometry.setDrawRange(0, idx.length);
+        pos.needsUpdate = true; col.needsUpdate = true;
+        COMBAT_VFX.trail.visible = true;
+      } else {
+        COMBAT_VFX.trail.visible = false;
+      }
+
+      // --- Onda de choque contra el suelo ---
+      if (type === 'shock') {
+        const k = THREE.MathUtils.clamp((prog - 0.52) / 0.20, 0, 1);
+        const box = getCharacterWorldBox();
+        COMBAT_VFX.ring.position.set(0, (box ? box.min.y : 0) + 0.012, 0);
+        COMBAT_VFX.ring.scale.setScalar(0.35 + k * 2.6);
+        COMBAT_VFX.ring.material.color.copy(glow);
+        COMBAT_VFX.ring.material.opacity = (1 - k) * 0.85;
+        COMBAT_VFX.ring.visible = true;
+      } else if (COMBAT_VFX.ring.visible) {
+        COMBAT_VFX.ring.material.opacity *= 0.82;
+        if (COMBAT_VFX.ring.material.opacity < 0.02) COMBAT_VFX.ring.visible = false;
+      }
+
+      // --- Chispas del bloqueo ---
+      if (type === 'spark') {
+        const span = getBladeSpanWorld();
+        if (span) {
+          const k = Math.abs(Math.sin(prog * Math.PI * 9));
+          COMBAT_VFX.flash.position.copy(span.tip);
+          COMBAT_VFX.flash.scale.setScalar(0.6 + k * 1.5);
+          COMBAT_VFX.flash.material.color.copy(glow);
+          COMBAT_VFX.flash.material.opacity = k * 0.9;
+          COMBAT_VFX.flash.visible = true;
+        }
+      } else if (COMBAT_VFX.flash.visible) {
+        COMBAT_VFX.flash.material.opacity *= 0.78;
+        if (COMBAT_VFX.flash.material.opacity < 0.02) COMBAT_VFX.flash.visible = false;
+      }
+    }
+
     function updateCharacterAnimation(delta) {
-      if (animMixer && gltfClips.length > 0) { animMixer.update(delta); return; }
+      if (animMixer && gltfClips.length > 0) { animMixer.update(delta); updateCombatVFX(null, delta); return; }
       animTime += delta;
       const t = animTime;
       const anim = STATE.currentAnim;
@@ -11514,11 +11660,17 @@
           victory: 'jump',
           ultimate_nova: 'ultimate_nova',
           ultimate_slam: 'ultimate_slam',
-          ultimate_beam: 'ultimate_beam'
+          ultimate_beam: 'ultimate_beam',
+          spin_slash: 'spin_slash',
+          whirlwind: 'whirlwind',
+          overhead_cleave: 'overhead_cleave',
+          thrust_lunge: 'thrust_lunge',
+          rising_slash: 'rising_slash',
+          guard_counter: 'guard_counter'
         };
         CH.CONFIG.items.animation = animMap[anim] || 'idle';
         CH.CONFIG.items.animPlaying = true;
-        CH.updateCharacterAnimation(delta);
+        updateCombatVFX(CH.updateCharacterAnimation(delta), delta);
 
         if (armorSockets.tassetL && bonesMap.Thigh_L) {
           armorSockets.tassetL.rotation.x = Math.max(0, -bonesMap.Thigh_L.rotation.x * 0.72);
@@ -11529,6 +11681,7 @@
         return;
       }
 
+      updateCombatVFX(null, delta);
       if (!bonesMap.Pelvis) return;
       const kAnim = IMPORTED_RIG_ANIM_ALIAS[anim] || anim;
       if (typeof bonesMap.Pelvis.userData.restY !== 'number') {
@@ -17406,6 +17559,36 @@ const GAME_ANIMATIONS = {
     category: 'Emote',
     duration: 2.0,
   },
+  spin_slash: {
+    name: 'Ataque Especial: Tajo Giratorio (360°)',
+    category: 'Ataque Especial',
+    duration: 1.7,
+  },
+  whirlwind: {
+    name: 'Ataque Especial: Torbellino (Doble Giro)',
+    category: 'Ataque Especial',
+    duration: 2.3,
+  },
+  overhead_cleave: {
+    name: 'Ataque Especial: Hendidura Vertical',
+    category: 'Ataque Especial',
+    duration: 1.5,
+  },
+  thrust_lunge: {
+    name: 'Ataque Especial: Estocada a Fondo',
+    category: 'Ataque Especial',
+    duration: 1.25,
+  },
+  rising_slash: {
+    name: 'Ataque Especial: Tajo Ascendente',
+    category: 'Ataque Especial',
+    duration: 1.5,
+  },
+  guard_counter: {
+    name: 'Ataque Especial: Parada y Contraataque',
+    category: 'Ataque Especial',
+    duration: 1.9,
+  },
 };
 
 /**
@@ -17889,6 +18072,280 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
       state.hipR = [0, -0.08, -0.08];
       state.kneeL = [0.08, 0, 0];
       state.kneeR = [0.08, 0, 0];
+      break;
+    }
+
+    /* === ATAQUES ESPECIALES === */
+
+    case 'spin_slash': {
+      // Carga, giro completo de 360° con el arma extendida, y frenada
+      if (u < 0.22) {
+        const t = u / 0.22;
+        state.pelvisRot = [0, -0.55 * t, 0];
+        state.torsoRot = [0.05, -0.45 * t, 0];
+        state.head = [0, -0.30 * t, 0];
+        state.shoulderR = [-0.35 - 0.55 * t, -0.30 * t, -0.55 - 0.45 * t];
+        state.elbowR = [-0.95 * t, 0, 0.20 * t];
+        state.shoulderL = [0.10, 0.20 * t, 0.42 + 0.30 * t];
+        state.hipL = [0.05, 0, 0.08]; state.hipR = [-0.10 * t, 0, -0.08];
+        state.kneeL = [0.18 * t, 0, 0]; state.kneeR = [0.30 * t, 0, 0];
+      } else if (u < 0.68) {
+        const t = (u - 0.22) / 0.46;
+        const spin = Math.pow(t, 0.78);            // arranque rápido, salida frenada
+        state.pelvisRot = [0, -0.55 + spin * (Math.PI * 2 + 0.55), 0];
+        state.pelvisPos = [0, Math.sin(t * Math.PI) * 0.05, 0];
+        state.torsoRot = [0.10, 0.30 * Math.sin(t * Math.PI), 0];
+        state.head = [0, 0.35 * Math.sin(t * Math.PI * 1.2), 0];
+        // Brazo armado extendido en horizontal durante todo el giro
+        state.shoulderR = [-0.15, -0.10, -1.48];
+        state.elbowR = [-0.12, 0, 0];
+        state.shoulderL = [-0.10, 0.25, 1.15];
+        state.elbowL = [-0.55, 0, 0];
+        state.hipL = [0.12, 0, 0.10]; state.hipR = [-0.18, 0, -0.10];
+        state.kneeL = [0.35, 0, 0]; state.kneeR = [0.45, 0, 0];
+      } else {
+        const t = (u - 0.68) / 0.32;
+        const hold = 1 - Math.pow(t, 1.6);
+        state.pelvisRot = [0, (Math.PI * 2) * (1 - t) * 0.0 + 0.42 * hold, 0];
+        state.torsoRot = [0.12 * hold, 0.30 * hold, 0];
+        state.shoulderR = [-0.15 * hold - 0.05, -0.10 * hold, -1.48 * hold - 0.30 * (1 - hold)];
+        state.elbowR = [-0.12 - 0.45 * (1 - hold), 0, 0];
+        state.shoulderL = [-0.10 * hold, 0.25 * hold, 1.15 * hold + 0.30 * (1 - hold)];
+        state.elbowL = [-0.55 * hold - 0.28 * (1 - hold), 0, 0];
+        state.hipL = [0.12 * hold, 0, 0.10]; state.hipR = [-0.18 * hold, 0, -0.10];
+        state.kneeL = [0.35 * hold, 0, 0]; state.kneeR = [0.45 * hold, 0, 0];
+      }
+      state.vfxType = 'trail';
+      state.vfxProgress = u;
+      break;
+    }
+
+    case 'whirlwind': {
+      // Dos vueltas completas con los dos brazos abiertos y el tronco inclinado
+      if (u < 0.14) {
+        const t = u / 0.14;
+        state.pelvisPos = [0, -0.07 * t, 0];
+        state.torsoRot = [0.18 * t, -0.35 * t, 0];
+        state.shoulderR = [-0.30 * t, -0.20 * t, -0.60 - 0.60 * t];
+        state.shoulderL = [-0.20 * t, 0.20 * t, 0.50 + 0.50 * t];
+        state.kneeL = [0.42 * t, 0, 0]; state.kneeR = [0.42 * t, 0, 0];
+      } else if (u < 0.82) {
+        const t = (u - 0.14) / 0.68;
+        state.pelvisRot = [0, t * Math.PI * 4, 0];       // dos vueltas
+        state.pelvisPos = [0, -0.05 + Math.sin(t * Math.PI * 4) * 0.018, 0];
+        state.torsoRot = [0.20, 0, Math.sin(t * Math.PI * 4) * 0.10];
+        state.head = [0.05, 0, 0];
+        state.shoulderR = [-0.10, -0.12, -1.56];
+        state.elbowR = [-0.08, 0, 0];
+        state.shoulderL = [-0.10, 0.12, 1.56];
+        state.elbowL = [-0.08, 0, 0];
+        state.hipL = [0.16, 0, 0.12]; state.hipR = [0.16, 0, -0.12];
+        state.kneeL = [0.40, 0, 0]; state.kneeR = [0.40, 0, 0];
+      } else {
+        const t = (u - 0.82) / 0.18;
+        const hold = 1 - Math.pow(t, 1.5);
+        state.pelvisRot = [0, 0.30 * hold, 0];
+        state.pelvisPos = [0, -0.05 * hold, 0];
+        state.torsoRot = [0.20 * hold, 0, 0];
+        state.shoulderR = [-0.10 * hold, -0.12 * hold, -1.56 * hold - 0.30 * (1 - hold)];
+        state.shoulderL = [-0.10 * hold, 0.12 * hold, 1.56 * hold + 0.30 * (1 - hold)];
+        state.elbowR = [-0.08 - 0.40 * (1 - hold), 0, 0];
+        state.elbowL = [-0.08 - 0.40 * (1 - hold), 0, 0];
+        state.kneeL = [0.40 * hold, 0, 0]; state.kneeR = [0.40 * hold, 0, 0];
+      }
+      state.vfxType = 'trail';
+      state.vfxProgress = u;
+      break;
+    }
+
+    case 'overhead_cleave': {
+      // Alza el arma sobre la cabeza, zancada y hendidura seca hasta el suelo
+      if (u < 0.38) {
+        const t = Math.sin((u / 0.38) * Math.PI * 0.5);
+        state.pelvisPos = [0, 0.05 * t, 0];
+        state.torsoRot = [-0.30 * t, -0.18 * t, 0];
+        state.head = [-0.22 * t, 0, 0];
+        state.shoulderR = [-2.55 * t, -0.18 * t, -0.35 - 0.10 * t];
+        state.elbowR = [-0.55 * t, 0, 0];
+        state.shoulderL = [-2.20 * t, 0.18 * t, 0.35 + 0.10 * t];
+        state.elbowL = [-0.50 * t, 0, 0];
+        state.hipL = [-0.20 * t, 0, 0.08]; state.hipR = [0.12 * t, 0, -0.08];
+        state.kneeL = [0.25 * t, 0, 0]; state.kneeR = [0.15 * t, 0, 0];
+      } else if (u < 0.56) {
+        const t = Math.pow((u - 0.38) / 0.18, 0.62);     // bajada explosiva
+        state.pelvisPos = [0, 0.05 - 0.30 * t, 0];
+        state.torsoRot = [-0.30 + 1.05 * t, -0.18 + 0.18 * t, 0];
+        state.head = [-0.22 + 0.55 * t, 0, 0];
+        state.shoulderR = [-2.55 + 3.05 * t, -0.18 + 0.18 * t, -0.45 + 0.15 * t];
+        state.elbowR = [-0.55 + 0.45 * t, 0, 0];
+        state.shoulderL = [-2.20 + 2.60 * t, 0.18 - 0.18 * t, 0.45 - 0.15 * t];
+        state.elbowL = [-0.50 + 0.40 * t, 0, 0];
+        state.hipL = [-0.20 - 0.70 * t, 0, 0.08]; state.hipR = [0.12 - 0.50 * t, 0, -0.08];
+        state.kneeL = [0.25 + 1.00 * t, 0, 0]; state.kneeR = [0.15 + 0.95 * t, 0, 0];
+      } else {
+        const t = (u - 0.56) / 0.44;
+        const hold = 1 - Math.pow(t, 1.7);
+        state.pelvisPos = [0, -0.25 * hold, 0];
+        state.torsoRot = [0.75 * hold, 0, 0];
+        state.head = [0.33 * hold, 0, 0];
+        state.shoulderR = [0.50 * hold - 0.05, 0, -0.30 - 0.10 * hold];
+        state.elbowR = [-0.10 - 0.30 * (1 - hold), 0, 0];
+        state.shoulderL = [0.40 * hold - 0.05, 0, 0.30 + 0.10 * hold];
+        state.elbowL = [-0.10 - 0.30 * (1 - hold), 0, 0];
+        state.hipL = [-0.90 * hold, 0, 0.08]; state.hipR = [-0.38 * hold, 0, -0.08];
+        state.kneeL = [1.25 * hold, 0, 0]; state.kneeR = [1.10 * hold, 0, 0];
+      }
+      state.vfxType = u > 0.52 && u < 0.72 ? 'shock' : 'trail';
+      state.vfxProgress = u;
+      break;
+    }
+
+    case 'thrust_lunge': {
+      // Retrae el arma junto al costado y lanza una estocada con zancada profunda
+      if (u < 0.30) {
+        const t = Math.sin((u / 0.30) * Math.PI * 0.5);
+        state.pelvisPos = [0, -0.05 * t, 0];
+        state.pelvisRot = [0, -0.32 * t, 0];
+        state.torsoRot = [0.05, -0.40 * t, 0];
+        state.head = [0, 0.22 * t, 0];
+        state.shoulderR = [0.35 * t, -0.25 * t, -0.30 - 0.12 * t];
+        state.elbowR = [-1.75 * t, 0, 0];
+        state.shoulderL = [-0.25 * t, 0.15 * t, 0.55 * t + 0.30];
+        state.elbowL = [-0.80 * t, 0, 0];
+        state.hipL = [0.10 * t, 0, 0.08]; state.hipR = [-0.15 * t, 0, -0.08];
+        state.kneeL = [0.30 * t, 0, 0]; state.kneeR = [0.35 * t, 0, 0];
+      } else if (u < 0.48) {
+        const t = Math.pow((u - 0.30) / 0.18, 0.55);     // salida seca
+        state.pelvisPos = [0, -0.05 - 0.18 * t, 0.0];
+        state.pelvisRot = [0, -0.32 + 0.52 * t, 0];
+        state.torsoRot = [0.05 + 0.18 * t, -0.40 + 0.62 * t, 0];
+        state.head = [0.08 * t, 0.22 - 0.30 * t, 0];
+        state.shoulderR = [0.35 - 1.72 * t, -0.25 + 0.15 * t, -0.42 + 0.10 * t];
+        state.elbowR = [-1.75 + 1.68 * t, 0, 0];
+        state.shoulderL = [-0.25 + 0.10 * t, 0.15, 0.85 + 0.45 * t];
+        state.elbowL = [-0.80 - 0.25 * t, 0, 0];
+        state.hipL = [0.10 - 1.05 * t, 0, 0.08]; state.hipR = [-0.15 + 0.60 * t, 0, -0.08];
+        state.kneeL = [0.30 + 0.35 * t, 0, 0]; state.kneeR = [0.35 + 0.95 * t, 0, 0];
+      } else {
+        const t = (u - 0.48) / 0.52;
+        const hold = 1 - Math.pow(t, 1.6);
+        state.pelvisPos = [0, -0.23 * hold, 0];
+        state.pelvisRot = [0, 0.20 * hold, 0];
+        state.torsoRot = [0.23 * hold, 0.22 * hold, 0];
+        state.shoulderR = [-1.37 * hold - 0.05, -0.10 * hold, -0.32 - 0.10 * hold];
+        state.elbowR = [-0.07 - 0.30 * (1 - hold), 0, 0];
+        state.shoulderL = [-0.15 * hold, 0.15 * hold, 1.30 * hold + 0.30 * (1 - hold)];
+        state.elbowL = [-1.05 * hold - 0.25 * (1 - hold), 0, 0];
+        state.hipL = [-0.95 * hold, 0, 0.08]; state.hipR = [0.45 * hold, 0, -0.08];
+        state.kneeL = [0.65 * hold, 0, 0]; state.kneeR = [1.30 * hold, 0, 0];
+      }
+      state.vfxType = 'trail';
+      state.vfxProgress = u;
+      break;
+    }
+
+    case 'rising_slash': {
+      // Se agazapa y lanza un tajo ascendente con impulso de piernas
+      if (u < 0.32) {
+        const t = Math.sin((u / 0.32) * Math.PI * 0.5);
+        state.pelvisPos = [0, -0.26 * t, 0];
+        state.pelvisRot = [0, 0.30 * t, 0];
+        state.torsoRot = [0.42 * t, 0.26 * t, 0];
+        state.head = [-0.15 * t, 0, 0];
+        state.shoulderR = [0.85 * t, -0.20 * t, -0.30 - 0.25 * t];
+        state.elbowR = [-0.70 * t, 0, 0];
+        state.shoulderL = [0.30 * t, 0.20 * t, 0.30 + 0.35 * t];
+        state.elbowL = [-0.60 * t, 0, 0];
+        state.hipL = [-0.90 * t, 0, 0.10]; state.hipR = [-0.90 * t, 0, -0.10];
+        state.kneeL = [1.30 * t, 0, 0]; state.kneeR = [1.30 * t, 0, 0];
+      } else if (u < 0.58) {
+        const t = Math.pow((u - 0.32) / 0.26, 0.6);
+        state.pelvisPos = [0, -0.26 + 0.52 * t, 0];
+        state.pelvisRot = [0, 0.30 - 0.68 * t, 0];
+        state.torsoRot = [0.42 - 0.72 * t, 0.26 - 0.56 * t, 0];
+        state.head = [-0.15 - 0.22 * t, 0, 0];
+        state.shoulderR = [0.85 - 3.15 * t, -0.20 + 0.10 * t, -0.55 + 0.18 * t];
+        state.elbowR = [-0.70 + 0.52 * t, 0, 0];
+        state.shoulderL = [0.30 - 1.70 * t, 0.20, 0.65 + 0.25 * t];
+        state.elbowL = [-0.60 + 0.35 * t, 0, 0];
+        state.hipL = [-0.90 + 1.05 * t, 0, 0.10]; state.hipR = [-0.90 + 0.80 * t, 0, -0.10];
+        state.kneeL = [1.30 - 1.15 * t, 0, 0]; state.kneeR = [1.30 - 0.95 * t, 0, 0];
+      } else {
+        const t = (u - 0.58) / 0.42;
+        const hold = 1 - Math.pow(t, 1.5);
+        state.pelvisPos = [0, 0.26 * hold, 0];
+        state.pelvisRot = [0, -0.38 * hold, 0];
+        state.torsoRot = [-0.30 * hold, -0.30 * hold, 0];
+        state.head = [-0.37 * hold, 0, 0];
+        state.shoulderR = [-2.30 * hold - 0.05, -0.10 * hold, -0.37 - 0.05 * hold];
+        state.elbowR = [-0.18 * hold - 0.28 * (1 - hold), 0, 0];
+        state.shoulderL = [-1.40 * hold, 0.20 * hold, 0.90 * hold + 0.30 * (1 - hold)];
+        state.elbowL = [-0.25 * hold - 0.28 * (1 - hold), 0, 0];
+        state.hipL = [0.15 * hold, 0, 0.10]; state.hipR = [-0.10 * hold, 0, -0.10];
+        state.kneeL = [0.15 * hold, 0, 0]; state.kneeR = [0.35 * hold, 0, 0];
+      }
+      state.vfxType = 'trail';
+      state.vfxProgress = u;
+      break;
+    }
+
+    case 'guard_counter': {
+      // Se cubre, encaja el golpe y responde con un revés cruzado
+      if (u < 0.26) {
+        const t = Math.sin((u / 0.26) * Math.PI * 0.5);
+        state.pelvisPos = [0, -0.10 * t, 0];
+        state.pelvisRot = [0, 0.38 * t, 0];
+        state.torsoRot = [0.18 * t, 0.30 * t, 0];
+        state.head = [0.08 * t, -0.20 * t, 0];
+        state.shoulderR = [-0.95 * t, -0.30 * t, -0.75 * t - 0.30];
+        state.elbowR = [-1.45 * t, 0, 0];
+        state.shoulderL = [-1.10 * t, 0.30 * t, 0.85 * t + 0.30];
+        state.elbowL = [-1.55 * t, 0, 0];
+        state.hipL = [-0.25 * t, 0, 0.10]; state.hipR = [-0.25 * t, 0, -0.10];
+        state.kneeL = [0.45 * t, 0, 0]; state.kneeR = [0.45 * t, 0, 0];
+      } else if (u < 0.42) {
+        // Retroceso del impacto bloqueado
+        const t = (u - 0.26) / 0.16;
+        const kick = Math.sin(t * Math.PI) * (1 - t * 0.4);
+        state.pelvisPos = [0, -0.10 - 0.05 * kick, 0];
+        state.pelvisRot = [0, 0.38 + 0.18 * kick, 0];
+        state.torsoRot = [0.18 + 0.22 * kick, 0.30 + 0.15 * kick, 0];
+        state.head = [0.08 + 0.15 * kick, -0.20, 0];
+        state.shoulderR = [-0.95 - 0.20 * kick, -0.30, -1.05 - 0.15 * kick];
+        state.elbowR = [-1.45 - 0.18 * kick, 0, 0];
+        state.shoulderL = [-1.10 - 0.20 * kick, 0.30, 1.15 + 0.15 * kick];
+        state.elbowL = [-1.55 - 0.18 * kick, 0, 0];
+        state.hipL = [-0.25, 0, 0.10]; state.hipR = [-0.25, 0, -0.10];
+        state.kneeL = [0.45 + 0.15 * kick, 0, 0]; state.kneeR = [0.45 + 0.15 * kick, 0, 0];
+      } else if (u < 0.64) {
+        // Contraataque: revés cruzado de derecha a izquierda
+        const t = Math.pow((u - 0.42) / 0.22, 0.6);
+        state.pelvisPos = [0, -0.10 + 0.08 * t, 0];
+        state.pelvisRot = [0, 0.38 - 0.95 * t, 0];
+        state.torsoRot = [0.18 - 0.20 * t, 0.30 - 0.85 * t, 0];
+        state.head = [0.08 - 0.10 * t, -0.20 + 0.45 * t, 0];
+        state.shoulderR = [-0.95 + 0.70 * t, -0.30 + 0.20 * t, -1.05 + 0.55 * t];
+        state.elbowR = [-1.45 + 1.25 * t, 0, 0];
+        state.shoulderL = [-1.10 + 0.75 * t, 0.30, 1.15 - 0.30 * t];
+        state.elbowL = [-1.55 + 0.75 * t, 0, 0];
+        state.hipL = [-0.25 + 0.20 * t, 0, 0.10]; state.hipR = [-0.25 + 0.10 * t, 0, -0.10];
+        state.kneeL = [0.45 - 0.25 * t, 0, 0]; state.kneeR = [0.45 - 0.20 * t, 0, 0];
+      } else {
+        const t = (u - 0.64) / 0.36;
+        const hold = 1 - Math.pow(t, 1.5);
+        state.pelvisPos = [0, -0.02 * hold, 0];
+        state.pelvisRot = [0, -0.57 * hold, 0];
+        state.torsoRot = [-0.02 * hold, -0.55 * hold, 0];
+        state.head = [-0.02 * hold, 0.25 * hold, 0];
+        state.shoulderR = [-0.25 * hold - 0.05, -0.10 * hold, -0.50 * hold - 0.30 * (1 - hold)];
+        state.elbowR = [-0.20 * hold - 0.28 * (1 - hold), 0, 0];
+        state.shoulderL = [-0.35 * hold, 0.30 * hold, 0.85 * hold + 0.30 * (1 - hold)];
+        state.elbowL = [-0.80 * hold - 0.28 * (1 - hold), 0, 0];
+        state.hipL = [-0.05 * hold, 0, 0.10]; state.hipR = [-0.15 * hold, 0, -0.10];
+        state.kneeL = [0.20 * hold, 0, 0]; state.kneeR = [0.25 * hold, 0, 0];
+      }
+      state.vfxType = u < 0.42 ? 'spark' : 'trail';
+      state.vfxProgress = u;
       break;
     }
 
