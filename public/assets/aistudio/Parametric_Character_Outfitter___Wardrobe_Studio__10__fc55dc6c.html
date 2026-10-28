@@ -7325,19 +7325,19 @@
     /* Arquitectura de cada bota: puntera, cuello, caña y adornos.
        Fuera de la función porque la greba de la espinilla también la consulta. */
     const BOOT_ARCHITECTURES = {
-      1:  { toeShape: 'ogive',        cuffStyle: 'v_notch',       ridgeStrength: 0.008, facetPower: 0.00, collarFactor: 1.15, rondels: true,  shinRidge: 0.14, shinFlutes: 2, shinFoldHem: 'scalloped' },
-      2:  { toeShape: 'gothic_point', cuffStyle: 'v_notch',       ridgeStrength: 0.012, facetPower: 0.45, collarFactor: 1.18, spur: true,     tongueHigh: true, shinRidge: 0.18, shinFlutes: 4, shinFoldTop: 'swallow_tail', shinFoldHem: 'swallow_tail' },
-      3:  { toeShape: 'square_chisel',cuffStyle: 'high_cavalier', ridgeStrength: 0.005, facetPower: 0.15, collarFactor: 1.32, buckles: true,  rondels: true, shinRidge: 0.12, shinFlutes: 0 },
-      4:  { toeShape: 'sleek_almond', cuffStyle: 'winged_sweep',  ridgeStrength: 0.009, facetPower: 0.00, collarFactor: 1.18, ankleWings: true, shinRidge: 0.14, shinFlutes: 0, shinLeaf: true },
-      5:  { toeShape: 'imperial_round',cuffStyle: 'scalloped',    ridgeStrength: 0.007, facetPower: 0.00, collarFactor: 1.15, rondels: true,  shinRidge: 0.13, shinFlutes: 0 },
-      6:  { toeShape: 'dragon_wedge', cuffStyle: 'v_notch',       ridgeStrength: 0.013, facetPower: 0.55, collarFactor: 1.22, tongueHigh: true, shinRidge: 0.18, shinFlutes: 3, shinGlowFin: true },
+      1:  { toeShape: 'ogive',        cuffStyle: 'v_notch',       ridgeStrength: 0.008, facetPower: 0.00, collarFactor: 1.15, rondels: true,  shinRidge: 0.14, shinFlutes: 2, shinFoldHem: 'scalloped', cuffFlare: 0.05 },
+      2:  { toeShape: 'gothic_point', cuffStyle: 'v_notch',       ridgeStrength: 0.012, facetPower: 0.45, collarFactor: 1.18, spur: true,     tongueHigh: true, shinRidge: 0.18, shinFlutes: 4, shinFoldTop: 'swallow_tail', shinFoldHem: 'swallow_tail', cuffFlare: 0.04 },
+      3:  { toeShape: 'square_chisel',cuffStyle: 'high_cavalier', ridgeStrength: 0.005, facetPower: 0.15, collarFactor: 1.32, buckles: true,  rondels: true, shinRidge: 0.12, shinFlutes: 0, cuffFlare: 0.09 },
+      4:  { toeShape: 'sleek_almond', cuffStyle: 'winged_sweep',  ridgeStrength: 0.009, facetPower: 0.00, collarFactor: 1.18, ankleWings: true, shinRidge: 0.14, shinFlutes: 0, shinLeaf: true, cuffFlare: 0.07 },
+      5:  { toeShape: 'imperial_round',cuffStyle: 'scalloped',    ridgeStrength: 0.007, facetPower: 0.00, collarFactor: 1.15, rondels: true,  shinRidge: 0.13, shinFlutes: 0, cuffFlare: 0.06 },
+      6:  { toeShape: 'dragon_wedge', cuffStyle: 'v_notch',       ridgeStrength: 0.013, facetPower: 0.55, collarFactor: 1.22, tongueHigh: true, shinRidge: 0.18, shinFlutes: 3, shinGlowFin: true, cuffFlare: 0.04 },
       // Estilos añadidos: combinaciones nuevas de puntera, cuello y adorno
-      7:  { toeShape: 'imperial_round',cuffStyle: 'high_cavalier',ridgeStrength: 0.006, facetPower: 0.10, collarFactor: 1.42, buckles: true,  rondels: true, shinRidge: 0.10, shinFlutes: 5 },
-      8:  { toeShape: 'dragon_wedge', cuffStyle: 'scalloped',     ridgeStrength: 0.015, facetPower: 0.60, collarFactor: 1.10, spur: true,     tongueHigh: true, shinRidge: 0.22, shinFlutes: 6, shinFoldTop: 'swallow_tail', shinGlowFin: true },
-      9:  { toeShape: 'square_chisel',cuffStyle: 'winged_sweep',  ridgeStrength: 0.004, facetPower: 0.08, collarFactor: 1.26, ankleWings: true, shinRidge: 0.09, shinFlutes: 0, shinFoldHem: 'scalloped', shinLeaf: true },
-      10: { toeShape: 'sleek_almond', cuffStyle: 'scalloped',     ridgeStrength: 0.010, facetPower: 0.00, collarFactor: 1.20, ankleWings: true, rondels: true, shinRidge: 0.16, shinFlutes: 2, shinFoldTop: 'foliate', shinLeaf: true },
-      11: { toeShape: 'gothic_point', cuffStyle: 'high_cavalier', ridgeStrength: 0.014, facetPower: 0.50, collarFactor: 1.38, spur: true,     shinRidge: 0.20, shinFlutes: 4, shinFoldTop: 'swallow_tail', shinGlowFin: true },
-      12: { toeShape: 'ogive',        cuffStyle: 'scalloped',     ridgeStrength: 0.009, facetPower: 0.00, collarFactor: 1.12, rondels: true,  shinRidge: 0.15, shinFlutes: 3, shinFoldTop: 'foliate', shinFoldHem: 'scalloped' }
+      7:  { toeShape: 'imperial_round',cuffStyle: 'high_cavalier',ridgeStrength: 0.006, facetPower: 0.10, collarFactor: 1.42, buckles: true,  rondels: true, shinRidge: 0.10, shinFlutes: 5, cuffFlare: 0.10 },
+      8:  { toeShape: 'dragon_wedge', cuffStyle: 'scalloped',     ridgeStrength: 0.015, facetPower: 0.60, collarFactor: 1.10, spur: true,     tongueHigh: true, shinRidge: 0.22, shinFlutes: 6, shinFoldTop: 'swallow_tail', shinGlowFin: true, cuffFlare: 0.03 },
+      9:  { toeShape: 'square_chisel',cuffStyle: 'winged_sweep',  ridgeStrength: 0.004, facetPower: 0.08, collarFactor: 1.26, ankleWings: true, shinRidge: 0.09, shinFlutes: 0, shinFoldHem: 'scalloped', shinLeaf: true, cuffFlare: 0.07 },
+      10: { toeShape: 'sleek_almond', cuffStyle: 'scalloped',     ridgeStrength: 0.010, facetPower: 0.00, collarFactor: 1.20, ankleWings: true, rondels: true, shinRidge: 0.16, shinFlutes: 2, shinFoldTop: 'foliate', shinLeaf: true, cuffFlare: 0.06 },
+      11: { toeShape: 'gothic_point', cuffStyle: 'high_cavalier', ridgeStrength: 0.014, facetPower: 0.50, collarFactor: 1.38, spur: true,     shinRidge: 0.20, shinFlutes: 4, shinFoldTop: 'swallow_tail', shinGlowFin: true, cuffFlare: 0.08 },
+      12: { toeShape: 'ogive',        cuffStyle: 'scalloped',     ridgeStrength: 0.009, facetPower: 0.00, collarFactor: 1.12, rondels: true,  shinRidge: 0.15, shinFlutes: 3, shinFoldTop: 'foliate', shinFoldHem: 'scalloped', cuffFlare: 0.05 }
     };
 
     function buildArticulatedBoots() {
@@ -7470,13 +7470,23 @@
           const flareH = collarH * 0.95;
           const r0x = ankleW * 0.60, r0z = ankleW * 0.68;
           const tongue = bCfg.tongueHigh ? 0.75 : 0.45;
+          // El cuello va ceñido a la pierna: antes se abría un 42% y dejaba un aro suelto.
+          // La variedad se saca de la forma del borde (altura por ángulo), no de separarlo.
+          const cuffFlare = bCfg.cuffFlare ?? 0.05;
+          const cs = bCfg.cuffStyle;
           const flareSurf = (u, v) => {
             const th = u * Math.PI * 2 - Math.PI; // 0 = frente (+Z)
             const front = Math.pow(Math.max(0, Math.cos(th)), 6);
+            const back = Math.pow(Math.max(0, -Math.cos(th)), 2);
             const side = bCfg.ankleWings ? Math.pow(Math.abs(Math.sin(th)), 10) * 0.55 : 0;
-            const top = flareH * (0.72 + tongue * front + side);
+            let lobe = 0;
+            if (cs === 'scalloped') lobe = 0.24 * Math.pow(Math.abs(Math.sin(th * 3.0)), 1.6);
+            else if (cs === 'winged_sweep') lobe = 0.34 * Math.pow(Math.abs(Math.sin(th)), 6);
+            else if (cs === 'high_cavalier') lobe = 0.30 * back;
+            else if (cs === 'v_notch') lobe = -0.16 * front;
+            const top = flareH * Math.max(0.40, 0.72 + tongue * front + side + lobe);
             const y = collarH * 0.55 + v * top;
-            const fl = 1 + 0.42 * Math.pow(v, 1.5);
+            const fl = 1 + cuffFlare * Math.pow(v, 1.5);
             return new THREE.Vector3(Math.sin(th) * r0x * fl, y, Math.cos(th) * r0z * fl - backHeelDist * 0.08);
           };
           const fGeo = createArmorPlatePatch(flareSurf, { uSegs: 40, vSegs: 10, thickness: 0.0045 * lBulk, refCenter: new THREE.Vector3(0, collarH, 0), wrapU: true });
