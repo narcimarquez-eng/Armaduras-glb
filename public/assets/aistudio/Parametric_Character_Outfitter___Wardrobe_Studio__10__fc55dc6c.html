@@ -10343,7 +10343,9 @@
     // Reparte el ciclo del tiro a lo largo del salto: tensa al subir, mantiene
     // en la suspensión, suelta arriba y relaja durante la caída
     function aerialArcheryU(au) {
-      if (au < 0.34) return (au / 0.34) * AR_T_DRAW;
+      // El arco se alza al agazaparse y la cuerda se tensa entera mientras el cuerpo sube
+      if (au < 0.10) return (au / 0.10) * AR_T_AIM;
+      if (au < 0.34) return AR_T_AIM + ((au - 0.10) / 0.24) * (AR_T_DRAW - AR_T_AIM);
       if (au < AERIAL_RELEASE_U) return AR_T_DRAW + ((au - 0.34) / (AERIAL_RELEASE_U - 0.34)) * (AR_T_HOLD - AR_T_DRAW);
       if (au < 0.62) return AR_T_HOLD + ((au - AERIAL_RELEASE_U) / (0.62 - AERIAL_RELEASE_U)) * 0.40;
       return AR_T_HOLD + 0.40;
@@ -14581,7 +14583,10 @@
     // Hora de la suelta dentro del ciclo: el juego lanza el proyectil en este instante
     const ARCHERY_RELEASE_TIME = () => AR_T_HOLD;
 
-    function bakeArcheryClip(fps = 15) {
+    function bakeArcheryClip(fps = 15, opts = {}) {
+      const clipName = opts.name || 'archery';
+      const clipDur = opts.duration || ARCHERY_CYCLE;
+      const poseAt = opts.poseAt || ((r, t) => archeryApplyPose(r, Math.min(t, clipDur - 1e-4)));
       const rig = archeryRig;
       if (!rig || !mannequinRoot || !bonesMap.Pelvis) return null;
       const bones = ARCHERY_BAKE_BONES.map(n => [n, bonesMap[n]]).filter(e => e[1]);
@@ -14606,19 +14611,19 @@
       const bowNodes = [rig.limbs.up.pivot, rig.limbs.lo.pivot, rig.stringTop, rig.stringBot, rig.serving, tmpArrow]
         .filter(n => n && n.name);
       const bowSamples = new Map(bowNodes.map(n => [n, { pos: [], quat: [], scl: [] }]));
-      const hideAt = ARCHERY_RELEASE_TIME();
+      const hideAt = (opts.hideAt != null) ? opts.hideAt : ARCHERY_RELEASE_TIME();
 
       const moved = ARCHERY_BAKE_MOVED.map(n => [n, bonesMap[n]]).filter(e => e[1]);
-      const steps = Math.max(24, Math.round(ARCHERY_CYCLE * fps));
+      const steps = Math.max(24, Math.round(clipDur * fps));
       const times = [];
       const pos = new Map(moved.map(e => [e[0], []]));
       const quats = new Map(bones.map(e => [e[0], []]));
       try {
         for (let i = 0; i <= steps; i++) {
-          const t = (i / steps) * ARCHERY_CYCLE;
+          const t = (i / steps) * clipDur;
           times.push(t);
           restoreBindPose();                 // base limpia: el ciclo abre y cierra en reposo, así cicla
-          archeryApplyPose(rig, Math.min(t, ARCHERY_CYCLE - 1e-4));
+          poseAt(rig, t);
           mannequinRoot.updateMatrixWorld(true);
           moved.forEach(e => { const v = e[1].position; pos.get(e[0]).push(v.x, v.y, v.z); });
           bones.forEach(e => { const q = e[1].quaternion; quats.get(e[0]).push(q.x, q.y, q.z, q.w); });
@@ -14631,7 +14636,7 @@
           });
         }
       } catch (err) {
-        console.warn('No se pudo hornear el tiro con arco', err);
+        console.warn('No se pudo hornear el clip ' + clipName, err);
         return null;
       } finally {
         pose.forEach(e => { e[0].position.copy(e[1]); e[0].quaternion.copy(e[2]); });
@@ -14654,10 +14659,31 @@
         // La escala de la flecha es un interruptor: sin interpolar, para que no "se encoja" en 1/15 s
         tracks.push(new THREE.VectorKeyframeTrack(`${n.name}.scale`, times, sm.scl, n === tmpArrow ? THREE.InterpolateDiscrete : undefined));
       });
-      const clip = new THREE.AnimationClip('archery', ARCHERY_CYCLE, tracks);
+      const clip = new THREE.AnimationClip(clipName, clipDur, tracks);
       // Va en los extras de la propia animación: el .GLB no tiene eventos y así el juego sabe cuándo lanzar la flecha
-      clip.userData = { tSuelta: ARCHERY_RELEASE_TIME(), flecha: 'BowArrow', bucle: true };
+      clip.userData = { tSuelta: hideAt, flecha: 'BowArrow', bucle: true };
       return clip;
+    }
+
+    // Mismo horneado, pero con el cuerpo gobernado por el motor (salto y mortal) y
+    // los brazos, el arco y la flecha por el ciclo de tiro. Así el .GLB lleva el
+    // tiro en suspensión completo, igual que lleva el tiro a pie.
+    function bakeAerialShotClip(fps = 15) {
+      const CH = window.CreadorHumano;
+      if (!CH || !CH.evaluateGameAnimation || !CH.applyPoseTransformations) return null;
+      const meta = CH.GAME_ANIMATIONS && CH.GAME_ANIMATIONS.aerial_shot;
+      if (!meta) return null;
+      const dur = meta.duration;
+      return bakeArcheryClip(fps, {
+        name: 'aerial_shot',
+        duration: dur,
+        hideAt: AERIAL_RELEASE_U * dur,
+        poseAt: (r, t) => {
+          const au = Math.min(t / dur, 0.9999);
+          CH.applyPoseTransformations(CH.evaluateGameAnimation('aerial_shot', t, CH.CONFIG.items.pose));
+          if (au < 0.62) archeryApplyPose(r, aerialArcheryU(au));
+        }
+      });
     }
 
     // Para que las pistas de la flecha tengan a quién animar, el .GLB necesita un nodo 'BowArrow'
@@ -14676,9 +14702,13 @@
 
     // Añade (o reemplaza) el ciclo de tiro con arco en la lista de clips que va al .GLB
     function withArcheryClip(clips, fps) {
+      let out = clips;
       const ar = bakeArcheryClip(fps);
-      if (!ar) return clips;
-      return clips.filter(c => c.name !== 'archery').concat(ar);
+      if (ar) out = out.filter(c => c.name !== 'archery').concat(ar);
+      // El clip de salto del motor no lleva arco: se sustituye por el horneado completo
+      const ae = bakeAerialShotClip(fps);
+      if (ae) out = out.filter(c => c.name !== 'aerial_shot').concat(ae);
+      return out;
     }
 
     function getLightExportClips(fps) {
@@ -20580,6 +20610,7 @@ function resetCharacter() {
         characterGroup, rig,
         rebuildCharacter, randomizeCharacter, randomizeArchetype, applyArchetype, resetCharacter,
         updateCharacterAnimation, applyPoseTransformations, alignCharacterToGround,
+        evaluateGameAnimation,
         bakeAllGameAnimationClips, syncMaterialColors,
         setHandCurl, setHandWrap, getHandGroup, getHandGripAnchor
       };
