@@ -17986,7 +17986,10 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.torsoRot = [0.08, 0.52 - 0.52 * wind - 0.46 * hit, 0];
         state.head = [-0.06, 0.26 - 0.24 * wind - 0.22 * hit, 0];
         // Arranca recogido junto al hombro contrario y barre hasta abrirse del todo
-        state.shoulderR = [0.30 - 0.26 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.28 * hit, -1.53 + 0.62 * wind - 0.60 * hit];
+        // El revés barre de derecha a izquierda: el brazo CRUZA al otro lado acompañando
+        // al tronco. Si se queda abierto a la derecha mientras el torso gira, el arma
+        // acaba apuntando a la espalda.
+        state.shoulderR = [0.08 - 0.08 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.20 * hit, -1.53 + 0.13 * wind + 1.30 * hit];
         state.elbowR = [-0.60 * wind + 0.60 * hit, 0, 0];
         state.shoulderL = GUARD_L; state.elbowL = GUARD_EL;
         state.hipL = [-0.12 + 0.10 * hit, 0, 0.10]; state.hipR = [0.06 - 0.10 * hit, 0, -0.10];
