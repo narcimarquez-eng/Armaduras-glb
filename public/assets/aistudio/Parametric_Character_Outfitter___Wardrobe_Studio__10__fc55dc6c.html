@@ -731,8 +731,7 @@
         lightHarness: false,       // peto de pecho con tirantes a la espalda
         clothSides: false,         // faldones de tela a los lados, en lugar de escarcelas
         chestThick: 1.00,          // grosor de la pechera (multiplicador)
-        tabardWidthMult: 1.00,     // ancho del tabardo delantero (multiplicador)
-        backStrip: false           // tira ancha de tela por detrás del cinturón
+        tabardWidthMult: 1.00      // ancho del tabardo delantero (multiplicador)
       },
       materialType: 'paladin_sun_gold',
       primaryColor: '#f1f5f9', 
@@ -1174,11 +1173,10 @@
           lightHarness: true,                      // peto de pecho con tirantes
           bootCollarMin: 0.035,                    // bota solo de tobillo y pie
           shinTop: 0.14,                           // grebas que no pasan del tobillo
-          chestThick: 0.60,                        // pechera con menos volumen
-          tabardWidthMult: 2.00,                   // tabardo delantero al doble de ancho
-          backStrip: true                          // tira trasera del cinturón
+          chestThick: 0.45,                        // pechera fina, casi sin volumen
+          tabardWidthMult: 2.00                    // tabardo delantero al doble de ancho
         },
-        chest: { yMinFront: 0.42, chestContour: 'anatomical', flareTop: 0.005, flareBottom: 0.005 },   // pecho protegido y de poco volumen
+        chest: { yMinFront: 0.58, chestContour: 'anatomical', ridgeCenterZ: 0.05, flareTop: 0.0, flareBottom: 0.0 },   // solo el pecho, ceñido
         boot: { collarFactor: 0.60 }
       },
       mago: { name: 'Mago', fit: {}, chest: {}, boot: { collarFactor: 0.90 } }
@@ -6884,9 +6882,6 @@
       } else {
         buildArticulatedTassets();
       }
-      if (STATE.fit.backStrip) {
-        buildBackBeltStrip({ trimMat: getPBRMaterial('trim', 'belt'), clothMat: getPBRMaterial('cloth', 'belt') });
-      }
       buildArticulatedCuisses();
       buildArticulatedKnees();
       buildArticulatedBoots();
@@ -8664,40 +8659,91 @@
       }
     }
 
-    /* === LIGERA: tirantes de tela y cuero que cruzan el hombro del peto hasta una almohadilla en la espalda === */
-    function buildLightStraps(mats) {
-      const { trimMat, clothMat } = mats;
+    /* === Cinta plana (ancho x grosor) que sigue una curva: tirante de armadura === */
+    function buildStrapRibbon(curve, width, thickness, segments) {
+      const X = new THREE.Vector3(1, 0, 0);
+      const positions = [], uvs = [], indices = [];
+      const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const pt = curve.getPoint(t);
+        const tan = curve.getTangent(t).normalize();
+        // Ancho siempre horizontal (X) y grosor perpendicular al recorrido, en el plano YZ
+        const nrm = new THREE.Vector3().crossVectors(tan, X).normalize();
+        corners.forEach(([wS, tS]) => {
+          positions.push(
+            pt.x + wS * width * 0.5 + nrm.x * tS * thickness * 0.5,
+            pt.y + nrm.y * tS * thickness * 0.5,
+            pt.z + nrm.z * tS * thickness * 0.5
+          );
+          uvs.push(t * 3.0, (wS + 1) * 0.5);
+        });
+      }
+      for (let i = 0; i < segments; i++) {
+        const a = i * 4, b = (i + 1) * 4;
+        for (let k = 0; k < 4; k++) {
+          const k2 = (k + 1) % 4;
+          indices.push(a + k, b + k, b + k2, a + k, b + k2, a + k2);
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    /* === LIGERA: tirantes planos que nacen del borde del peto, cruzan el trapecio y llegan al espaldar === */
+    function buildLightStraps(mats, frontShell) {
+      const { mainMat, trimMat } = mats;
       const tb = getWorldBoxOfParts(['torso']);
       if (!tb) return;
-      const tSize = tb.getSize(new THREE.Vector3());
       const tc = tb.getCenter(new THREE.Vector3());
-      const W = tSize.x, H = tSize.y;
-      // Los tirantes van por fuera de la pechera y del espaldar, y cruzan los trapecios (cerca del cuello, no en el deltoides)
-      const frontZ = tb.max.z - tc.z + 0.028;
-      const backZ = tb.min.z - tc.z - 0.065;
-      const yAttach = (tb.min.y - tc.y) + H * 0.86;   // borde superior de la pechera
-      const yShoulder = (tb.max.y - tc.y) + 0.010;    // cresta del trapecio
+      const tSize = tb.getSize(new THREE.Vector3());
+
+      // Anclaje delantero: sobre la superficie real de la pechera, no sobre la caja del cuerpo
+      const anchors = [];
+      if (frontShell) {
+        frontShell.updateWorldMatrix(true, false);
+        [0.5 - 0.17, 0.5 + 0.17].forEach(u => {
+          const hit = shellPointAt(frontShell, u, 0.97, 0.004);
+          if (hit) anchors.push(frontShell.localToWorld(hit.p.clone()).sub(tc));
+        });
+      }
+      if (anchors.length < 2) {
+        // Reserva: borde superior de la caja del torso
+        const yA = (tb.min.y - tc.y) + tSize.y * 0.92;
+        const zA = (tb.max.z - tc.z) + 0.012;
+        anchors.length = 0;
+        [-1, 1].forEach(s => anchors.push(new THREE.Vector3(s * tSize.x * 0.20, yA, zA)));
+      }
+
+      // Mismo grosor que la placa del pecho
+      const thickness = Math.max(0.004, tSize.x * 0.5 * 0.027 * STATE.fit.chestThick * 2.2);
+      const width = Math.max(0.022, tSize.x * 0.075);
+      const yTrap = (tb.max.y - tc.y) + thickness * 0.5 + 0.004;  // justo sobre el trapecio
+      const zBack = (tb.min.z - tc.z) - 0.014;                     // sobre el espaldar
 
       const group = new THREE.Group();
       group.name = 'Light_Chest_Straps';
-      [-1, 1].forEach(s => {
+      anchors.forEach(a => {
+        const xS = Math.sign(a.x) || 1;
+        const xTrap = xS * Math.max(Math.abs(a.x), tSize.x * 0.17);
         const curve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(s * W * 0.22, yAttach, frontZ),
-          new THREE.Vector3(s * W * 0.22, yShoulder, 0),
-          new THREE.Vector3(s * W * 0.22, yAttach, backZ)
+          a.clone(),
+          new THREE.Vector3(xTrap, (a.y + yTrap) * 0.5, a.z * 0.55),
+          new THREE.Vector3(xTrap, yTrap, 0),
+          new THREE.Vector3(xTrap, (a.y + yTrap) * 0.5, zBack * 0.55),
+          new THREE.Vector3(xTrap * 0.92, a.y, zBack)
         ]);
-        group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.009, 8, false), clothMat));
+        group.add(new THREE.Mesh(buildStrapRibbon(curve, width, thickness, 56), mainMat));
 
-        // Hebilla de ajuste en el punto de anclaje delantero
-        const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.026, 0.006), trimMat);
-        buckle.position.set(s * W * 0.22, yAttach, frontZ + 0.004);
+        // Hebilla de ajuste donde el tirante se une al peto
+        const buckle = new THREE.Mesh(new THREE.BoxGeometry(width * 1.25, width * 0.55, thickness * 1.6), trimMat);
+        buckle.position.set(a.x, a.y, a.z + thickness * 0.4);
         group.add(buckle);
       });
-
-      // Almohadilla de cuero sobre el espaldar donde terminan los tirantes
-      const pad = new THREE.Mesh(new THREE.BoxGeometry(W * 0.46, H * 0.24, 0.012), clothMat);
-      pad.position.set(0, yShoulder - H * 0.24, backZ - 0.004);
-      group.add(pad);
 
       attachOrnamentWorld(armorSockets.torso, group, tc, new THREE.Quaternion(), 'torso');
     }
@@ -8735,43 +8781,6 @@
         hem.position.set(s * pSize.x * 0.50, topY - flapLen, 0);
         group.add(hem);
       });
-
-      attachOrnamentWorld(armorSockets.belt, group, pCenter, new THREE.Quaternion(), 'belt');
-    }
-
-    /* === LIGERA: tira ancha de tela que cuelga por detrás del cinturón y cubre parte del trasero === */
-    function buildBackBeltStrip(mats) {
-      const { trimMat, clothMat } = mats;
-      const pelvisBox = getWorldBoxOfParts(['pelvis']);
-      if (!pelvisBox) return;
-      const pSize = pelvisBox.getSize(new THREE.Vector3());
-      const pCenter = pelvisBox.getCenter(new THREE.Vector3());
-      const stripW = Math.max(0.10, pSize.x * 0.92);
-      const stripLen = Math.max(0.14, pSize.y * 0.95);
-      const topY = pSize.y * 0.20; // justo bajo la banda del cinturón
-      const backZ = pelvisBox.min.z - pCenter.z - 0.010;
-
-      // Tela con pliegues verticales, como el tabardo delantero
-      const geo = new THREE.PlaneGeometry(stripW, stripLen, 16, 24);
-      const pos = geo.attributes.position;
-      for (let i = 0; i < pos.count; i++) {
-        const uNorm = pos.getX(i) / stripW + 0.5;
-        const vNorm = 0.5 - pos.getY(i) / stripLen;
-        pos.setZ(i, Math.sin(uNorm * Math.PI * 4.0) * 0.008 * (0.35 + 0.65 * vNorm));
-      }
-      geo.computeVertexNormals();
-
-      const group = new THREE.Group();
-      group.name = 'Light_Back_Belt_Strip';
-      const strip = new THREE.Mesh(geo, clothMat);
-      strip.rotation.y = Math.PI; // normal hacia fuera, por la espalda
-      strip.position.set(0, topY - stripLen * 0.5, backZ);
-      group.add(strip);
-
-      // Orla dorada en el dobladillo
-      const hem = new THREE.Mesh(new THREE.BoxGeometry(stripW, 0.008, 0.008), trimMat);
-      hem.position.set(0, topY - stripLen, backZ);
-      group.add(hem);
 
       attachOrnamentWorld(armorSockets.belt, group, pCenter, new THREE.Quaternion(), 'belt');
     }
@@ -9110,6 +9119,7 @@
         let petoDiamondMat = glowMat, petoGemMat = glowMat;
         try { petoDiamondMat = getFacetedGemMaterial('diamond', 'torso'); petoGemMat = getFacetedGemMaterial(petoDesign.gem || 'ruby', 'torso'); } catch (e) { }
         const backStyle = cfg.backStyle || 'smooth';
+        let frontPlateShell = null;
 
         torsoMeshes.forEach(tMesh => {
           // Jubón interior muy ceñido cuando el peto tiene calados
@@ -9124,7 +9134,7 @@
           }
 
           // 1. PLACA PECTORAL FRONTAL CONTINUA CON VOLUMEN NATURAL DE CORAZA (Cero pliegues horizontales en el pecho)
-          createFormFittedShell(tMesh, mainMat, {
+          frontPlateShell = createFormFittedShell(tMesh, mainMat, {
             targetPart: 'torso',
             thicknessRatio: 0.027 * tBulk * STATE.fit.chestThick,
             yMin: cfg.yMinFront,
@@ -9160,7 +9170,7 @@
             // 2A. ESPALDAR LISO FORJADO (Superficie limpia, continua y anatómica en la espalda)
             createFormFittedShell(tMesh, mainMat, {
               targetPart: 'torso',
-              thicknessRatio: 0.026 * tBulk,
+              thicknessRatio: 0.026 * tBulk * STATE.fit.chestThick,
               yMin: 0.02,
               yMax: isWideClavicleWrap ? 0.99 : 0.95,
               angleMin: Math.PI * 0.48,
@@ -9315,7 +9325,7 @@
         buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
 
         // 7. PECHERA LIGERA: tirantes flexibles que cruzan el hombro hasta la espalda
-        if (STATE.fit.lightHarness) buildLightStraps({ trimMat, clothMat });
+        if (STATE.fit.lightHarness) buildLightStraps({ mainMat, trimMat }, frontPlateShell);
       }
 
       /* === BRAZALES Y GUANTELETES ESCULPIDOS CON BISEL === */
