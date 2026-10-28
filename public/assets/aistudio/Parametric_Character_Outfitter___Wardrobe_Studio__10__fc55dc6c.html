@@ -228,6 +228,14 @@
           <div class="grid grid-cols-5 gap-1.5" id="slot-weapon"></div>
         </div>
 
+        <div class="space-y-1.5" id="bloque-escudo">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="shield" class="w-3.5 h-3.5 text-indigo-400"></i> Escudo</span>
+            <span id="aviso-escudo" class="text-[10px] text-slate-500"></span>
+          </div>
+          <div class="grid grid-cols-5 gap-1.5" id="slot-shield"></div>
+        </div>
+
         <div class="pt-2 border-t border-white/10 grid grid-cols-2 gap-1.5">
           <button id="btn-export-all-armor-glb" class="glass-btn py-2 px-2 rounded-xl text-[11px] font-semibold text-emerald-300 hover:text-white flex items-center justify-center gap-1.5 border-emerald-500/30"><i data-lucide="package" class="w-3.5 h-3.5"></i> Bajar Armadura (.GLB)</button>
           <button id="btn-export-full-char-glb" class="glass-btn py-2 px-2 rounded-xl text-[11px] font-semibold text-indigo-300 hover:text-white flex items-center justify-center gap-1.5 border-indigo-500/30"><i data-lucide="user-check" class="w-3.5 h-3.5"></i> Personaje Completo</button>
@@ -695,7 +703,8 @@
         cuisses: 2,
         knees: 2,
         boots: 2,
-        weapon: 1
+        weapon: 1,
+        shield: 1
       },
       fit: { 
         globalBulk: 1.00, 
@@ -772,7 +781,8 @@
         cuisses: null,
         knees: null,
         boots: null,
-        weapon: null
+        weapon: null,
+        shield: null
       },
       currentAnim: 'idle',
       hair: {
@@ -936,43 +946,43 @@
 
     // ---------- Familias de armas: 10 variantes por familia ----------
     const WEAPON_FAMILY_SPECS = [
-      { key: 'espada', hand: 'R', shield: true, icon: 'swords', variants: [
+      { key: 'espada', dosManos: [2, 8], hand: 'R', shield: true, icon: 'swords', variants: [
         { name: 'Espada Ropera Élfica', short: 'Ropera' }, { name: 'Espada Larga de Caballero', short: 'Larga' },
         { name: 'Montante de Dos Manos', short: 'Montante' }, { name: 'Falcata de Guerra', short: 'Falcata' },
         { name: 'Cimitarra Dorada', short: 'Cimitarra' }, { name: 'Espada Bastarda Gótica', short: 'Bastarda' },
         { name: 'Estoque de Torneo', short: 'Estoque T.' }, { name: 'Espada Flamígera Ondulada', short: 'Flamígera' },
         { name: 'Claymore de Clan', short: 'Claymore' }, { name: 'Gladius Imperial', short: 'Gladius' } ] },
-      { key: 'hacha', hand: 'R', shield: true, icon: 'flame', variants: [
+      { key: 'hacha', dosManos: [1, 5, 6, 8], hand: 'R', shield: true, icon: 'flame', variants: [
         { name: 'Hacha de Guerra Lunar', short: 'Lunar' }, { name: 'Hacha de Torre de Doble Filo', short: 'Torre' },
         { name: 'Hacha Vikinga de Filo Único', short: 'Vikinga' }, { name: 'Hacha Pico de Cuervo', short: 'Cuervo' },
         { name: 'Hacha de Abordaje', short: 'Abordaje' }, { name: 'Alabarda Hacha de Luz', short: 'Luz' },
         { name: 'Hacha Doble Gótica', short: 'Doble G.' }, { name: 'Tomahawk Espinado', short: 'Tomahawk' },
         { name: 'Hacha de Verdugo', short: 'Verdugo' }, { name: 'Labrys Solar', short: 'Labrys' } ] },
-      { key: 'maza', hand: 'R', shield: true, icon: 'zap', variants: [
+      { key: 'maza', dosManos: [2, 6], hand: 'R', shield: true, icon: 'zap', variants: [
         { name: 'Maza Estrellada', short: 'Estrella' }, { name: 'Maza de Pinchos', short: 'Pinchos' },
         { name: 'Martillo de Guerra', short: 'Martillo' }, { name: 'Maza de Tres Cabezas', short: 'Triple' },
         { name: 'Maza Flanjeada', short: 'Flanjeada' }, { name: 'Mangual de Cadena', short: 'Mangual' },
         { name: 'Macuahuitl de Vidrio', short: 'Macuahuitl' }, { name: 'Maza Hexagonal', short: 'Hexagonal' },
         { name: 'Porra Ceremonial', short: 'Porra' }, { name: 'Maza Cráneo Abisal', short: 'Cráneo' } ] },
-      { key: 'daga', hand: 'R', shield: true, icon: 'target', variants: [
+      { key: 'daga', dosManos: [], hand: 'R', shield: true, icon: 'target', variants: [
         { name: 'Daga Élfica', short: 'Élfica' }, { name: 'Kris Ondulado', short: 'Kris' },
         { name: 'Daga de Asesino', short: 'Asesino' }, { name: 'Misericordia', short: 'Misericordia' },
         { name: 'Cuchillo de Caza', short: 'Caza' }, { name: 'Daga Gótica de Dos Filos', short: 'Gótica' },
         { name: 'Punzón de Mago', short: 'Punzón' }, { name: 'Daga Parada', short: 'Parada' },
         { name: 'Daga Lunar', short: 'Lunar D.' }, { name: 'Daga de Cristal', short: 'Cristal' } ] },
-      { key: 'lanza', hand: 'R', shield: false, icon: 'star', variants: [
+      { key: 'lanza', dosManos: null, hand: 'R', shield: false, icon: 'star', variants: [
         { name: 'Lanza de Caballería', short: 'Caballería' }, { name: 'Lanza Élfica de Hoja Larga', short: 'Élfica L.' },
         { name: 'Alabarda de Guardián', short: 'Alabarda' }, { name: 'Pica de Falange', short: 'Falange' },
         { name: 'Tridente Solar', short: 'Tridente' }, { name: 'Glaive de Luna', short: 'Glaive' },
         { name: 'Lanza de Espino', short: 'Espino' }, { name: 'Partesana', short: 'Partesana' },
         { name: 'Lanza Gótica de Púas', short: 'Gótica L.' }, { name: 'Bisarma Dorada', short: 'Bisarma' } ] },
-      { key: 'baculo', hand: 'R', shield: false, icon: 'crown', variants: [
+      { key: 'baculo', dosManos: null, hand: 'R', shield: false, icon: 'crown', variants: [
         { name: 'Báculo Solar', short: 'Solar' }, { name: 'Cetro Arcano de Cristal', short: 'Cristal' },
         { name: 'Báculo Espiral Élfico', short: 'Espiral' }, { name: 'Bastón de Druida', short: 'Druida' },
         { name: 'Báculo de Triple Orbe', short: 'Triorbe' }, { name: 'Vara de Runas', short: 'Runas' },
         { name: 'Báculo Cráneo Abisal', short: 'Cráneo B.' }, { name: 'Báculo de Raíces', short: 'Raíces' },
         { name: 'Cetro del Alba', short: 'Alba' }, { name: 'Báculo Lunar de Plata', short: 'Lunar B.' } ] },
-      { key: 'arco', hand: 'L', shield: false, icon: 'moon', variants: [
+      { key: 'arco', dosManos: null, hand: 'L', shield: false, icon: 'moon', variants: [
         { name: 'Arco Largo Élfico', short: 'Élfico' }, { name: 'Arco Recurvo de Caballero', short: 'Recurvo' },
         { name: 'Arco Compuesto Gótico', short: 'Compuesto' }, { name: 'Arco Reflejo Solar', short: 'Reflejo' },
         { name: 'Arco de Caza', short: 'Caza A.' }, { name: 'Arco de Cristal', short: 'Cristal A.' },
@@ -980,13 +990,42 @@
         { name: 'Arco Lunar', short: 'Lunar A.' }, { name: 'Arco de Torneo', short: 'Torneo' } ] }
     ];
     // Índice de ITEMS_DB.weapon -> cómo se construye (las 11 entradas históricas se mantienen)
+    // Las diez primeras armas heredadas venían con su escudo fijo; se conserva como
+    // sugerencia, pero el escudo ya se elige aparte (ver ITEMS_DB.shield)
     const WEAPON_LOADOUT = ITEMS_DB.weapon.map((_, i) => (i === 0
-      ? { legacy: true, hand: 'none', shield: 0 }
-      : { legacy: true, hand: 'R', shield: i }));
+      ? { legacy: true, hand: 'none', manos: 0, shield: 0 }
+      : { legacy: true, hand: 'R', manos: 1, shield: i }));
     WEAPON_FAMILY_SPECS.forEach(spec => spec.variants.forEach((vr, v) => {
-      ITEMS_DB.weapon.push({ name: vr.name, shortName: vr.short, icon: spec.icon });
-      WEAPON_LOADOUT.push({ legacy: false, hand: spec.hand, fam: spec.key, v, shield: spec.shield ? (v % 10) + 1 : 0 });
+      // dosManos null = la familia entera va a dos manos; lista = sólo esas variantes
+      const aDos = spec.dosManos === null || (Array.isArray(spec.dosManos) && spec.dosManos.indexOf(v) >= 0);
+      const manos = aDos ? 2 : 1;
+      ITEMS_DB.weapon.push({
+        name: vr.name + (manos === 2 ? ' (2M)' : ''),
+        shortName: vr.short, icon: spec.icon, manos
+      });
+      WEAPON_LOADOUT.push({ legacy: false, hand: spec.hand, manos, fam: spec.key, v, shield: 0 });
     }));
+
+    // Escudos con nombre propio: ya no dependen del arma equipada
+    ITEMS_DB.shield = [
+      { name: 'Sin Escudo', shortName: 'Sin', icon: 'ban' },
+      { name: 'Escudo Heráldico del Sol', shortName: 'Sol', icon: 'sun' },
+      { name: 'Gran Escudo Torre Pavés', shortName: 'Pavés', icon: 'shield' },
+      { name: 'Escudo de Espigas Eclipse', shortName: 'Eclipse', icon: 'moon' },
+      { name: 'Rodela de Hierro (Buckler)', shortName: 'Rodela', icon: 'circle' },
+      { name: 'Escudo Alado de Oro Rosa', shortName: 'Alado', icon: 'feather' },
+      { name: 'Escudo Cometa de Caballero', shortName: 'Cometa', icon: 'star' },
+      { name: 'Escudo Redondo Vikingo', shortName: 'Vikingo', icon: 'target' },
+      { name: 'Escudo Ojival Gótico', shortName: 'Ojival', icon: 'shield-check' },
+      { name: 'Escudo Cuadrado de Escamas', shortName: 'Escamas', icon: 'layers' },
+      { name: 'Broquel Élfico de Hoja', shortName: 'Broquel', icon: 'leaf' }
+    ];
+
+    // ¿El arma equipada deja una mano libre para el escudo?
+    function weaponAllowsShield(idx) {
+      const L = WEAPON_LOADOUT[idx];
+      return !!(L && L.hand === 'R' && L.manos === 1);
+    }
 
     const TEXTURE_PRESETS = [
       // === CATEGORÍA 1: PALADÍN & ORDEN SAGRADA (1 - 7) ===
@@ -1331,7 +1370,7 @@
       const tp = TEXTURE_PRESETS.find(t => t.id === look.tex) || TEXTURE_PRESETS[0];
 
       // Las hombreras van integradas en el peto
-      STATE.equipment = { ...look.gear, shoulders: 0 };
+      STATE.equipment = { shield: (look.cls === 'mago' ? 0 : 1), ...look.gear, shoulders: 0 };
 
       // Ajuste limpio + modificadores de la clase
       Object.assign(STATE.fit, FIT_DEFAULTS, cls.fit);
@@ -1372,7 +1411,8 @@
             belt: pick(ITEMS_DB.belt),
             tassets: 0, cuisses: 0, knees: 0,
             boots: pick(ITEMS_DB.boots),
-            weapon: ITEMS_DB.weapon.length - 1   // cetro
+            weapon: ITEMS_DB.weapon.length - 1,  // cetro
+            shield: 0                            // el mago no lleva escudo
           }
         : {
             underlayer: pick(ITEMS_DB.underlayer),
@@ -1384,7 +1424,8 @@
             cuisses: pick(ITEMS_DB.cuisses),
             knees: pick(ITEMS_DB.knees),
             boots: pick(ITEMS_DB.boots),
-            weapon: pick(ITEMS_DB.weapon)
+            weapon: pick(ITEMS_DB.weapon),
+            shield: Math.floor(Math.random() * ITEMS_DB.shield.length)
           };
 
       applyArmorLook({ rank, cls: clsKey, name: tp.name, tex: tp.id, gear });
@@ -10827,9 +10868,11 @@
     }
     function buildShieldLeft(idx) {
       const L = WEAPON_LOADOUT[idx];
-      if (!L || L.hand === 'none') return new THREE.Group();
+      if (!L) return new THREE.Group();
+      // El arco ocupa la mano izquierda: ahí no cabe escudo
       if (!L.legacy && L.hand === 'L') return buildFamilyModel(L, 'L');
-      const shieldId = L.legacy ? idx : L.shield;
+      if (!weaponAllowsShield(idx)) return new THREE.Group();
+      const shieldId = (STATE.equipment.shield == null) ? 1 : STATE.equipment.shield;
       return shieldId ? buildShieldModel(shieldId) : new THREE.Group();
     }
 
@@ -11051,10 +11094,10 @@
     function buildShieldModel(typeIndex) {
       const group = new THREE.Group();
       if (typeIndex === 0) return group;
-      currentBuildingSlot = 'weapon';
-      const mainMat = getPBRMaterial('primary', 'weapon');
-      const trimMat = getPBRMaterial('trim', 'weapon');
-      const glowMat = getGlowMaterial('weapon');
+      currentBuildingSlot = 'shield';
+      const mainMat = getPBRMaterial('primary', 'shield');
+      const trimMat = getPBRMaterial('trim', 'shield');
+      const glowMat = getGlowMaterial('shield');
 
       const shieldHolder = new THREE.Group();
 
@@ -11414,6 +11457,23 @@
       if (hairMeshGroup) hairMeshGroup.visible = (!isClosedHelm && HAIR_CONFIG.visible);
       document.getElementById('status-text').textContent = `${count} piezas ensambladas`;
       refreshActiveItemButtons();
+      syncShieldAvailabilityUI();
+    }
+
+    // Con un arma a dos manos (o con el arco, que ocupa la izquierda) no cabe escudo:
+    // la rejilla se atenúa y se explica por qué, en lugar de dejarla activa sin efecto
+    function syncShieldAvailabilityUI() {
+      const grid = document.getElementById('slot-shield');
+      const aviso = document.getElementById('aviso-escudo');
+      if (!grid) return;
+      const L = WEAPON_LOADOUT[STATE.equipment.weapon] || {};
+      const permite = weaponAllowsShield(STATE.equipment.weapon);
+      grid.style.opacity = permite ? '1' : '0.35';
+      grid.style.pointerEvents = permite ? 'auto' : 'none';
+      if (aviso) {
+        aviso.textContent = permite ? 'Una mano libre'
+          : (L.hand === 'L' ? 'El arco ocupa la izquierda' : (L.hand === 'none' ? 'Sin arma' : 'Arma a dos manos'));
+      }
     }
 
     function autoCalibrateGLBFit() {
@@ -13511,7 +13571,7 @@
     }
 
     function updateSlotTextureBadgesUI() {
-      const armorSlots = ['underlayer', 'helmet', 'shoulders', 'torso', 'gloves', 'belt', 'tassets', 'cuisses', 'knees', 'boots', 'weapon'];
+      const armorSlots = ['underlayer', 'helmet', 'shoulders', 'torso', 'gloves', 'belt', 'tassets', 'cuisses', 'knees', 'boots', 'weapon', 'shield'];
       armorSlots.forEach(slot => {
         const badgeBtn = document.getElementById(`slot-tex-cycle-${slot}`);
         if (!badgeBtn) return;
@@ -14345,6 +14405,7 @@
       STATE.equipment.knees = 1 + Math.floor(Math.random() * (ITEMS_DB.knees.length - 1));
       STATE.equipment.boots = 1 + Math.floor(Math.random() * (ITEMS_DB.boots.length - 1)); // NUNCA 0 / NUNCA DESCALZO
       STATE.equipment.weapon = 1 + Math.floor(Math.random() * (ITEMS_DB.weapon.length - 1));
+      STATE.equipment.shield = Math.floor(Math.random() * ITEMS_DB.shield.length);
 
       // Variaciones ornamentales de chapa forjada con volumen natural de coraza
       STATE.fit.globalBulk = 0.98 + Math.random() * 0.08;
