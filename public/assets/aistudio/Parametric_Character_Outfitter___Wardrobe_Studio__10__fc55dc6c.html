@@ -10819,6 +10819,8 @@
     }
 
     function buildWeaponRight(idx) {
+      // Arma nueva: la punta cacheada ya no vale
+      if (armorSockets.weaponR) delete armorSockets.weaponR.userData.tipLocal;
       const L = WEAPON_LOADOUT[idx];
       if (!L || L.hand !== 'R') return new THREE.Group();
       return L.legacy ? buildWeaponModel(idx) : buildFamilyModel(L, 'R');
@@ -11597,23 +11599,47 @@
     }
 
     // Punta y medio del filo, en coordenadas del mundo
+    // Caja del contenido de un socket EN SU PROPIO ESPACIO. Box3.expandByObject devuelve
+    // la caja en coordenadas del mundo, así que hay que pasar cada malla por la inversa
+    // del socket: si no, la "punta" sale desplazada y la estela se ancla donde no es.
+    function socketLocalBox(sock) {
+      sock.updateWorldMatrix(true, true);
+      const inv = new THREE.Matrix4().copy(sock.matrixWorld).invert();
+      const box = new THREE.Box3();
+      const tmp = new THREE.Matrix4();
+      sock.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        const g = o.geometry;
+        if (!g.boundingBox) g.computeBoundingBox();
+        if (!g.boundingBox) return;
+        tmp.multiplyMatrices(inv, o.matrixWorld);
+        box.union(g.boundingBox.clone().applyMatrix4(tmp));
+      });
+      return box;
+    }
+
+    // Punta del arma: la esquina de esa caja más lejana del puño
+    function weaponTipLocal(sock) {
+      if (sock.userData.tipLocal) return sock.userData.tipLocal;
+      const box = socketLocalBox(sock);
+      if (box.isEmpty()) return null;
+      let best = null;
+      [box.min.x, box.max.x].forEach(x => [box.min.y, box.max.y].forEach(y => [box.min.z, box.max.z].forEach(z => {
+        const v = new THREE.Vector3(x, y, z);
+        if (!best || v.lengthSq() > best.lengthSq()) best = v;
+      })));
+      sock.userData.tipLocal = best;
+      return best;
+    }
+
     function getBladeSpanWorld() {
       const w = armorSockets.weaponR;
       if (!w || !w.children.length) return null;
-      if (!w.userData.tipLocal) {
-        const box = new THREE.Box3();
-        w.children.forEach(c => box.expandByObject(c));
-        if (box.isEmpty()) return null;
-        let best = null;
-        [box.min.x, box.max.x].forEach(x => [box.min.y, box.max.y].forEach(y => [box.min.z, box.max.z].forEach(z => {
-          const v = new THREE.Vector3(x, y, z);
-          if (!best || v.lengthSq() > best.lengthSq()) best = v;
-        })));
-        w.userData.tipLocal = best;
-      }
+      const tipLocal = weaponTipLocal(w);
+      if (!tipLocal) return null;
       w.updateWorldMatrix(true, false);
-      const tip = w.localToWorld(w.userData.tipLocal.clone());
-      const mid = w.localToWorld(w.userData.tipLocal.clone().multiplyScalar(0.66));
+      const tip = w.localToWorld(tipLocal.clone());
+      const mid = w.localToWorld(tipLocal.clone().multiplyScalar(0.66));
       return { tip, mid };
     }
 
