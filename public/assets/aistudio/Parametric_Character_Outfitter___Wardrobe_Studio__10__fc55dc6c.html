@@ -17958,40 +17958,60 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
     }
 
     case 'punch': {
-      let jab = 0;
-      let cross = 0;
-      let upper = 0;
-
-      if (u < 0.32) {
-        jab = Math.sin((u / 0.32) * Math.PI);
-      } else if (u < 0.68) {
-        cross = Math.sin(((u - 0.32) / 0.36) * Math.PI);
+      // Combo de tres golpes CON EL ARMA en la diestra: tajo diagonal, revés y estocada.
+      // El hombro cerca de 0 y el codo estirado son los que proyectan la punta al frente:
+      // con el codo muy plegado (como en un puñetazo) el arma se va arriba y atrás.
+      const GUARD_L = [-0.70, 0.22, 0.52], GUARD_EL = [-1.15, 0, 0];   // escudo cruzado
+      if (u < 0.34) {
+        // 1. Tajo diagonal de arriba a abajo
+        const p = u / 0.34;
+        const wind = Math.min(1, p / 0.34);                       // alza
+        const hit = Math.pow(Math.max(0, (p - 0.34) / 0.40), 0.6); // corta
+        state.pelvisPos = [0, -0.03, 0.06 * hit];
+        state.pelvisRot = [0, -0.26 * wind + 0.40 * hit, 0];
+        state.torsoRot = [0.06 + 0.16 * hit, -0.34 * wind + 0.52 * hit, 0];
+        state.head = [-0.06, -0.18 * wind + 0.26 * hit, 0];
+        state.shoulderR = [-0.95 * wind + 1.25 * hit, -0.26 * wind + 0.16 * hit, -0.95 * wind - 0.58 * hit];
+        state.elbowR = [-0.72 * wind + 0.72 * hit, 0, 0];
+        state.shoulderL = GUARD_L; state.elbowL = GUARD_EL;
+        state.hipL = [-0.14, 0, 0.10]; state.hipR = [0.10 - 0.22 * hit, 0, -0.10];
+        state.kneeL = [0.26, 0, 0]; state.kneeR = [0.22 + 0.18 * hit, 0, 0];
+      } else if (u < 0.66) {
+        // 2. Revés horizontal cruzando el cuerpo
+        const p = (u - 0.34) / 0.32;
+        const wind = Math.min(1, p / 0.32);
+        const hit = Math.pow(Math.max(0, (p - 0.32) / 0.42), 0.6);
+        state.pelvisPos = [0, -0.03, 0.05 * hit];
+        state.pelvisRot = [0, 0.40 - 0.38 * wind - 0.34 * hit, 0];
+        state.torsoRot = [0.08, 0.52 - 0.52 * wind - 0.46 * hit, 0];
+        state.head = [-0.06, 0.26 - 0.24 * wind - 0.22 * hit, 0];
+        // Arranca recogido junto al hombro contrario y barre hasta abrirse del todo
+        state.shoulderR = [0.30 - 0.26 * wind + 0.02 * hit, -0.10 + 0.22 * wind - 0.28 * hit, -1.53 + 1.25 * wind - 1.42 * hit];
+        state.elbowR = [-1.05 * wind + 1.05 * hit, 0, 0];
+        state.shoulderL = GUARD_L; state.elbowL = GUARD_EL;
+        state.hipL = [-0.12 + 0.10 * hit, 0, 0.10]; state.hipR = [0.06 - 0.10 * hit, 0, -0.10];
+        state.kneeL = [0.24, 0, 0]; state.kneeR = [0.24, 0, 0];
       } else {
-        upper = Math.sin(((u - 0.68) / 0.32) * Math.PI);
+        // 3. Estocada de cierre: el cuerpo acompaña y la punta sale al frente
+        const p = (u - 0.66) / 0.34;
+        const wind = Math.min(1, p / 0.30);
+        const hit = Math.pow(Math.max(0, (p - 0.30) / 0.34), 0.55);
+        const back = Math.pow(Math.max(0, (p - 0.72) / 0.28), 1.5);
+        const k = hit * (1 - back);
+        state.pelvisPos = [0, -0.03 - 0.06 * k, 0.26 * k];
+        state.pelvisRot = [0, -0.34 + 0.30 * wind + 0.30 * k, 0];
+        state.torsoRot = [0.08, -0.46 + 0.40 * wind + 0.36 * k, 0];
+        state.head = [-0.04, 0.10 * k, 0];
+        state.shoulderR = [0.32 - 0.30 * wind - 0.02 * k, 0.18 - 0.20 * wind - 0.08 * k, -0.11 - 0.30 * wind - 1.18 * k];
+        state.elbowR = [-1.55 * wind + 1.55 * k, 0, 0];
+        state.shoulderL = [GUARD_L[0], GUARD_L[1], GUARD_L[2] + 0.18 * k];
+        state.elbowL = [GUARD_EL[0] - 0.20 * k, 0, 0];
+        state.hipL = [-0.10 - 0.55 * k, 0, 0.10]; state.hipR = [0.08 + 0.32 * k, 0, -0.10];
+        state.kneeL = [0.26 + 0.30 * k, 0, 0]; state.kneeR = [0.24 + 0.55 * k, 0, 0];
+        state.ankleL = [-0.18 * k, 0, 0]; state.ankleR = [-0.10 * k, 0, 0];
       }
-
-      state.pelvisPos = [0, -0.04 - upper * 0.04, jab * 0.04 + cross * 0.08];
-      state.pelvisRot = [0.06, -jab * 0.28 + cross * 0.42 + upper * 0.32, 0];
-      state.torsoRot = [0.12 - upper * 0.18, -jab * 0.38 + cross * 0.58 + upper * 0.45, 0];
-      state.head = [-0.08, jab * 0.25 - cross * 0.35, 0];
-
-      state.shoulderL = [-0.65 - jab * 0.92, jab * 0.20, 0.32 - jab * 0.18];
-      state.elbowL = [-1.85 + jab * 1.65, 0, -0.18 * (1 - jab)];
-
-      state.shoulderR = [-0.55 - cross * 1.05 - upper * 1.25, -cross * 0.25, -0.32 + cross * 0.18 + upper * 0.12];
-      state.elbowR = [-1.90 + cross * 1.72 - upper * 0.15, 0, 0.18 * (1 - cross)];
-
-      state.hipL = [-0.24 - jab * 0.08, 0.08, 0.10];
-      state.hipR = [0.18 + cross * 0.12, -0.12, -0.10];
-      state.kneeL = [0.32, 0, 0];
-      state.kneeR = [0.28 + cross * 0.15, 0, 0];
-      state.ankleL = [-0.12, 0, 0];
-      state.ankleR = [-0.22, 0, 0];
-
-      if (cross > 0.6 || upper > 0.6) {
-        state.vfxType = 'punch';
-        state.vfxProgress = Math.max(cross, upper);
-      }
+      state.vfxType = 'trail';
+      state.vfxProgress = u;
       break;
     }
 
@@ -18384,46 +18404,67 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
     }
 
     case 'thrust_lunge': {
-      // Retrae el arma junto al costado y lanza una estocada con zancada profunda
+      // Estocada a fondo de verdad: el cuerpo se desplaza hacia delante (antes la pelvis
+      // no se movía) y la punta sale proyectada al frente a la altura del pecho, no por
+      // encima del hombro, que es lo que pasaba con el codo muy plegado.
       if (u < 0.30) {
+        // Carga: peso atrás y arma recogida junto al costado
         const t = Math.sin((u / 0.30) * Math.PI * 0.5);
-        state.pelvisPos = [0, -0.05 * t, 0];
-        state.pelvisRot = [0, -0.32 * t, 0];
-        state.torsoRot = [0.05, -0.40 * t, 0];
-        state.head = [0, 0.22 * t, 0];
-        state.shoulderR = [0.35 * t, -0.25 * t, -0.30 - 0.12 * t];
-        state.elbowR = [-1.75 * t, 0, 0];
-        state.shoulderL = [-0.25 * t, 0.15 * t, 0.55 * t + 0.30];
-        state.elbowL = [-0.80 * t, 0, 0];
-        state.hipL = [0.10 * t, 0, 0.08]; state.hipR = [-0.15 * t, 0, -0.08];
-        state.kneeL = [0.30 * t, 0, 0]; state.kneeR = [0.35 * t, 0, 0];
-      } else if (u < 0.48) {
-        const t = Math.pow((u - 0.30) / 0.18, 0.55);     // salida seca
-        state.pelvisPos = [0, -0.05 - 0.18 * t, 0.0];
-        state.pelvisRot = [0, -0.32 + 0.52 * t, 0];
-        state.torsoRot = [0.05 + 0.18 * t, -0.40 + 0.62 * t, 0];
-        state.head = [0.08 * t, 0.22 - 0.30 * t, 0];
-        state.shoulderR = [0.35 - 1.72 * t, -0.25 + 0.15 * t, -0.42 + 0.10 * t];
-        state.elbowR = [-1.75 + 1.68 * t, 0, 0];
-        state.shoulderL = [-0.25 + 0.10 * t, 0.15, 0.85 + 0.45 * t];
-        state.elbowL = [-0.80 - 0.25 * t, 0, 0];
-        state.hipL = [0.10 - 1.05 * t, 0, 0.08]; state.hipR = [-0.15 + 0.60 * t, 0, -0.08];
-        state.kneeL = [0.30 + 0.35 * t, 0, 0]; state.kneeR = [0.35 + 0.95 * t, 0, 0];
+        state.pelvisPos = [0, -0.06 * t, -0.10 * t];
+        state.pelvisRot = [0, -0.34 * t, 0];
+        state.torsoRot = [0.05, -0.42 * t, 0];
+        state.head = [0, 0.26 * t, 0];
+        state.shoulderR = [0.38 * t, 0.20 * t, -0.12 - 0.26 * t];
+        state.elbowR = [-1.70 * t, 0, 0];
+        state.shoulderL = [-0.30 * t, 0.18 * t, 0.34 + 0.34 * t];
+        state.elbowL = [-0.95 * t, 0, 0];
+        state.hipL = [0.14 * t, 0, 0.09]; state.hipR = [-0.20 * t, 0, -0.09];
+        state.kneeL = [0.34 * t, 0, 0]; state.kneeR = [0.40 * t, 0, 0];
+      } else if (u < 0.50) {
+        // Salida: zancada larga hacia delante y brazo estirado del todo
+        const t = Math.pow((u - 0.30) / 0.20, 0.55);
+        state.pelvisPos = [0, -0.06 - 0.20 * t, -0.10 + 0.62 * t];
+        state.pelvisRot = [0, -0.34 + 0.62 * t, 0];
+        state.torsoRot = [0.05 + 0.12 * t, -0.42 + 0.70 * t, 0];
+        state.head = [0.06 * t, 0.26 - 0.32 * t, 0];
+        // Hombro cerca de cero y codo a cero: es lo que proyecta la punta al frente
+        state.shoulderR = [0.38 - 0.34 * t, 0.20 - 0.28 * t, -0.38 - 1.16 * t];
+        state.elbowR = [-1.70 + 1.70 * t, 0, 0];
+        state.shoulderL = [-0.30 - 0.10 * t, 0.18, 0.68 + 0.42 * t];
+        state.elbowL = [-0.95 - 0.30 * t, 0, 0];
+        state.hipL = [0.14 - 1.18 * t, 0, 0.09]; state.hipR = [-0.20 + 0.70 * t, 0, -0.09];
+        state.kneeL = [0.34 + 0.38 * t, 0, 0]; state.kneeR = [0.40 + 0.85 * t, 0, 0];
+        state.ankleL = [-0.30 * t, 0, 0]; state.ankleR = [0.22 * t, 0, 0];
+      } else if (u < 0.70) {
+        // Sostiene la estocada hundida antes de recoger
+        state.pelvisPos = [0, -0.26, 0.52];
+        state.pelvisRot = [0, 0.28, 0];
+        state.torsoRot = [0.17, 0.28, 0];
+        state.head = [0.06, -0.06, 0];
+        state.shoulderR = [0.04, -0.08, -1.54];
+        state.elbowR = [0, 0, 0];
+        state.shoulderL = [-0.40, 0.18, 1.10];
+        state.elbowL = [-1.25, 0, 0];
+        state.hipL = [-1.04, 0, 0.09]; state.hipR = [0.50, 0, -0.09];
+        state.kneeL = [0.72, 0, 0]; state.kneeR = [1.25, 0, 0];
+        state.ankleL = [-0.30, 0, 0]; state.ankleR = [0.22, 0, 0];
       } else {
-        const t = (u - 0.48) / 0.52;
-        // La punta se queda hundida en el blanco antes de recoger el brazo
-        const hold = 1 - Math.pow(Math.max(0, (t - 0.45) / 0.55), 1.6);
-        state.pelvisPos = [0, -0.23 * hold, 0];
-        state.pelvisRot = [0, 0.20 * hold, 0];
-        state.torsoRot = [0.23 * hold, 0.22 * hold, 0];
-        state.shoulderR = [-1.37 * hold - 0.05, -0.10 * hold, -0.32 - 0.10 * hold];
-        state.elbowR = [-0.07 - 0.30 * (1 - hold), 0, 0];
-        state.shoulderL = [-0.15 * hold, 0.15 * hold, 1.30 * hold + 0.30 * (1 - hold)];
-        state.elbowL = [-1.05 * hold - 0.25 * (1 - hold), 0, 0];
-        state.hipL = [-0.95 * hold, 0, 0.08]; state.hipR = [0.45 * hold, 0, -0.08];
-        state.kneeL = [0.65 * hold, 0, 0]; state.kneeR = [1.30 * hold, 0, 0];
+        // Recoge el paso y vuelve a la guardia
+        const t = (u - 0.70) / 0.30;
+        const hold = 1 - Math.pow(t, 1.5);
+        state.pelvisPos = [0, -0.26 * hold, 0.52 * hold];
+        state.pelvisRot = [0, 0.28 * hold, 0];
+        state.torsoRot = [0.17 * hold, 0.28 * hold, 0];
+        state.head = [0.06 * hold, -0.06 * hold, 0];
+        state.shoulderR = [0.04 * hold - 0.05 * (1 - hold), -0.08 * hold, -1.54 * hold - 0.30 * (1 - hold)];
+        state.elbowR = [-0.28 * (1 - hold), 0, 0];
+        state.shoulderL = [-0.40 * hold, 0.18 * hold, 1.10 * hold + 0.30 * (1 - hold)];
+        state.elbowL = [-1.25 * hold - 0.28 * (1 - hold), 0, 0];
+        state.hipL = [-1.04 * hold, 0, 0.09]; state.hipR = [0.50 * hold, 0, -0.09];
+        state.kneeL = [0.72 * hold, 0, 0]; state.kneeR = [1.25 * hold, 0, 0];
+        state.ankleL = [-0.30 * hold, 0, 0]; state.ankleR = [0.22 * hold, 0, 0];
       }
-      state.vfxType = (u >= 0.30 && u <= 0.50) ? 'trail' : null;
+      state.vfxType = (u >= 0.30 && u <= 0.56) ? 'trail' : null;
       state.vfxProgress = u;
       break;
     }
