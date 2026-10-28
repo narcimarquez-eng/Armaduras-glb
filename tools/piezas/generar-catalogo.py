@@ -32,10 +32,20 @@ for ranura, items in estudio.items():
         })
     catalogo[ranura] = piezas
 
+# Equipo inicial: la cota (capa interior) y, en cada ranura, la pieza de nivel 1 que tenga modelo
+inicial = {}
+for r, ps in catalogo.items():
+    if r == 'underlayer':
+        inicial[r] = 2
+        continue
+    primera = next((p for p in ps if p['nivel'] == 1 and p['archivo']), None)
+    if primera:
+        inicial[r] = primera['idx']
+
 salida = {
     'version': 1,
     'maxNivel': MAX_NIVEL,
-    'inicial': {r: next(p['idx'] for p in ps if (r, p['idx']) in INICIAL) for r, ps in catalogo.items() if any((r, p['idx']) in INICIAL for p in ps)},
+    'inicial': inicial,
     'ranuras': catalogo,
     'clases': {'guerrero': sorted(catalogo.keys()), 'mago': []},  # mago: túnicas pendientes de crear en el estudio
 }
