@@ -11501,7 +11501,8 @@
        EFECTOS DE ATAQUE ESPECIAL: estela del arma, onda de choque y chispas.
        Todo cuelga de un grupo aparte marcado como VFX, para no exportarlo al .GLB.
        ========================================================================= */
-    const COMBAT_VFX = { group: null, trail: null, history: [], ring: null, flash: null, arrowFired: false };
+    const COMBAT_VFX = { group: null, trail: null, history: [], ring: null, flash: null, lastProg: null };
+    const AERIAL_RELEASE_U = 0.52;   // instante de suelta dentro del ciclo de 'aerial_shot'
 
     // Dispara una flecha desde el arco (o desde la mano del arco si no lo hay),
     // reutilizando el mismo vuelo balístico que el ciclo de tiro normal
@@ -11528,6 +11529,7 @@
       arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
       scene.add(arrow);
       ARROWS_IN_FLIGHT.push({ obj: arrow, vel: dir.clone().multiplyScalar(30).addScaledVector(AR_UP, 0.8), age: 0, trailT: 0 });
+    
     }
 
     function ensureCombatVFX() {
@@ -11590,17 +11592,23 @@
     function updateCombatVFX(vfx, delta) {
       const type = vfx && vfx.vfxType;
       const prog = (vfx && vfx.vfxProgress) || 0;
+
+      // Suelta de la flecha: salta cuando el ciclo cruza el instante de suelta, no cuando
+      // un fotograma cae dentro de una ventana. Con pocos fps la ventana se saltaba entera.
+      if (vfx && STATE.currentAnim === 'aerial_shot') {
+        const prev = COMBAT_VFX.lastProg;
+        if (prev !== null && prog > prev && prev < AERIAL_RELEASE_U && prog >= AERIAL_RELEASE_U) {
+          try { fireAerialArrow(); } catch (e) { }
+        }
+        COMBAT_VFX.lastProg = prog;
+      } else {
+        COMBAT_VFX.lastProg = null;
+      }
+
       if (!type && !COMBAT_VFX.group) return;   // nada que hacer y nada que limpiar
       ensureCombatVFX();
 
       const glow = new THREE.Color(STATE.glowColor || '#fbbf24');
-
-      // --- Suelta de la flecha: una sola por ciclo ---
-      if (type === 'arrow') {
-        if (!COMBAT_VFX.arrowFired) { COMBAT_VFX.arrowFired = true; try { fireAerialArrow(); } catch (e) { } }
-      } else {
-        COMBAT_VFX.arrowFired = false;
-      }
 
       // --- Estela del filo ---
       if (type === 'trail') {
@@ -18695,10 +18703,10 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
         state.kneeL = [1.45 * hold, 0, 0]; state.kneeR = [1.45 * hold, 0, 0];
         state.ankleL = [-0.38 * hold, 0, 0]; state.ankleR = [-0.38 * hold, 0, 0];
       }
-      // La flecha sale justo al acabar la suspensión; luego estela del mortal y onda al caer
-      state.vfxType = (u >= HOVER && u < HOVER + 0.03) ? 'arrow'
-        : ((u >= FOLLOW && u < FLIP) ? 'trail'
-          : ((u >= FLIP && u < FLIP + 0.10) ? 'shock' : null));
+      // Estela durante el mortal y onda al tomar tierra. La suelta de la flecha no se
+      // marca aquí: se dispara al cruzar vfxProgress el instante de suelta (ver updateCombatVFX)
+      state.vfxType = (u >= FOLLOW && u < FLIP) ? 'trail'
+        : ((u >= FLIP && u < FLIP + 0.10) ? 'shock' : null);
       state.vfxProgress = (u >= FLIP) ? (0.52 + ((u - FLIP) / 0.10) * 0.20) : u;
       break;
     }
