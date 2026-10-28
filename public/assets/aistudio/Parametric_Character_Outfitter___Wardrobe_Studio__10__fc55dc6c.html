@@ -122,6 +122,7 @@
         <option value="guard_counter">★ Parada y Contraataque</option>
         <option value="triple_corkscrew">★ Tornillo Triple con Salto</option>
         <option value="backflip">★ Voltereta Mortal con Salto</option>
+        <option value="aerial_shot">★ Flecha en Suspensión con Mortal</option>
       </select>
     </div>
     <label for="glb-file-input" class="glass-panel p-2 rounded-2xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-indigo-500/60 transition border border-dashed border-indigo-400/40 text-center group">
@@ -11493,14 +11494,41 @@
       ultimate_slam: 'ultimate_nova', ultimate_beam: 'ultimate_nova',
       spin_slash: 'attack', whirlwind: 'attack', overhead_cleave: 'attack',
       thrust_lunge: 'attack', rising_slash: 'attack', guard_counter: 'attack',
-      triple_corkscrew: 'jump', backflip: 'jump'
+      triple_corkscrew: 'jump', backflip: 'jump', aerial_shot: 'jump'
     };
 
     /* =========================================================================
        EFECTOS DE ATAQUE ESPECIAL: estela del arma, onda de choque y chispas.
        Todo cuelga de un grupo aparte marcado como VFX, para no exportarlo al .GLB.
        ========================================================================= */
-    const COMBAT_VFX = { group: null, trail: null, history: [], ring: null, flash: null };
+    const COMBAT_VFX = { group: null, trail: null, history: [], ring: null, flash: null, arrowFired: false };
+
+    // Dispara una flecha desde el arco (o desde la mano del arco si no lo hay),
+    // reutilizando el mismo vuelo balístico que el ciclo de tiro normal
+    function fireAerialArrow() {
+      let origin = null, dir = null;
+      const rig = archeryRig;
+      if (rig && rig.bow) {
+        rig.bow.updateWorldMatrix(true, false);
+        origin = new THREE.Vector3().setFromMatrixPosition(rig.bow.matrixWorld);
+      }
+      const root = mannequinRoot;
+      if (root) {
+        root.updateWorldMatrix(true, false);
+        dir = new THREE.Vector3(0, 0, 1).transformDirection(root.matrixWorld).normalize();
+        if (!origin) {
+          const hand = bonesMap.Hand_L || bonesMap.Wrist_L || bonesMap.Torso;
+          origin = hand ? new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld) : new THREE.Vector3(0, 1.4, 0);
+        }
+      }
+      if (!origin || !dir) return;
+      dir.addScaledVector(AR_UP, 0.12).normalize();   // sale con algo de parábola
+      const arrow = createArrowMesh();
+      arrow.position.copy(origin).addScaledVector(dir, 0.10);
+      arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+      scene.add(arrow);
+      ARROWS_IN_FLIGHT.push({ obj: arrow, vel: dir.clone().multiplyScalar(30).addScaledVector(AR_UP, 0.8), age: 0, trailT: 0 });
+    }
 
     function ensureCombatVFX() {
       if (COMBAT_VFX.group) return;
@@ -11566,6 +11594,13 @@
       ensureCombatVFX();
 
       const glow = new THREE.Color(STATE.glowColor || '#fbbf24');
+
+      // --- Suelta de la flecha: una sola por ciclo ---
+      if (type === 'arrow') {
+        if (!COMBAT_VFX.arrowFired) { COMBAT_VFX.arrowFired = true; try { fireAerialArrow(); } catch (e) { } }
+      } else {
+        COMBAT_VFX.arrowFired = false;
+      }
 
       // --- Estela del filo ---
       if (type === 'trail') {
@@ -11671,7 +11706,8 @@
           rising_slash: 'rising_slash',
           guard_counter: 'guard_counter',
           triple_corkscrew: 'triple_corkscrew',
-          backflip: 'backflip'
+          backflip: 'backflip',
+          aerial_shot: 'aerial_shot'
         };
         CH.CONFIG.items.animation = animMap[anim] || 'idle';
         CH.CONFIG.items.animPlaying = true;
@@ -17604,6 +17640,11 @@ const GAME_ANIMATIONS = {
     category: 'Ataque Especial',
     duration: 2.0,
   },
+  aerial_shot: {
+    name: 'Ataque Especial: Flecha en Suspensión con Mortal',
+    category: 'Ataque Especial',
+    duration: 2.9,
+  },
 };
 
 /**
@@ -18538,6 +18579,127 @@ function evaluateGameAnimation(animKey, time, fallbackPoseKey = 'apose') {
       }
       state.vfxType = (u >= L && u < LAND) ? 'trail' : ((u >= LAND && u < LAND + 0.11) ? 'shock' : null);
       state.vfxProgress = (u >= LAND) ? (0.52 + ((u - LAND) / 0.11) * 0.20) : u;
+      break;
+    }
+
+    case 'aerial_shot': {
+      // Salta muy alto, se queda suspendido, dispara la flecha y cae girando un mortal atrás
+      const G = 0.12, UP = 0.22, RISE = 0.34, HOVER = 0.52, FOLLOW = 0.60, FLIP = 0.86, ABS = 0.94;
+      // Pose de tiro: izquierda sostiene el arco al frente, derecha tensa la cuerda junto a la cara
+      const BOW_SH = [-1.55, 0.30, 0.18], BOW_EL = [-0.06, 0, 0];
+      const DRAW_SH = [-1.30, -0.22, -0.78], DRAW_EL = [-1.95, 0, 0];
+
+      if (u < G) {
+        // Se agazapa y empieza a levantar el arco
+        const t = Math.sin((u / G) * Math.PI * 0.5);
+        state.pelvisPos = [0, -0.30 * t, 0];
+        state.torsoRot = [0.40 * t, 0.18 * t, 0];
+        state.head = [-0.16 * t, 0.10 * t, 0];
+        state.shoulderL = [-0.70 * t, 0.20 * t, 0.26 + 0.10 * t];
+        state.shoulderR = [-0.50 * t, -0.18 * t, -0.30 - 0.20 * t];
+        state.elbowL = [-0.85 * t, 0, 0]; state.elbowR = [-1.10 * t, 0, 0];
+        state.hipL = [-1.00 * t, 0, 0.10]; state.hipR = [-1.00 * t, 0, -0.10];
+        state.kneeL = [1.45 * t, 0, 0]; state.kneeR = [1.45 * t, 0, 0];
+        state.ankleL = [0.40 * t, 0, 0]; state.ankleR = [0.40 * t, 0, 0];
+      } else if (u < UP) {
+        // Impulso: despega muy alto
+        const t = Math.pow((u - G) / (UP - G), 0.5);
+        state.pelvisPos = [0, -0.30 + 1.05 * t, 0];
+        state.torsoRot = [0.40 - 0.42 * t, 0.18, 0];
+        state.head = [-0.16 + 0.06 * t, 0.10, 0];
+        state.shoulderL = [-0.70 - 0.60 * t, 0.20 + 0.08 * t, 0.36 - 0.12 * t];
+        state.shoulderR = [-0.50 - 0.55 * t, -0.18, -0.50 - 0.20 * t];
+        state.elbowL = [-0.85 + 0.55 * t, 0, 0]; state.elbowR = [-1.10 - 0.55 * t, 0, 0];
+        state.hipL = [-1.00 + 1.15 * t, 0, 0.10]; state.hipR = [-1.00 + 1.15 * t, 0, -0.10];
+        state.kneeL = [1.45 - 1.25 * t, 0, 0]; state.kneeR = [1.45 - 1.25 * t, 0, 0];
+        state.ankleL = [0.40 - 0.65 * t, 0, 0]; state.ankleR = [0.40 - 0.65 * t, 0, 0];
+      } else if (u < RISE) {
+        // Sigue subiendo mientras completa la tensión del arco
+        const t = (u - UP) / (RISE - UP);
+        state.pelvisPos = [0, 0.75 + 0.38 * t, 0];
+        state.torsoRot = [-0.02, 0.18 + 0.10 * t, 0];
+        state.head = [-0.10, 0.10, 0];
+        state.shoulderL = [-1.30 - 0.25 * t, 0.28 + 0.02 * t, 0.24 - 0.06 * t];
+        state.shoulderR = [-1.05 - 0.25 * t, -0.18 - 0.04 * t, -0.70 - 0.08 * t];
+        state.elbowL = [-0.30 + 0.24 * t, 0, 0];
+        state.elbowR = [-1.65 - 0.30 * t, 0, 0];
+        state.hipL = [0.15 - 0.10 * t, 0, 0.10]; state.hipR = [0.15 - 0.30 * t, 0, -0.10];
+        state.kneeL = [0.20 + 0.30 * t, 0, 0]; state.kneeR = [0.20 + 0.55 * t, 0, 0];
+        state.ankleL = [-0.25, 0, 0]; state.ankleR = [-0.25, 0, 0];
+      } else if (u < HOVER) {
+        // Suspendido en lo alto: apunta y sostiene la tensión
+        const t = (u - RISE) / (HOVER - RISE);
+        const float = Math.sin(t * Math.PI) * 0.035;        // flota apenas, casi detenido
+        state.pelvisPos = [0, 1.13 + float, 0];
+        state.pelvisRot = [0, 0.10 * Math.sin(t * Math.PI), 0];
+        state.torsoRot = [-0.02, 0.28, 0];
+        state.head = [-0.08, 0.12, 0];
+        state.shoulderL = BOW_SH; state.elbowL = BOW_EL;
+        state.shoulderR = DRAW_SH; state.elbowR = DRAW_EL;
+        // Piernas en tijera suave, sin peso
+        state.hipL = [0.05 + 0.10 * Math.sin(t * Math.PI), 0, 0.10];
+        state.hipR = [-0.15 - 0.10 * Math.sin(t * Math.PI), 0, -0.10];
+        state.kneeL = [0.50, 0, 0]; state.kneeR = [0.75, 0, 0];
+        state.ankleL = [-0.25, 0, 0]; state.ankleR = [-0.25, 0, 0];
+      } else if (u < FOLLOW) {
+        // Suelta: la mano de la cuerda sale hacia atrás
+        const t = (u - HOVER) / (FOLLOW - HOVER);
+        state.pelvisPos = [0, 1.13 - 0.06 * t, 0];
+        state.torsoRot = [-0.02, 0.28 - 0.10 * t, 0];
+        state.head = [-0.08, 0.12, 0];
+        state.shoulderL = [BOW_SH[0], BOW_SH[1], BOW_SH[2]];
+        state.elbowL = [BOW_EL[0], 0, 0];
+        state.shoulderR = [DRAW_SH[0] + 0.25 * t, DRAW_SH[1], DRAW_SH[2] - 0.55 * t];
+        state.elbowR = [DRAW_EL[0] + 0.55 * t, 0, 0];
+        state.hipL = [0.05, 0, 0.10]; state.hipR = [-0.15, 0, -0.10];
+        state.kneeL = [0.50, 0, 0]; state.kneeR = [0.75, 0, 0];
+        state.ankleL = [-0.25, 0, 0]; state.ankleR = [-0.25, 0, 0];
+      } else if (u < FLIP) {
+        // Mortal hacia atrás mientras baja
+        const t = (u - FOLLOW) / (FLIP - FOLLOW);
+        state.pelvisPos = [0, 1.07 - 1.07 * Math.pow(t, 1.8), 0];
+        state.pelvisRot = [-t * Math.PI * 2, 0, 0];
+        const tuck = Math.sin(t * Math.PI);
+        state.torsoRot = [-0.10 + 0.85 * tuck, 0, 0];
+        state.head = [-0.30 + 0.50 * tuck, 0, 0];
+        state.shoulderL = [-1.55 + 1.30 * tuck, 0.20, 0.18 + 0.10 * tuck];
+        state.shoulderR = [-1.05 + 0.90 * tuck, -0.20, -0.25 - 0.10 * tuck];
+        state.elbowL = [-0.10 - 1.30 * tuck, 0, 0];
+        state.elbowR = [-1.40 - 0.20 * tuck, 0, 0];
+        state.hipL = [0.15 - 2.00 * tuck, 0, 0.12]; state.hipR = [0.15 - 2.00 * tuck, 0, -0.12];
+        state.kneeL = [0.20 + 1.90 * tuck, 0, 0]; state.kneeR = [0.20 + 1.90 * tuck, 0, 0];
+        state.ankleL = [-0.25 + 0.30 * tuck, 0, 0]; state.ankleR = [-0.25 + 0.30 * tuck, 0, 0];
+      } else if (u < ABS) {
+        // Recepción
+        const t = (u - FLIP) / (ABS - FLIP);
+        state.pelvisPos = [0, -0.30 * t, 0];
+        state.torsoRot = [0.12 + 0.38 * t, 0, 0];
+        state.head = [-0.06 + 0.16 * t, 0, 0];
+        state.shoulderL = [-0.55 + 0.30 * t, 0.20, 0.30 + 0.08 * t];
+        state.shoulderR = [-0.40 + 0.20 * t, -0.20, -0.32 - 0.08 * t];
+        state.elbowL = [-0.45 - 0.10 * t, 0, 0]; state.elbowR = [-0.95 + 0.35 * t, 0, 0];
+        state.hipL = [-1.00 * t, 0, 0.12]; state.hipR = [-1.00 * t, 0, -0.12];
+        state.kneeL = [1.45 * t, 0, 0]; state.kneeR = [1.45 * t, 0, 0];
+        state.ankleL = [-0.38 * t, 0, 0]; state.ankleR = [-0.38 * t, 0, 0];
+      } else {
+        const t = (u - ABS) / (1 - ABS);
+        const hold = 1 - Math.pow(t, 1.5);
+        state.pelvisPos = [0, -0.30 * hold, 0];
+        state.torsoRot = [0.50 * hold, 0, 0];
+        state.head = [0.10 * hold, 0, 0];
+        state.shoulderL = [-0.25 * hold, 0.20 * hold, 0.38 * hold + 0.30 * (1 - hold)];
+        state.shoulderR = [-0.20 * hold - 0.05, -0.20 * hold, -0.40 * hold - 0.30 * (1 - hold)];
+        state.elbowL = [-0.55 * hold - 0.28 * (1 - hold), 0, 0];
+        state.elbowR = [-0.60 * hold - 0.28 * (1 - hold), 0, 0];
+        state.hipL = [-1.00 * hold, 0, 0.12]; state.hipR = [-1.00 * hold, 0, -0.12];
+        state.kneeL = [1.45 * hold, 0, 0]; state.kneeR = [1.45 * hold, 0, 0];
+        state.ankleL = [-0.38 * hold, 0, 0]; state.ankleR = [-0.38 * hold, 0, 0];
+      }
+      // La flecha sale justo al acabar la suspensión; luego estela del mortal y onda al caer
+      state.vfxType = (u >= HOVER && u < HOVER + 0.03) ? 'arrow'
+        : ((u >= FOLLOW && u < FLIP) ? 'trail'
+          : ((u >= FLIP && u < FLIP + 0.10) ? 'shock' : null));
+      state.vfxProgress = (u >= FLIP) ? (0.52 + ((u - FLIP) / 0.10) * 0.20) : u;
       break;
     }
 
