@@ -729,7 +729,10 @@
         shinTop: null,             // altura de la grebas sobre la espinilla (0-1); null = según bota
         cuissesSpan: null,         // { top, bot } fijo en la muslera, en lugar de la longitud
         lightHarness: false,       // peto de pecho con tirantes a la espalda
-        clothSides: false          // faldones de tela a los lados, en lugar de escarcelas
+        clothSides: false,         // faldones de tela a los lados, en lugar de escarcelas
+        chestThick: 1.00,          // grosor de la pechera (multiplicador)
+        tabardWidthMult: 1.00,     // ancho del tabardo delantero (multiplicador)
+        backStrip: false           // tira ancha de tela por detrás del cinturón
       },
       materialType: 'paladin_sun_gold',
       primaryColor: '#f1f5f9', 
@@ -1170,9 +1173,12 @@
           clothSides: true,                        // faldones de tela en los lados, como el tabardo
           lightHarness: true,                      // peto de pecho con tirantes
           bootCollarMin: 0.035,                    // bota solo de tobillo y pie
-          shinTop: 0.14                            // grebas que no pasan del tobillo
+          shinTop: 0.14,                           // grebas que no pasan del tobillo
+          chestThick: 0.60,                        // pechera con menos volumen
+          tabardWidthMult: 2.00,                   // tabardo delantero al doble de ancho
+          backStrip: true                          // tira trasera del cinturón
         },
-        chest: { yMinFront: 0.42, backStyle: 'none' },   // pecho protegido, sin espaldar
+        chest: { yMinFront: 0.42, chestContour: 'anatomical', flareTop: 0.005, flareBottom: 0.005 },   // pecho protegido y de poco volumen
         boot: { collarFactor: 0.60 }
       },
       mago: { name: 'Mago', fit: {}, chest: {}, boot: { collarFactor: 0.90 } }
@@ -4823,7 +4829,7 @@
 
       // Tabardo Heráldico Colgante con pliegues orgánicos de tela 3D y remates heráldicos variados
       if (cLen > 0.25) {
-        const tabardW = waistW * 0.48;
+        const tabardW = waistW * 0.48 * (STATE.fit.tabardWidthMult || 1);
         const tabardLen = Math.max(0.14, pSize.y * 1.15 * cLen);
         const tabardTopY = buckleY - beltH * 0.35;
 
@@ -6878,6 +6884,9 @@
       } else {
         buildArticulatedTassets();
       }
+      if (STATE.fit.backStrip) {
+        buildBackBeltStrip({ trimMat: getPBRMaterial('trim', 'belt'), clothMat: getPBRMaterial('cloth', 'belt') });
+      }
       buildArticulatedCuisses();
       buildArticulatedKnees();
       buildArticulatedBoots();
@@ -8663,29 +8672,29 @@
       const tSize = tb.getSize(new THREE.Vector3());
       const tc = tb.getCenter(new THREE.Vector3());
       const W = tSize.x, H = tSize.y;
-      // Los tirantes van por fuera de la pechera (grosor ~0.03 m) y del espaldar, que no existe en la ligera
-      const frontZ = tb.max.z - tc.z + 0.040;
-      const backZ = tb.min.z - tc.z - 0.030;
+      // Los tirantes van por fuera de la pechera y del espaldar, y cruzan los trapecios (cerca del cuello, no en el deltoides)
+      const frontZ = tb.max.z - tc.z + 0.028;
+      const backZ = tb.min.z - tc.z - 0.065;
       const yAttach = (tb.min.y - tc.y) + H * 0.86;   // borde superior de la pechera
-      const yShoulder = (tb.max.y - tc.y) + 0.020;    // por encima de la cresta del hombro
+      const yShoulder = (tb.max.y - tc.y) + 0.010;    // cresta del trapecio
 
       const group = new THREE.Group();
       group.name = 'Light_Chest_Straps';
       [-1, 1].forEach(s => {
         const curve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(s * W * 0.24, yAttach, frontZ),
-          new THREE.Vector3(s * W * 0.30, yShoulder, 0),
-          new THREE.Vector3(s * W * 0.24, yAttach, backZ)
+          new THREE.Vector3(s * W * 0.22, yAttach, frontZ),
+          new THREE.Vector3(s * W * 0.22, yShoulder, 0),
+          new THREE.Vector3(s * W * 0.22, yAttach, backZ)
         ]);
         group.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.009, 8, false), clothMat));
 
         // Hebilla de ajuste en el punto de anclaje delantero
         const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.020, 0.026, 0.006), trimMat);
-        buckle.position.set(s * W * 0.24, yAttach, frontZ + 0.004);
+        buckle.position.set(s * W * 0.22, yAttach, frontZ + 0.004);
         group.add(buckle);
       });
 
-      // Almohadilla de cuero en la espalda donde terminan los tirantes
+      // Almohadilla de cuero sobre el espaldar donde terminan los tirantes
       const pad = new THREE.Mesh(new THREE.BoxGeometry(W * 0.46, H * 0.24, 0.012), clothMat);
       pad.position.set(0, yShoulder - H * 0.24, backZ - 0.004);
       group.add(pad);
@@ -8726,6 +8735,43 @@
         hem.position.set(s * pSize.x * 0.50, topY - flapLen, 0);
         group.add(hem);
       });
+
+      attachOrnamentWorld(armorSockets.belt, group, pCenter, new THREE.Quaternion(), 'belt');
+    }
+
+    /* === LIGERA: tira ancha de tela que cuelga por detrás del cinturón y cubre parte del trasero === */
+    function buildBackBeltStrip(mats) {
+      const { trimMat, clothMat } = mats;
+      const pelvisBox = getWorldBoxOfParts(['pelvis']);
+      if (!pelvisBox) return;
+      const pSize = pelvisBox.getSize(new THREE.Vector3());
+      const pCenter = pelvisBox.getCenter(new THREE.Vector3());
+      const stripW = Math.max(0.10, pSize.x * 0.92);
+      const stripLen = Math.max(0.14, pSize.y * 0.95);
+      const topY = pSize.y * 0.20; // justo bajo la banda del cinturón
+      const backZ = pelvisBox.min.z - pCenter.z - 0.010;
+
+      // Tela con pliegues verticales, como el tabardo delantero
+      const geo = new THREE.PlaneGeometry(stripW, stripLen, 16, 24);
+      const pos = geo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const uNorm = pos.getX(i) / stripW + 0.5;
+        const vNorm = 0.5 - pos.getY(i) / stripLen;
+        pos.setZ(i, Math.sin(uNorm * Math.PI * 4.0) * 0.008 * (0.35 + 0.65 * vNorm));
+      }
+      geo.computeVertexNormals();
+
+      const group = new THREE.Group();
+      group.name = 'Light_Back_Belt_Strip';
+      const strip = new THREE.Mesh(geo, clothMat);
+      strip.rotation.y = Math.PI; // normal hacia fuera, por la espalda
+      strip.position.set(0, topY - stripLen * 0.5, backZ);
+      group.add(strip);
+
+      // Orla dorada en el dobladillo
+      const hem = new THREE.Mesh(new THREE.BoxGeometry(stripW, 0.008, 0.008), trimMat);
+      hem.position.set(0, topY - stripLen, backZ);
+      group.add(hem);
 
       attachOrnamentWorld(armorSockets.belt, group, pCenter, new THREE.Quaternion(), 'belt');
     }
@@ -9080,7 +9126,7 @@
           // 1. PLACA PECTORAL FRONTAL CONTINUA CON VOLUMEN NATURAL DE CORAZA (Cero pliegues horizontales en el pecho)
           createFormFittedShell(tMesh, mainMat, {
             targetPart: 'torso',
-            thicknessRatio: 0.027 * tBulk,
+            thicknessRatio: 0.027 * tBulk * STATE.fit.chestThick,
             yMin: cfg.yMinFront,
             yMax: cfg.yMaxFront,
             angleMin: -frontAngleLimit,
