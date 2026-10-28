@@ -1164,7 +1164,7 @@
       ligera: {
         name: 'Ligera',
         fit: {
-          shoulderSize: 0.72,
+          shoulderSize: 0.50,
           kneeScale: 0.90, kneeWingSize: 0.55,
           cuissesScale: 0.90, cuissesLength: 0.72,
           cuissesSpan: { top: 0.98, bot: 0.46 },   // muslera desde el glúteo, con hueco sobre la rodilla
@@ -9319,7 +9319,8 @@
         });
 
         // 5. GORJAL + CUELLO DE SOLAPAS (sustituye al aro alrededor del cuello)
-        if (torsoMeshes[0]) buildPetoCollar(torsoMeshes[0], torsoType, { mainMat, trimMat, glowMat });
+        // La ligera va sin gorjal: deja el cuello y los trapecios despejados para los tirantes
+        if (torsoMeshes[0] && !STATE.fit.lightHarness) buildPetoCollar(torsoMeshes[0], torsoType, { mainMat, trimMat, glowMat });
 
         // 6. ESPALDARONES INTEGRADOS DEL PETO: cúpula + láminas que cubren el deltoides (todos los petos)
         buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
