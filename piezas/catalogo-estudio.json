@@ -434,327 +434,408 @@
   "weapon": [
     {
       "idx": 0,
-      "name": "Sin Arma"
+      "name": "Sin Arma",
+      "familia": "ninguna"
     },
     {
       "idx": 1,
-      "name": "Espada Solar + Escudo Heráldico Sol"
+      "name": "Espada Solar + Escudo Heráldico Sol",
+      "familia": "legado"
     },
     {
       "idx": 2,
-      "name": "Mandoble + Gran Escudo Torre Pavés Solar (D&D)"
+      "name": "Mandoble + Gran Escudo Torre Pavés Solar (D&D)",
+      "familia": "legado"
     },
     {
       "idx": 3,
-      "name": "Espada de Acero + Escudo de Espigas Eclipse (D&D)"
+      "name": "Espada de Acero + Escudo de Espigas Eclipse (D&D)",
+      "familia": "legado"
     },
     {
       "idx": 4,
-      "name": "Lanza Élfica + Rodela de Hierro / Buckler (D&D)"
+      "name": "Lanza Élfica + Rodela de Hierro / Buckler (D&D)",
+      "familia": "legado"
     },
     {
       "idx": 5,
-      "name": "Espada Dinastía + Escudo Alado Oro Rosa (L2)"
+      "name": "Espada Dinastía + Escudo Alado Oro Rosa (L2)",
+      "familia": "legado"
     },
     {
       "idx": 6,
-      "name": "Hacha de Torre de Doble Filo + Escudo Cometa de Caballero"
+      "name": "Hacha de Torre de Doble Filo + Escudo Cometa de Caballero",
+      "familia": "legado"
     },
     {
       "idx": 7,
-      "name": "Maza Estrellada + Escudo Redondo Vikingo"
+      "name": "Maza Estrellada + Escudo Redondo Vikingo",
+      "familia": "legado"
     },
     {
       "idx": 8,
-      "name": "Estoque Élfico + Escudo Ojival Gótico"
+      "name": "Estoque Élfico + Escudo Ojival Gótico",
+      "familia": "legado"
     },
     {
       "idx": 9,
-      "name": "Hoz Abismal + Escudo Cuadrado de Escamas"
+      "name": "Hoz Abismal + Escudo Cuadrado de Escamas",
+      "familia": "legado"
     },
     {
       "idx": 10,
-      "name": "Cetro de Mando Solar + Broquel Élfico de Hoja"
+      "name": "Cetro de Mando Solar + Broquel Élfico de Hoja",
+      "familia": "legado"
     },
     {
       "idx": 11,
-      "name": "Espada Ropera Élfica"
+      "name": "Espada Ropera Élfica",
+      "familia": "espada"
     },
     {
       "idx": 12,
-      "name": "Espada Larga de Caballero"
+      "name": "Espada Larga de Caballero",
+      "familia": "espada"
     },
     {
       "idx": 13,
-      "name": "Montante de Dos Manos"
+      "name": "Montante de Dos Manos",
+      "familia": "espada"
     },
     {
       "idx": 14,
-      "name": "Falcata de Guerra"
+      "name": "Falcata de Guerra",
+      "familia": "espada"
     },
     {
       "idx": 15,
-      "name": "Cimitarra Dorada"
+      "name": "Cimitarra Dorada",
+      "familia": "espada"
     },
     {
       "idx": 16,
-      "name": "Espada Bastarda Gótica"
+      "name": "Espada Bastarda Gótica",
+      "familia": "espada"
     },
     {
       "idx": 17,
-      "name": "Estoque de Torneo"
+      "name": "Estoque de Torneo",
+      "familia": "espada"
     },
     {
       "idx": 18,
-      "name": "Espada Flamígera Ondulada"
+      "name": "Espada Flamígera Ondulada",
+      "familia": "espada"
     },
     {
       "idx": 19,
-      "name": "Claymore de Clan"
+      "name": "Claymore de Clan",
+      "familia": "espada"
     },
     {
       "idx": 20,
-      "name": "Gladius Imperial"
+      "name": "Gladius Imperial",
+      "familia": "espada"
     },
     {
       "idx": 21,
-      "name": "Hacha de Guerra Lunar"
+      "name": "Hacha de Guerra Lunar",
+      "familia": "hacha"
     },
     {
       "idx": 22,
-      "name": "Hacha de Torre de Doble Filo"
+      "name": "Hacha de Torre de Doble Filo",
+      "familia": "hacha"
     },
     {
       "idx": 23,
-      "name": "Hacha Vikinga de Filo Único"
+      "name": "Hacha Vikinga de Filo Único",
+      "familia": "hacha"
     },
     {
       "idx": 24,
-      "name": "Hacha Pico de Cuervo"
+      "name": "Hacha Pico de Cuervo",
+      "familia": "hacha"
     },
     {
       "idx": 25,
-      "name": "Hacha de Abordaje"
+      "name": "Hacha de Abordaje",
+      "familia": "hacha"
     },
     {
       "idx": 26,
-      "name": "Alabarda Hacha de Luz"
+      "name": "Alabarda Hacha de Luz",
+      "familia": "hacha"
     },
     {
       "idx": 27,
-      "name": "Hacha Doble Gótica"
+      "name": "Hacha Doble Gótica",
+      "familia": "hacha"
     },
     {
       "idx": 28,
-      "name": "Tomahawk Espinado"
+      "name": "Tomahawk Espinado",
+      "familia": "hacha"
     },
     {
       "idx": 29,
-      "name": "Hacha de Verdugo"
+      "name": "Hacha de Verdugo",
+      "familia": "hacha"
     },
     {
       "idx": 30,
-      "name": "Labrys Solar"
+      "name": "Labrys Solar",
+      "familia": "hacha"
     },
     {
       "idx": 31,
-      "name": "Maza Estrellada"
+      "name": "Maza Estrellada",
+      "familia": "maza"
     },
     {
       "idx": 32,
-      "name": "Maza de Pinchos"
+      "name": "Maza de Pinchos",
+      "familia": "maza"
     },
     {
       "idx": 33,
-      "name": "Martillo de Guerra"
+      "name": "Martillo de Guerra",
+      "familia": "maza"
     },
     {
       "idx": 34,
-      "name": "Maza de Tres Cabezas"
+      "name": "Maza de Tres Cabezas",
+      "familia": "maza"
     },
     {
       "idx": 35,
-      "name": "Maza Flanjeada"
+      "name": "Maza Flanjeada",
+      "familia": "maza"
     },
     {
       "idx": 36,
-      "name": "Mangual de Cadena"
+      "name": "Mangual de Cadena",
+      "familia": "maza"
     },
     {
       "idx": 37,
-      "name": "Macuahuitl de Vidrio"
+      "name": "Macuahuitl de Vidrio",
+      "familia": "maza"
     },
     {
       "idx": 38,
-      "name": "Maza Hexagonal"
+      "name": "Maza Hexagonal",
+      "familia": "maza"
     },
     {
       "idx": 39,
-      "name": "Porra Ceremonial"
+      "name": "Porra Ceremonial",
+      "familia": "maza"
     },
     {
       "idx": 40,
-      "name": "Maza Cráneo Abisal"
+      "name": "Maza Cráneo Abisal",
+      "familia": "maza"
     },
     {
       "idx": 41,
-      "name": "Daga Élfica"
+      "name": "Daga Élfica",
+      "familia": "daga"
     },
     {
       "idx": 42,
-      "name": "Kris Ondulado"
+      "name": "Kris Ondulado",
+      "familia": "daga"
     },
     {
       "idx": 43,
-      "name": "Daga de Asesino"
+      "name": "Daga de Asesino",
+      "familia": "daga"
     },
     {
       "idx": 44,
-      "name": "Misericordia"
+      "name": "Misericordia",
+      "familia": "daga"
     },
     {
       "idx": 45,
-      "name": "Cuchillo de Caza"
+      "name": "Cuchillo de Caza",
+      "familia": "daga"
     },
     {
       "idx": 46,
-      "name": "Daga Gótica de Dos Filos"
+      "name": "Daga Gótica de Dos Filos",
+      "familia": "daga"
     },
     {
       "idx": 47,
-      "name": "Punzón de Mago"
+      "name": "Punzón de Mago",
+      "familia": "daga"
     },
     {
       "idx": 48,
-      "name": "Daga Parada"
+      "name": "Daga Parada",
+      "familia": "daga"
     },
     {
       "idx": 49,
-      "name": "Daga Lunar"
+      "name": "Daga Lunar",
+      "familia": "daga"
     },
     {
       "idx": 50,
-      "name": "Daga de Cristal"
+      "name": "Daga de Cristal",
+      "familia": "daga"
     },
     {
       "idx": 51,
-      "name": "Lanza de Caballería"
+      "name": "Lanza de Caballería",
+      "familia": "lanza"
     },
     {
       "idx": 52,
-      "name": "Lanza Élfica de Hoja Larga"
+      "name": "Lanza Élfica de Hoja Larga",
+      "familia": "lanza"
     },
     {
       "idx": 53,
-      "name": "Alabarda de Guardián"
+      "name": "Alabarda de Guardián",
+      "familia": "lanza"
     },
     {
       "idx": 54,
-      "name": "Pica de Falange"
+      "name": "Pica de Falange",
+      "familia": "lanza"
     },
     {
       "idx": 55,
-      "name": "Tridente Solar"
+      "name": "Tridente Solar",
+      "familia": "lanza"
     },
     {
       "idx": 56,
-      "name": "Glaive de Luna"
+      "name": "Glaive de Luna",
+      "familia": "lanza"
     },
     {
       "idx": 57,
-      "name": "Lanza de Espino"
+      "name": "Lanza de Espino",
+      "familia": "lanza"
     },
     {
       "idx": 58,
-      "name": "Partesana"
+      "name": "Partesana",
+      "familia": "lanza"
     },
     {
       "idx": 59,
-      "name": "Lanza Gótica de Púas"
+      "name": "Lanza Gótica de Púas",
+      "familia": "lanza"
     },
     {
       "idx": 60,
-      "name": "Bisarma Dorada"
+      "name": "Bisarma Dorada",
+      "familia": "lanza"
     },
     {
       "idx": 61,
-      "name": "Báculo Solar"
+      "name": "Báculo Solar",
+      "familia": "baculo"
     },
     {
       "idx": 62,
-      "name": "Cetro Arcano de Cristal"
+      "name": "Cetro Arcano de Cristal",
+      "familia": "baculo"
     },
     {
       "idx": 63,
-      "name": "Báculo Espiral Élfico"
+      "name": "Báculo Espiral Élfico",
+      "familia": "baculo"
     },
     {
       "idx": 64,
-      "name": "Bastón de Druida"
+      "name": "Bastón de Druida",
+      "familia": "baculo"
     },
     {
       "idx": 65,
-      "name": "Báculo de Triple Orbe"
+      "name": "Báculo de Triple Orbe",
+      "familia": "baculo"
     },
     {
       "idx": 66,
-      "name": "Vara de Runas"
+      "name": "Vara de Runas",
+      "familia": "baculo"
     },
     {
       "idx": 67,
-      "name": "Báculo Cráneo Abisal"
+      "name": "Báculo Cráneo Abisal",
+      "familia": "baculo"
     },
     {
       "idx": 68,
-      "name": "Báculo de Raíces"
+      "name": "Báculo de Raíces",
+      "familia": "baculo"
     },
     {
       "idx": 69,
-      "name": "Cetro del Alba"
+      "name": "Cetro del Alba",
+      "familia": "baculo"
     },
     {
       "idx": 70,
-      "name": "Báculo Lunar de Plata"
+      "name": "Báculo Lunar de Plata",
+      "familia": "baculo"
     },
     {
       "idx": 71,
-      "name": "Arco Largo Élfico"
+      "name": "Arco Largo Élfico",
+      "familia": "arco"
     },
     {
       "idx": 72,
-      "name": "Arco Recurvo de Caballero"
+      "name": "Arco Recurvo de Caballero",
+      "familia": "arco"
     },
     {
       "idx": 73,
-      "name": "Arco Compuesto Gótico"
+      "name": "Arco Compuesto Gótico",
+      "familia": "arco"
     },
     {
       "idx": 74,
-      "name": "Arco Reflejo Solar"
+      "name": "Arco Reflejo Solar",
+      "familia": "arco"
     },
     {
       "idx": 75,
-      "name": "Arco de Caza"
+      "name": "Arco de Caza",
+      "familia": "arco"
     },
     {
       "idx": 76,
-      "name": "Arco de Cristal"
+      "name": "Arco de Cristal",
+      "familia": "arco"
     },
     {
       "idx": 77,
-      "name": "Arco Espinado"
+      "name": "Arco Espinado",
+      "familia": "arco"
     },
     {
       "idx": 78,
-      "name": "Arco de Raíces"
+      "name": "Arco de Raíces",
+      "familia": "arco"
     },
     {
       "idx": 79,
-      "name": "Arco Lunar"
+      "name": "Arco Lunar",
+      "familia": "arco"
     },
     {
       "idx": 80,
-      "name": "Arco de Torneo"
+      "name": "Arco de Torneo",
+      "familia": "arco"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "maxNivel": 50,
+  "maxNivel": 40,
   "inicial": {
     "underlayer": 2
   },
@@ -21,79 +21,79 @@
       {
         "idx": 3,
         "nombre": "Cuero Oscuro Articulado con Correas",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": null
       },
       {
         "idx": 4,
         "nombre": "Seda Esmeralda Imperial de Dinastía",
-        "nivel": 12,
+        "nivel": 9,
         "archivo": null
       },
       {
         "idx": 5,
         "nombre": "Brigantina de Cuero Tachonado en Oro",
-        "nivel": 15,
+        "nivel": 12,
         "archivo": null
       },
       {
         "idx": 6,
         "nombre": "Cota de Malla Remachada de Cruzado",
-        "nivel": 18,
+        "nivel": 15,
         "archivo": null
       },
       {
         "idx": 7,
         "nombre": "Cota Élfica Fina de Mithril Plateado",
-        "nivel": 22,
+        "nivel": 18,
         "archivo": null
       },
       {
         "idx": 8,
         "nombre": "Cota de Malla Solar de Bronce y Oro",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": null
       },
       {
         "idx": 9,
         "nombre": "Cota Persa Densa 6-en-1 Trenzada",
-        "nivel": 29,
+        "nivel": 23,
         "archivo": null
       },
       {
         "idx": 10,
         "nombre": "Cota de Escamas Redondas (Jazerant)",
-        "nivel": 32,
+        "nivel": 26,
         "archivo": null
       },
       {
         "idx": 11,
         "nombre": "Cota de Escamas Puntiagudas de Dragón",
-        "nivel": 36,
+        "nivel": 29,
         "archivo": null
       },
       {
         "idx": 12,
         "nombre": "Cota Lamelar Oriental Lazada en Carmesí",
-        "nivel": 40,
+        "nivel": 32,
         "archivo": null
       },
       {
         "idx": 13,
         "nombre": "Gambesón Gótico de Costillas Verticales",
-        "nivel": 43,
+        "nivel": 34,
         "archivo": null
       },
       {
         "idx": 14,
         "nombre": "Gambesón de Espiga en Chevron",
-        "nivel": 46,
+        "nivel": 37,
         "archivo": null
       },
       {
         "idx": 15,
         "nombre": "Terciopelo Heráldico Real Bordado",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": null
       }
     ],
@@ -107,43 +107,43 @@
       {
         "idx": 2,
         "nombre": "Diadema Dinastía Alada con Rubí (L2)",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/helmet/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Tiara Élfica de Hojas con Esmeraldas",
-        "nivel": 15,
+        "nivel": 12,
         "archivo": "piezas/helmet/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Corona Dracónica con Cuernos (L2)",
-        "nivel": 22,
+        "nivel": 18,
         "archivo": "piezas/helmet/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Corona Astral con Halo de Rayos (L2)",
-        "nivel": 29,
+        "nivel": 23,
         "archivo": "piezas/helmet/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Visera Solar con Nasal y Alas",
-        "nivel": 36,
+        "nivel": 29,
         "archivo": "piezas/helmet/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Visera Dracónica con Cuernos y Ala Dentada",
-        "nivel": 43,
+        "nivel": 34,
         "archivo": "piezas/helmet/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Visera de Cristal Arcano con Aletas",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/helmet/8.glb"
       }
     ],
@@ -157,61 +157,61 @@
       {
         "idx": 2,
         "nombre": "Hombreras Abisales de Cuchillas Estridentes",
-        "nivel": 6,
+        "nivel": 5,
         "archivo": "piezas/shoulders/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Hombreras Aladas de Guardián Celestial",
-        "nivel": 11,
+        "nivel": 9,
         "archivo": "piezas/shoulders/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Hombreras Dinastía de Planchas Flotantes (L2)",
-        "nivel": 16,
+        "nivel": 13,
         "archivo": "piezas/shoulders/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Hombreras Dracónicas de Planchas Cortantes (L2)",
-        "nivel": 21,
+        "nivel": 17,
         "archivo": "piezas/shoulders/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Hombreras Imperial Crusader de Muralla Alta (L2)",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": "piezas/shoulders/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Hombreras Majestic de Filigrana Cortante (L2)",
-        "nivel": 30,
+        "nivel": 24,
         "archivo": "piezas/shoulders/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Hombreras Nightmare de Espolones Estridentes (L2)",
-        "nivel": 35,
+        "nivel": 28,
         "archivo": "piezas/shoulders/8.glb"
       },
       {
         "idx": 9,
         "nombre": "Hombreras Valquiria de Plumas de Acero Biseladas",
-        "nivel": 40,
+        "nivel": 32,
         "archivo": "piezas/shoulders/9.glb"
       },
       {
         "idx": 10,
         "nombre": "Hombreras Prisma de Facetas Cortantes a 45°",
-        "nivel": 45,
+        "nivel": 36,
         "archivo": "piezas/shoulders/10.glb"
       },
       {
         "idx": 11,
         "nombre": "Hombreras Arconte de Clavícula y Paletilla (L2)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/shoulders/11.glb"
       }
     ],
@@ -225,109 +225,109 @@
       {
         "idx": 2,
         "nombre": "Coraza Real de Alianza (Cresta en V)",
-        "nivel": 4,
+        "nivel": 3,
         "archivo": "piezas/torso/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Coraza Gótica Abisal Escalonada",
-        "nivel": 6,
+        "nivel": 5,
         "archivo": "piezas/torso/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Coraza Élfica con Filigrana & Gema",
-        "nivel": 9,
+        "nivel": 8,
         "archivo": "piezas/torso/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Peto Dinastía (Corazón Alado & Rubí - L2)",
-        "nivel": 12,
+        "nivel": 10,
         "archivo": "piezas/torso/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Peto de Hoja de Laurel en Relieve (D&D)",
-        "nivel": 15,
+        "nivel": 12,
         "archivo": "piezas/torso/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Coraza Triskele con Espirales Celtas (D&D)",
-        "nivel": 17,
+        "nivel": 14,
         "archivo": "piezas/torso/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Cota de Escamas de Dragón & Rubí (D&D)",
-        "nivel": 20,
+        "nivel": 16,
         "archivo": "piezas/torso/8.glb"
       },
       {
         "idx": 9,
         "nombre": "Brigantina Tachonada con Tachuelas Oro (D&D)",
-        "nivel": 23,
+        "nivel": 18,
         "archivo": "piezas/torso/9.glb"
       },
       {
         "idx": 10,
         "nombre": "Peto Alto Arconte (Cubre Cuello, Clavícula y Paletilla - L2)",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": "piezas/torso/10.glb"
       },
       {
         "idx": 11,
         "nombre": "Coraza Extraña de Mandíbula, Clavícula y Escápula Cortante",
-        "nivel": 28,
+        "nivel": 23,
         "archivo": "piezas/torso/11.glb"
       },
       {
         "idx": 12,
         "nombre": "Armadura Dinastía de Yugo Clavicular y Hombro (L2)",
-        "nivel": 31,
+        "nivel": 25,
         "archivo": "piezas/torso/12.glb"
       },
       {
         "idx": 13,
         "nombre": "Peto Abisal Exótico de Costillas Abiertas y Gola Alta",
-        "nivel": 34,
+        "nivel": 27,
         "archivo": "piezas/torso/13.glb"
       },
       {
         "idx": 14,
         "nombre": "Coraza Valquiria de Cuello Alto y Aletas de Paletilla",
-        "nivel": 36,
+        "nivel": 29,
         "archivo": "piezas/torso/14.glb"
       },
       {
         "idx": 15,
         "nombre": "Peto Dracónico Imperial de Clavícula y Espina Dorsal (L2)",
-        "nivel": 39,
+        "nivel": 31,
         "archivo": "piezas/torso/15.glb"
       },
       {
         "idx": 16,
         "nombre": "Peto Estridente de Proa Cortante y Alas Dorsales en X (L2)",
-        "nivel": 42,
+        "nivel": 34,
         "archivo": "piezas/torso/16.glb"
       },
       {
         "idx": 17,
         "nombre": "Coraza Serafín Ceñida de 6 Alas Espinales y Quilla Saliente",
-        "nivel": 45,
+        "nivel": 36,
         "archivo": "piezas/torso/17.glb"
       },
       {
         "idx": 18,
         "nombre": "Peto Leviatán de Aletas Dorsales Aserradas y Costillas Cortantes",
-        "nivel": 47,
+        "nivel": 38,
         "archivo": "piezas/torso/18.glb"
       },
       {
         "idx": 19,
         "nombre": "Coraza Soberano Astral de Halo Dorsal y Escápula Alada (L2)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/torso/19.glb"
       }
     ],
@@ -341,25 +341,25 @@
       {
         "idx": 2,
         "nombre": "Guanteletes Góticos con Púas",
-        "nivel": 13,
+        "nivel": 11,
         "archivo": "piezas/gloves/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Brazales Reales con Filigrana Oro",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": "piezas/gloves/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Guanteletes Dinastía con Aletas Aladas (L2)",
-        "nivel": 38,
+        "nivel": 30,
         "archivo": "piezas/gloves/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Brazales de Escamas de Dragón (D&D)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/gloves/5.glb"
       }
     ],
@@ -373,37 +373,37 @@
       {
         "idx": 2,
         "nombre": "Cinturón Real + Tabardo Azul & Oro",
-        "nivel": 9,
+        "nivel": 8,
         "archivo": "piezas/belt/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Fajín de Guerra con Faldón de Malla",
-        "nivel": 17,
+        "nivel": 14,
         "archivo": "piezas/belt/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Cinturón Abisal con Punta Gótica",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": "piezas/belt/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Cinturón de Comandante con Hebilla",
-        "nivel": 34,
+        "nivel": 27,
         "archivo": "piezas/belt/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Cinturón Dinastía + Tabardo Esmeralda & Oro Rosa (L2)",
-        "nivel": 42,
+        "nivel": 34,
         "archivo": "piezas/belt/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Cinturón de Brigantina Tachonada (D&D)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/belt/7.glb"
       }
     ],
@@ -417,43 +417,43 @@
       {
         "idx": 2,
         "nombre": "Escarcelas Góticas en Punta V",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/tassets/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Placas Pesadas de Comandante",
-        "nivel": 15,
+        "nivel": 12,
         "archivo": "piezas/tassets/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Escarcelas Élficas Biseladas",
-        "nivel": 22,
+        "nivel": 18,
         "archivo": "piezas/tassets/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Escarcelas Reales con Blasón",
-        "nivel": 29,
+        "nivel": 23,
         "archivo": "piezas/tassets/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Escarcelas Dinastía Aladas en Abanico (L2)",
-        "nivel": 36,
+        "nivel": 29,
         "archivo": "piezas/tassets/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Escarcelas de Escamas de Dragón (D&D)",
-        "nivel": 43,
+        "nivel": 34,
         "archivo": "piezas/tassets/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Escarcelas de Tablillas / Splint Mail (D&D)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/tassets/8.glb"
       }
     ],
@@ -467,37 +467,37 @@
       {
         "idx": 2,
         "nombre": "Quijotes Góticos con Cresta en V",
-        "nivel": 9,
+        "nivel": 8,
         "archivo": "piezas/cuisses/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Musleras Pesadas de Comandante",
-        "nivel": 17,
+        "nivel": 14,
         "archivo": "piezas/cuisses/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Quijotes Élficos Acanalados",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": "piezas/cuisses/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Quijotes Imperiales de Torneo",
-        "nivel": 34,
+        "nivel": 27,
         "archivo": "piezas/cuisses/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Quijotes Dinastía con Marco de Oro Rosa (L2)",
-        "nivel": 42,
+        "nivel": 34,
         "archivo": "piezas/cuisses/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Quijotes de Bandas Horizontales Lamelar (D&D)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/cuisses/7.glb"
       }
     ],
@@ -511,37 +511,37 @@
       {
         "idx": 2,
         "nombre": "Rodilleras Facetadas con Ala Lateral",
-        "nivel": 9,
+        "nivel": 8,
         "archivo": "piezas/knees/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Rodilleras Abisales con Espolón",
-        "nivel": 17,
+        "nivel": 14,
         "archivo": "piezas/knees/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Rodilleras de Comandante Articuladas",
-        "nivel": 26,
+        "nivel": 20,
         "archivo": "piezas/knees/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Rodilleras Élficas en Punta Real",
-        "nivel": 34,
+        "nivel": 27,
         "archivo": "piezas/knees/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Rodilleras Dinastía con Aletas de Plumas (L2)",
-        "nivel": 42,
+        "nivel": 34,
         "archivo": "piezas/knees/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Rodilleras de Escama con Gema Rubí (D&D)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/knees/7.glb"
       }
     ],
@@ -555,31 +555,31 @@
       {
         "idx": 2,
         "nombre": "Botas Góticas Abisales en Punta",
-        "nivel": 11,
+        "nivel": 9,
         "archivo": "piezas/boots/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Botas de Comandante de Acero Pesado",
-        "nivel": 21,
+        "nivel": 17,
         "archivo": "piezas/boots/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Botas Dinastía Celestial (Alas de Oro Rosa - L2)",
-        "nivel": 30,
+        "nivel": 24,
         "archivo": "piezas/boots/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Botas Élficas de Hoja de Laurel (D&D)",
-        "nivel": 40,
+        "nivel": 32,
         "archivo": "piezas/boots/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Botas de Escamas de Dragón & Puntera Reforzada (D&D)",
-        "nivel": 50,
+        "nivel": 40,
         "archivo": "piezas/boots/6.glb"
       }
     ],
@@ -588,481 +588,561 @@
         "idx": 1,
         "nombre": "Espada Solar + Escudo Heráldico Sol",
         "nivel": 1,
-        "archivo": "piezas/weapon/1.glb"
+        "archivo": "piezas/weapon/1.glb",
+        "familia": "legado"
       },
       {
         "idx": 2,
         "nombre": "Mandoble + Gran Escudo Torre Pavés Solar (D&D)",
-        "nivel": 2,
-        "archivo": "piezas/weapon/2.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/2.glb",
+        "familia": "legado"
       },
       {
         "idx": 3,
         "nombre": "Espada de Acero + Escudo de Espigas Eclipse (D&D)",
-        "nivel": 2,
-        "archivo": "piezas/weapon/3.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/3.glb",
+        "familia": "legado"
       },
       {
         "idx": 4,
         "nombre": "Lanza Élfica + Rodela de Hierro / Buckler (D&D)",
-        "nivel": 3,
-        "archivo": "piezas/weapon/4.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/4.glb",
+        "familia": "legado"
       },
       {
         "idx": 5,
         "nombre": "Espada Dinastía + Escudo Alado Oro Rosa (L2)",
-        "nivel": 3,
-        "archivo": "piezas/weapon/5.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/5.glb",
+        "familia": "legado"
       },
       {
         "idx": 6,
         "nombre": "Hacha de Torre de Doble Filo + Escudo Cometa de Caballero",
-        "nivel": 4,
-        "archivo": "piezas/weapon/6.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/6.glb",
+        "familia": "legado"
       },
       {
         "idx": 7,
         "nombre": "Maza Estrellada + Escudo Redondo Vikingo",
-        "nivel": 5,
-        "archivo": "piezas/weapon/7.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/7.glb",
+        "familia": "legado"
       },
       {
         "idx": 8,
         "nombre": "Estoque Élfico + Escudo Ojival Gótico",
-        "nivel": 5,
-        "archivo": "piezas/weapon/8.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/8.glb",
+        "familia": "legado"
       },
       {
         "idx": 9,
         "nombre": "Hoz Abismal + Escudo Cuadrado de Escamas",
-        "nivel": 6,
-        "archivo": "piezas/weapon/9.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/9.glb",
+        "familia": "legado"
       },
       {
         "idx": 10,
         "nombre": "Cetro de Mando Solar + Broquel Élfico de Hoja",
-        "nivel": 7,
-        "archivo": "piezas/weapon/10.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/10.glb",
+        "familia": "legado"
       },
       {
         "idx": 11,
         "nombre": "Espada Ropera Élfica",
-        "nivel": 7,
-        "archivo": "piezas/weapon/11.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/11.glb",
+        "familia": "espada"
       },
       {
         "idx": 12,
         "nombre": "Espada Larga de Caballero",
-        "nivel": 8,
-        "archivo": "piezas/weapon/12.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/12.glb",
+        "familia": "espada"
       },
       {
         "idx": 13,
         "nombre": "Montante de Dos Manos",
-        "nivel": 8,
-        "archivo": "piezas/weapon/13.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/13.glb",
+        "familia": "espada"
       },
       {
         "idx": 14,
         "nombre": "Falcata de Guerra",
-        "nivel": 9,
-        "archivo": "piezas/weapon/14.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/14.glb",
+        "familia": "espada"
       },
       {
         "idx": 15,
         "nombre": "Cimitarra Dorada",
-        "nivel": 10,
-        "archivo": "piezas/weapon/15.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/15.glb",
+        "familia": "espada"
       },
       {
         "idx": 16,
         "nombre": "Espada Bastarda Gótica",
-        "nivel": 10,
-        "archivo": "piezas/weapon/16.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/16.glb",
+        "familia": "espada"
       },
       {
         "idx": 17,
         "nombre": "Estoque de Torneo",
-        "nivel": 11,
-        "archivo": "piezas/weapon/17.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/17.glb",
+        "familia": "espada"
       },
       {
         "idx": 18,
         "nombre": "Espada Flamígera Ondulada",
-        "nivel": 12,
-        "archivo": "piezas/weapon/18.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/18.glb",
+        "familia": "espada"
       },
       {
         "idx": 19,
         "nombre": "Claymore de Clan",
-        "nivel": 12,
-        "archivo": "piezas/weapon/19.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/19.glb",
+        "familia": "espada"
       },
       {
         "idx": 20,
         "nombre": "Gladius Imperial",
-        "nivel": 13,
-        "archivo": "piezas/weapon/20.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/20.glb",
+        "familia": "espada"
       },
       {
         "idx": 21,
         "nombre": "Hacha de Guerra Lunar",
-        "nivel": 13,
-        "archivo": "piezas/weapon/21.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/21.glb",
+        "familia": "hacha"
       },
       {
         "idx": 22,
         "nombre": "Hacha de Torre de Doble Filo",
-        "nivel": 14,
-        "archivo": "piezas/weapon/22.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/22.glb",
+        "familia": "hacha"
       },
       {
         "idx": 23,
         "nombre": "Hacha Vikinga de Filo Único",
-        "nivel": 15,
-        "archivo": "piezas/weapon/23.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/23.glb",
+        "familia": "hacha"
       },
       {
         "idx": 24,
         "nombre": "Hacha Pico de Cuervo",
-        "nivel": 15,
-        "archivo": "piezas/weapon/24.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/24.glb",
+        "familia": "hacha"
       },
       {
         "idx": 25,
         "nombre": "Hacha de Abordaje",
-        "nivel": 16,
-        "archivo": "piezas/weapon/25.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/25.glb",
+        "familia": "hacha"
       },
       {
         "idx": 26,
         "nombre": "Alabarda Hacha de Luz",
-        "nivel": 17,
-        "archivo": "piezas/weapon/26.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/26.glb",
+        "familia": "hacha"
       },
       {
         "idx": 27,
         "nombre": "Hacha Doble Gótica",
-        "nivel": 17,
-        "archivo": "piezas/weapon/27.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/27.glb",
+        "familia": "hacha"
       },
       {
         "idx": 28,
         "nombre": "Tomahawk Espinado",
-        "nivel": 18,
-        "archivo": "piezas/weapon/28.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/28.glb",
+        "familia": "hacha"
       },
       {
         "idx": 29,
         "nombre": "Hacha de Verdugo",
-        "nivel": 18,
-        "archivo": "piezas/weapon/29.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/29.glb",
+        "familia": "hacha"
       },
       {
         "idx": 30,
         "nombre": "Labrys Solar",
-        "nivel": 19,
-        "archivo": "piezas/weapon/30.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/30.glb",
+        "familia": "hacha"
       },
       {
         "idx": 31,
         "nombre": "Maza Estrellada",
-        "nivel": 20,
-        "archivo": "piezas/weapon/31.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/31.glb",
+        "familia": "maza"
       },
       {
         "idx": 32,
         "nombre": "Maza de Pinchos",
-        "nivel": 20,
-        "archivo": "piezas/weapon/32.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/32.glb",
+        "familia": "maza"
       },
       {
         "idx": 33,
         "nombre": "Martillo de Guerra",
-        "nivel": 21,
-        "archivo": "piezas/weapon/33.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/33.glb",
+        "familia": "maza"
       },
       {
         "idx": 34,
         "nombre": "Maza de Tres Cabezas",
-        "nivel": 21,
-        "archivo": "piezas/weapon/34.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/34.glb",
+        "familia": "maza"
       },
       {
         "idx": 35,
         "nombre": "Maza Flanjeada",
-        "nivel": 22,
-        "archivo": "piezas/weapon/35.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/35.glb",
+        "familia": "maza"
       },
       {
         "idx": 36,
         "nombre": "Mangual de Cadena",
         "nivel": 23,
-        "archivo": "piezas/weapon/36.glb"
+        "archivo": "piezas/weapon/36.glb",
+        "familia": "maza"
       },
       {
         "idx": 37,
         "nombre": "Macuahuitl de Vidrio",
-        "nivel": 23,
-        "archivo": "piezas/weapon/37.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/37.glb",
+        "familia": "maza"
       },
       {
         "idx": 38,
         "nombre": "Maza Hexagonal",
-        "nivel": 24,
-        "archivo": "piezas/weapon/38.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/38.glb",
+        "familia": "maza"
       },
       {
         "idx": 39,
         "nombre": "Porra Ceremonial",
-        "nivel": 25,
-        "archivo": "piezas/weapon/39.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/39.glb",
+        "familia": "maza"
       },
       {
         "idx": 40,
         "nombre": "Maza Cráneo Abisal",
-        "nivel": 25,
-        "archivo": "piezas/weapon/40.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/40.glb",
+        "familia": "maza"
       },
       {
         "idx": 41,
         "nombre": "Daga Élfica",
-        "nivel": 26,
-        "archivo": "piezas/weapon/41.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/41.glb",
+        "familia": "daga"
       },
       {
         "idx": 42,
         "nombre": "Kris Ondulado",
-        "nivel": 26,
-        "archivo": "piezas/weapon/42.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/42.glb",
+        "familia": "daga"
       },
       {
         "idx": 43,
         "nombre": "Daga de Asesino",
-        "nivel": 27,
-        "archivo": "piezas/weapon/43.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/43.glb",
+        "familia": "daga"
       },
       {
         "idx": 44,
         "nombre": "Misericordia",
-        "nivel": 28,
-        "archivo": "piezas/weapon/44.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/44.glb",
+        "familia": "daga"
       },
       {
         "idx": 45,
         "nombre": "Cuchillo de Caza",
-        "nivel": 28,
-        "archivo": "piezas/weapon/45.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/45.glb",
+        "familia": "daga"
       },
       {
         "idx": 46,
         "nombre": "Daga Gótica de Dos Filos",
-        "nivel": 29,
-        "archivo": "piezas/weapon/46.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/46.glb",
+        "familia": "daga"
       },
       {
         "idx": 47,
         "nombre": "Punzón de Mago",
-        "nivel": 30,
-        "archivo": "piezas/weapon/47.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/47.glb",
+        "familia": "daga"
       },
       {
         "idx": 48,
         "nombre": "Daga Parada",
-        "nivel": 30,
-        "archivo": "piezas/weapon/48.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/48.glb",
+        "familia": "daga"
       },
       {
         "idx": 49,
         "nombre": "Daga Lunar",
-        "nivel": 31,
-        "archivo": "piezas/weapon/49.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/49.glb",
+        "familia": "daga"
       },
       {
         "idx": 50,
         "nombre": "Daga de Cristal",
-        "nivel": 31,
-        "archivo": "piezas/weapon/50.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/50.glb",
+        "familia": "daga"
       },
       {
         "idx": 51,
         "nombre": "Lanza de Caballería",
-        "nivel": 32,
-        "archivo": "piezas/weapon/51.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/51.glb",
+        "familia": "lanza"
       },
       {
         "idx": 52,
         "nombre": "Lanza Élfica de Hoja Larga",
-        "nivel": 33,
-        "archivo": "piezas/weapon/52.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/52.glb",
+        "familia": "lanza"
       },
       {
         "idx": 53,
         "nombre": "Alabarda de Guardián",
-        "nivel": 33,
-        "archivo": "piezas/weapon/53.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/53.glb",
+        "familia": "lanza"
       },
       {
         "idx": 54,
         "nombre": "Pica de Falange",
-        "nivel": 34,
-        "archivo": "piezas/weapon/54.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/54.glb",
+        "familia": "lanza"
       },
       {
         "idx": 55,
         "nombre": "Tridente Solar",
-        "nivel": 34,
-        "archivo": "piezas/weapon/55.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/55.glb",
+        "familia": "lanza"
       },
       {
         "idx": 56,
         "nombre": "Glaive de Luna",
-        "nivel": 35,
-        "archivo": "piezas/weapon/56.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/56.glb",
+        "familia": "lanza"
       },
       {
         "idx": 57,
         "nombre": "Lanza de Espino",
-        "nivel": 36,
-        "archivo": "piezas/weapon/57.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/57.glb",
+        "familia": "lanza"
       },
       {
         "idx": 58,
         "nombre": "Partesana",
-        "nivel": 36,
-        "archivo": "piezas/weapon/58.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/58.glb",
+        "familia": "lanza"
       },
       {
         "idx": 59,
         "nombre": "Lanza Gótica de Púas",
-        "nivel": 37,
-        "archivo": "piezas/weapon/59.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/59.glb",
+        "familia": "lanza"
       },
       {
         "idx": 60,
         "nombre": "Bisarma Dorada",
-        "nivel": 38,
-        "archivo": "piezas/weapon/60.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/60.glb",
+        "familia": "lanza"
       },
       {
         "idx": 61,
         "nombre": "Báculo Solar",
-        "nivel": 38,
-        "archivo": "piezas/weapon/61.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/61.glb",
+        "familia": "baculo"
       },
       {
         "idx": 62,
         "nombre": "Cetro Arcano de Cristal",
-        "nivel": 39,
-        "archivo": "piezas/weapon/62.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/62.glb",
+        "familia": "baculo"
       },
       {
         "idx": 63,
         "nombre": "Báculo Espiral Élfico",
-        "nivel": 39,
-        "archivo": "piezas/weapon/63.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/63.glb",
+        "familia": "baculo"
       },
       {
         "idx": 64,
         "nombre": "Bastón de Druida",
-        "nivel": 40,
-        "archivo": "piezas/weapon/64.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/64.glb",
+        "familia": "baculo"
       },
       {
         "idx": 65,
         "nombre": "Báculo de Triple Orbe",
-        "nivel": 41,
-        "archivo": "piezas/weapon/65.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/65.glb",
+        "familia": "baculo"
       },
       {
         "idx": 66,
         "nombre": "Vara de Runas",
-        "nivel": 41,
-        "archivo": "piezas/weapon/66.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/66.glb",
+        "familia": "baculo"
       },
       {
         "idx": 67,
         "nombre": "Báculo Cráneo Abisal",
-        "nivel": 42,
-        "archivo": "piezas/weapon/67.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/67.glb",
+        "familia": "baculo"
       },
       {
         "idx": 68,
         "nombre": "Báculo de Raíces",
-        "nivel": 43,
-        "archivo": "piezas/weapon/68.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/68.glb",
+        "familia": "baculo"
       },
       {
         "idx": 69,
         "nombre": "Cetro del Alba",
-        "nivel": 43,
-        "archivo": "piezas/weapon/69.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/69.glb",
+        "familia": "baculo"
       },
       {
         "idx": 70,
         "nombre": "Báculo Lunar de Plata",
-        "nivel": 44,
-        "archivo": "piezas/weapon/70.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/70.glb",
+        "familia": "baculo"
       },
       {
         "idx": 71,
         "nombre": "Arco Largo Élfico",
-        "nivel": 44,
-        "archivo": "piezas/weapon/71.glb"
+        "nivel": 1,
+        "archivo": "piezas/weapon/71.glb",
+        "familia": "arco"
       },
       {
         "idx": 72,
         "nombre": "Arco Recurvo de Caballero",
-        "nivel": 45,
-        "archivo": "piezas/weapon/72.glb"
+        "nivel": 5,
+        "archivo": "piezas/weapon/72.glb",
+        "familia": "arco"
       },
       {
         "idx": 73,
         "nombre": "Arco Compuesto Gótico",
-        "nivel": 46,
-        "archivo": "piezas/weapon/73.glb"
+        "nivel": 10,
+        "archivo": "piezas/weapon/73.glb",
+        "familia": "arco"
       },
       {
         "idx": 74,
         "nombre": "Arco Reflejo Solar",
-        "nivel": 46,
-        "archivo": "piezas/weapon/74.glb"
+        "nivel": 14,
+        "archivo": "piezas/weapon/74.glb",
+        "familia": "arco"
       },
       {
         "idx": 75,
         "nombre": "Arco de Caza",
-        "nivel": 47,
-        "archivo": "piezas/weapon/75.glb"
+        "nivel": 18,
+        "archivo": "piezas/weapon/75.glb",
+        "familia": "arco"
       },
       {
         "idx": 76,
         "nombre": "Arco de Cristal",
-        "nivel": 48,
-        "archivo": "piezas/weapon/76.glb"
+        "nivel": 23,
+        "archivo": "piezas/weapon/76.glb",
+        "familia": "arco"
       },
       {
         "idx": 77,
         "nombre": "Arco Espinado",
-        "nivel": 48,
-        "archivo": "piezas/weapon/77.glb"
+        "nivel": 27,
+        "archivo": "piezas/weapon/77.glb",
+        "familia": "arco"
       },
       {
         "idx": 78,
         "nombre": "Arco de Raíces",
-        "nivel": 49,
-        "archivo": "piezas/weapon/78.glb"
+        "nivel": 31,
+        "archivo": "piezas/weapon/78.glb",
+        "familia": "arco"
       },
       {
         "idx": 79,
         "nombre": "Arco Lunar",
-        "nivel": 49,
-        "archivo": "piezas/weapon/79.glb"
+        "nivel": 36,
+        "archivo": "piezas/weapon/79.glb",
+        "familia": "arco"
       },
       {
         "idx": 80,
         "nombre": "Arco de Torneo",
-        "nivel": 50,
-        "archivo": "piezas/weapon/80.glb"
+        "nivel": 40,
+        "archivo": "piezas/weapon/80.glb",
+        "familia": "arco"
       }
     ]
   },

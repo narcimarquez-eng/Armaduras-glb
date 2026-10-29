@@ -2,34 +2,49 @@
 
 Cada pieza real (índice > 0; el 0 de cada ranura es «Sin …») recibe un nivel mínimo para equiparla.
 Las piezas de una ranura se reparten de forma uniforme entre el nivel 1 y el nivel MAX_NIVEL, en el
-orden del catálogo del estudio. La cota de malla europea (underlayer 2) es la armadura inicial: nivel 1.
+orden del catálogo del estudio. Las armas se reparten así dentro de su familia (legado, espada, hacha,
+maza, daga, lanza, báculo, arco): cada tipo de arma tiene piezas desde el nivel 1 hasta el MAX_NIVEL. La cota de malla europea (underlayer 2) es la armadura inicial: nivel 1.
 Para cambiar niveles, edita catalogo.json o ajusta MAX_NIVEL y vuelve a ejecutar:
     python3 tools/piezas/generar-catalogo.py
 """
 import json
 import os
 
-MAX_NIVEL = 50
+MAX_NIVEL = 40
 INICIAL = {('underlayer', 2)}  # Cota de Malla Europea 4-en-1: la que sale equipada
 
 RAIZ = os.path.join(os.path.dirname(__file__), '..', '..', 'piezas')
 with open(os.path.join(RAIZ, 'catalogo-estudio.json'), encoding='utf-8') as f:
     estudio = json.load(f)
 
+def repartir(items):
+    """Niveles de 1 a MAX_NIVEL repartidos de forma uniforme, en orden."""
+    n = len(items)
+    return {it['idx']: round(1 + k * (MAX_NIVEL - 1) / max(1, n - 1)) for k, it in enumerate(items)}
+
+
 catalogo = {}
 for ranura, items in estudio.items():
     reales = [it for it in items if it['idx'] > 0]
-    n = len(reales)
+    if ranura == 'weapon':
+        # Por familia (la del estudio, en catalogo-estudio.json): todas empiezan en el nivel 1
+        niveles = {}
+        for fam in dict.fromkeys(it.get('familia', 'arma') for it in reales):
+            niveles.update(repartir([it for it in reales if it.get('familia', 'arma') == fam]))
+    else:
+        niveles = repartir(reales)
     piezas = []
-    for k, it in enumerate(reales):
-        nivel = 1 if (ranura, it['idx']) in INICIAL else round(1 + k * (MAX_NIVEL - 1) / max(1, n - 1))
-        piezas.append({
+    for it in reales:
+        pieza = {
             'idx': it['idx'],
             'nombre': it['name'],
-            'nivel': nivel,
+            'nivel': 1 if (ranura, it['idx']) in INICIAL else niveles[it['idx']],
             # La capa interior no se exporta como malla: sin modelo hasta que el estudio la tenga
             'archivo': None if ranura == 'underlayer' else f"piezas/{ranura}/{it['idx']}.glb",
-        })
+        }
+        if 'familia' in it:
+            pieza['familia'] = it['familia']
+        piezas.append(pieza)
     catalogo[ranura] = piezas
 
 # Equipo inicial: solo la cota (capa interior). El arma básica la elige js/equipo.js.
