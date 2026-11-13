@@ -38,7 +38,7 @@ for ranura, items in estudio.items():
         pieza = {
             'idx': it['idx'],
             'nombre': it['name'],
-            'nivel': 1 if (ranura, it['idx']) in INICIAL else niveles[it['idx']],
+            'nivel': it['nivel'] if 'nivel' in it else (1 if (ranura, it['idx']) in INICIAL else niveles[it['idx']]),
             # La capa interior no se exporta como malla: sin modelo hasta que el estudio la tenga
             'archivo': None if ranura == 'underlayer' else f"piezas/{ranura}/{it['idx']}.glb",
         }

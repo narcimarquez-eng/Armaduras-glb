@@ -63,6 +63,10 @@
     {
       "idx": 15,
       "name": "Terciopelo Heráldico Real Bordado"
+    },
+    {
+      "idx": 16,
+      "name": "Cota Lamellar Dark Crystal (L2)"
     }
   ],
   "helmet": [
@@ -101,6 +105,10 @@
     {
       "idx": 8,
       "name": "Visera de Cristal Arcano con Aletas"
+    },
+    {
+      "idx": 9,
+      "name": "Diadema Dark Crystal con Crestón Cian (L2)"
     }
   ],
   "shoulders": [
@@ -151,6 +159,10 @@
     {
       "idx": 11,
       "name": "Hombreras Arconte de Clavícula y Paletilla (L2)"
+    },
+    {
+      "idx": 12,
+      "name": "Hombreras Dark Crystal con Aletas Cian (L2)"
     }
   ],
   "torso": [
@@ -233,6 +245,10 @@
     {
       "idx": 19,
       "name": "Coraza Soberano Astral de Halo Dorsal y Escápula Alada (L2)"
+    },
+    {
+      "idx": 20,
+      "name": "Coraza Pesada Dark Crystal (L2)"
     }
   ],
   "gloves": [
@@ -259,6 +275,10 @@
     {
       "idx": 5,
       "name": "Brazales de Escamas de Dragón (D&D)"
+    },
+    {
+      "idx": 6,
+      "name": "Guanteletes Dark Crystal (L2)"
     }
   ],
   "belt": [
@@ -293,6 +313,10 @@
     {
       "idx": 7,
       "name": "Cinturón de Brigantina Tachonada (D&D)"
+    },
+    {
+      "idx": 8,
+      "name": "Cinturón & Tabardo Dark Crystal (L2)"
     }
   ],
   "tassets": [
@@ -331,6 +355,10 @@
     {
       "idx": 8,
       "name": "Escarcelas de Tablillas / Splint Mail (D&D)"
+    },
+    {
+      "idx": 9,
+      "name": "Escarcelas Dark Crystal (L2)"
     }
   ],
   "cuisses": [
@@ -365,6 +393,10 @@
     {
       "idx": 7,
       "name": "Quijotes de Bandas Horizontales Lamelar (D&D)"
+    },
+    {
+      "idx": 8,
+      "name": "Musleras Dark Crystal (L2)"
     }
   ],
   "knees": [
@@ -399,6 +431,10 @@
     {
       "idx": 7,
       "name": "Rodilleras de Escama con Gema Rubí (D&D)"
+    },
+    {
+      "idx": 8,
+      "name": "Rodilleras Dark Crystal con Aletas de Cristal (L2)"
     }
   ],
   "boots": [
@@ -429,6 +465,10 @@
     {
       "idx": 6,
       "name": "Botas de Escamas de Dragón & Puntera Reforzada (D&D)"
+    },
+    {
+      "idx": 13,
+      "name": "Botas & Escarpes Dark Crystal (L2)"
     }
   ],
   "weapon": [
@@ -836,6 +876,23 @@
       "idx": 80,
       "name": "Arco de Torneo",
       "familia": "arco"
+    },
+    {
+      "idx": 81,
+      "name": "Espada Dark Crystal (L2)",
+      "familia": "espada",
+      "nivel": 40
+    }
+  ],
+  "shield": [
+    {
+      "idx": 0,
+      "name": "Sin Escudo"
+    },
+    {
+      "idx": 11,
+      "name": "Escudo Dark Crystal (L2)",
+      "nivel": 40
     }
   ]
 }

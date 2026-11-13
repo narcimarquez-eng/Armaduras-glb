@@ -21,7 +21,7 @@
       {
         "idx": 3,
         "nombre": "Cuero Oscuro Articulado con Correas",
-        "nivel": 7,
+        "nivel": 6,
         "archivo": null
       },
       {
@@ -33,66 +33,72 @@
       {
         "idx": 5,
         "nombre": "Brigantina de Cuero Tachonado en Oro",
-        "nivel": 12,
+        "nivel": 11,
         "archivo": null
       },
       {
         "idx": 6,
         "nombre": "Cota de Malla Remachada de Cruzado",
-        "nivel": 15,
+        "nivel": 14,
         "archivo": null
       },
       {
         "idx": 7,
         "nombre": "Cota Élfica Fina de Mithril Plateado",
-        "nivel": 18,
+        "nivel": 17,
         "archivo": null
       },
       {
         "idx": 8,
         "nombre": "Cota de Malla Solar de Bronce y Oro",
-        "nivel": 20,
+        "nivel": 19,
         "archivo": null
       },
       {
         "idx": 9,
         "nombre": "Cota Persa Densa 6-en-1 Trenzada",
-        "nivel": 23,
+        "nivel": 22,
         "archivo": null
       },
       {
         "idx": 10,
         "nombre": "Cota de Escamas Redondas (Jazerant)",
-        "nivel": 26,
+        "nivel": 24,
         "archivo": null
       },
       {
         "idx": 11,
         "nombre": "Cota de Escamas Puntiagudas de Dragón",
-        "nivel": 29,
+        "nivel": 27,
         "archivo": null
       },
       {
         "idx": 12,
         "nombre": "Cota Lamelar Oriental Lazada en Carmesí",
-        "nivel": 32,
+        "nivel": 30,
         "archivo": null
       },
       {
         "idx": 13,
         "nombre": "Gambesón Gótico de Costillas Verticales",
-        "nivel": 34,
+        "nivel": 32,
         "archivo": null
       },
       {
         "idx": 14,
         "nombre": "Gambesón de Espiga en Chevron",
-        "nivel": 37,
+        "nivel": 35,
         "archivo": null
       },
       {
         "idx": 15,
         "nombre": "Terciopelo Heráldico Real Bordado",
+        "nivel": 37,
+        "archivo": null
+      },
+      {
+        "idx": 16,
+        "nombre": "Cota Lamellar Dark Crystal (L2)",
         "nivel": 40,
         "archivo": null
       }
@@ -107,44 +113,50 @@
       {
         "idx": 2,
         "nombre": "Diadema Dinastía Alada con Rubí (L2)",
-        "nivel": 7,
+        "nivel": 6,
         "archivo": "piezas/helmet/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Tiara Élfica de Hojas con Esmeraldas",
-        "nivel": 12,
+        "nivel": 11,
         "archivo": "piezas/helmet/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Corona Dracónica con Cuernos (L2)",
-        "nivel": 18,
+        "nivel": 16,
         "archivo": "piezas/helmet/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Corona Astral con Halo de Rayos (L2)",
-        "nivel": 23,
+        "nivel": 20,
         "archivo": "piezas/helmet/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Visera Solar con Nasal y Alas",
-        "nivel": 29,
+        "nivel": 25,
         "archivo": "piezas/helmet/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Visera Dracónica con Cuernos y Ala Dentada",
-        "nivel": 34,
+        "nivel": 30,
         "archivo": "piezas/helmet/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Visera de Cristal Arcano con Aletas",
-        "nivel": 40,
+        "nivel": 35,
         "archivo": "piezas/helmet/8.glb"
+      },
+      {
+        "idx": 9,
+        "nombre": "Diadema Dark Crystal con Crestón Cian (L2)",
+        "nivel": 40,
+        "archivo": "piezas/helmet/9.glb"
       }
     ],
     "shoulders": [
@@ -163,56 +175,62 @@
       {
         "idx": 3,
         "nombre": "Hombreras Aladas de Guardián Celestial",
-        "nivel": 9,
+        "nivel": 8,
         "archivo": "piezas/shoulders/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Hombreras Dinastía de Planchas Flotantes (L2)",
-        "nivel": 13,
+        "nivel": 12,
         "archivo": "piezas/shoulders/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Hombreras Dracónicas de Planchas Cortantes (L2)",
-        "nivel": 17,
+        "nivel": 15,
         "archivo": "piezas/shoulders/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Hombreras Imperial Crusader de Muralla Alta (L2)",
-        "nivel": 20,
+        "nivel": 19,
         "archivo": "piezas/shoulders/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Hombreras Majestic de Filigrana Cortante (L2)",
-        "nivel": 24,
+        "nivel": 22,
         "archivo": "piezas/shoulders/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Hombreras Nightmare de Espolones Estridentes (L2)",
-        "nivel": 28,
+        "nivel": 26,
         "archivo": "piezas/shoulders/8.glb"
       },
       {
         "idx": 9,
         "nombre": "Hombreras Valquiria de Plumas de Acero Biseladas",
-        "nivel": 32,
+        "nivel": 29,
         "archivo": "piezas/shoulders/9.glb"
       },
       {
         "idx": 10,
         "nombre": "Hombreras Prisma de Facetas Cortantes a 45°",
-        "nivel": 36,
+        "nivel": 33,
         "archivo": "piezas/shoulders/10.glb"
       },
       {
         "idx": 11,
         "nombre": "Hombreras Arconte de Clavícula y Paletilla (L2)",
-        "nivel": 40,
+        "nivel": 36,
         "archivo": "piezas/shoulders/11.glb"
+      },
+      {
+        "idx": 12,
+        "nombre": "Hombreras Dark Crystal con Aletas Cian (L2)",
+        "nivel": 40,
+        "archivo": "piezas/shoulders/12.glb"
       }
     ],
     "torso": [
@@ -237,98 +255,104 @@
       {
         "idx": 4,
         "nombre": "Coraza Élfica con Filigrana & Gema",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/torso/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Peto Dinastía (Corazón Alado & Rubí - L2)",
-        "nivel": 10,
+        "nivel": 9,
         "archivo": "piezas/torso/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Peto de Hoja de Laurel en Relieve (D&D)",
-        "nivel": 12,
+        "nivel": 11,
         "archivo": "piezas/torso/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Coraza Triskele con Espirales Celtas (D&D)",
-        "nivel": 14,
+        "nivel": 13,
         "archivo": "piezas/torso/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Cota de Escamas de Dragón & Rubí (D&D)",
-        "nivel": 16,
+        "nivel": 15,
         "archivo": "piezas/torso/8.glb"
       },
       {
         "idx": 9,
         "nombre": "Brigantina Tachonada con Tachuelas Oro (D&D)",
-        "nivel": 18,
+        "nivel": 17,
         "archivo": "piezas/torso/9.glb"
       },
       {
         "idx": 10,
         "nombre": "Peto Alto Arconte (Cubre Cuello, Clavícula y Paletilla - L2)",
-        "nivel": 20,
+        "nivel": 19,
         "archivo": "piezas/torso/10.glb"
       },
       {
         "idx": 11,
         "nombre": "Coraza Extraña de Mandíbula, Clavícula y Escápula Cortante",
-        "nivel": 23,
+        "nivel": 22,
         "archivo": "piezas/torso/11.glb"
       },
       {
         "idx": 12,
         "nombre": "Armadura Dinastía de Yugo Clavicular y Hombro (L2)",
-        "nivel": 25,
+        "nivel": 24,
         "archivo": "piezas/torso/12.glb"
       },
       {
         "idx": 13,
         "nombre": "Peto Abisal Exótico de Costillas Abiertas y Gola Alta",
-        "nivel": 27,
+        "nivel": 26,
         "archivo": "piezas/torso/13.glb"
       },
       {
         "idx": 14,
         "nombre": "Coraza Valquiria de Cuello Alto y Aletas de Paletilla",
-        "nivel": 29,
+        "nivel": 28,
         "archivo": "piezas/torso/14.glb"
       },
       {
         "idx": 15,
         "nombre": "Peto Dracónico Imperial de Clavícula y Espina Dorsal (L2)",
-        "nivel": 31,
+        "nivel": 30,
         "archivo": "piezas/torso/15.glb"
       },
       {
         "idx": 16,
         "nombre": "Peto Estridente de Proa Cortante y Alas Dorsales en X (L2)",
-        "nivel": 34,
+        "nivel": 32,
         "archivo": "piezas/torso/16.glb"
       },
       {
         "idx": 17,
         "nombre": "Coraza Serafín Ceñida de 6 Alas Espinales y Quilla Saliente",
-        "nivel": 36,
+        "nivel": 34,
         "archivo": "piezas/torso/17.glb"
       },
       {
         "idx": 18,
         "nombre": "Peto Leviatán de Aletas Dorsales Aserradas y Costillas Cortantes",
-        "nivel": 38,
+        "nivel": 36,
         "archivo": "piezas/torso/18.glb"
       },
       {
         "idx": 19,
         "nombre": "Coraza Soberano Astral de Halo Dorsal y Escápula Alada (L2)",
-        "nivel": 40,
+        "nivel": 38,
         "archivo": "piezas/torso/19.glb"
+      },
+      {
+        "idx": 20,
+        "nombre": "Coraza Pesada Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/torso/20.glb"
       }
     ],
     "gloves": [
@@ -341,26 +365,32 @@
       {
         "idx": 2,
         "nombre": "Guanteletes Góticos con Púas",
-        "nivel": 11,
+        "nivel": 9,
         "archivo": "piezas/gloves/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Brazales Reales con Filigrana Oro",
-        "nivel": 20,
+        "nivel": 17,
         "archivo": "piezas/gloves/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Guanteletes Dinastía con Aletas Aladas (L2)",
-        "nivel": 30,
+        "nivel": 24,
         "archivo": "piezas/gloves/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Brazales de Escamas de Dragón (D&D)",
-        "nivel": 40,
+        "nivel": 32,
         "archivo": "piezas/gloves/5.glb"
+      },
+      {
+        "idx": 6,
+        "nombre": "Guanteletes Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/gloves/6.glb"
       }
     ],
     "belt": [
@@ -373,38 +403,44 @@
       {
         "idx": 2,
         "nombre": "Cinturón Real + Tabardo Azul & Oro",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/belt/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Fajín de Guerra con Faldón de Malla",
-        "nivel": 14,
+        "nivel": 12,
         "archivo": "piezas/belt/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Cinturón Abisal con Punta Gótica",
-        "nivel": 20,
+        "nivel": 18,
         "archivo": "piezas/belt/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Cinturón de Comandante con Hebilla",
-        "nivel": 27,
+        "nivel": 23,
         "archivo": "piezas/belt/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Cinturón Dinastía + Tabardo Esmeralda & Oro Rosa (L2)",
-        "nivel": 34,
+        "nivel": 29,
         "archivo": "piezas/belt/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Cinturón de Brigantina Tachonada (D&D)",
-        "nivel": 40,
+        "nivel": 34,
         "archivo": "piezas/belt/7.glb"
+      },
+      {
+        "idx": 8,
+        "nombre": "Cinturón & Tabardo Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/belt/8.glb"
       }
     ],
     "tassets": [
@@ -417,44 +453,50 @@
       {
         "idx": 2,
         "nombre": "Escarcelas Góticas en Punta V",
-        "nivel": 7,
+        "nivel": 6,
         "archivo": "piezas/tassets/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Placas Pesadas de Comandante",
-        "nivel": 12,
+        "nivel": 11,
         "archivo": "piezas/tassets/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Escarcelas Élficas Biseladas",
-        "nivel": 18,
+        "nivel": 16,
         "archivo": "piezas/tassets/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Escarcelas Reales con Blasón",
-        "nivel": 23,
+        "nivel": 20,
         "archivo": "piezas/tassets/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Escarcelas Dinastía Aladas en Abanico (L2)",
-        "nivel": 29,
+        "nivel": 25,
         "archivo": "piezas/tassets/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Escarcelas de Escamas de Dragón (D&D)",
-        "nivel": 34,
+        "nivel": 30,
         "archivo": "piezas/tassets/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Escarcelas de Tablillas / Splint Mail (D&D)",
-        "nivel": 40,
+        "nivel": 35,
         "archivo": "piezas/tassets/8.glb"
+      },
+      {
+        "idx": 9,
+        "nombre": "Escarcelas Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/tassets/9.glb"
       }
     ],
     "cuisses": [
@@ -467,38 +509,44 @@
       {
         "idx": 2,
         "nombre": "Quijotes Góticos con Cresta en V",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/cuisses/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Musleras Pesadas de Comandante",
-        "nivel": 14,
+        "nivel": 12,
         "archivo": "piezas/cuisses/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Quijotes Élficos Acanalados",
-        "nivel": 20,
+        "nivel": 18,
         "archivo": "piezas/cuisses/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Quijotes Imperiales de Torneo",
-        "nivel": 27,
+        "nivel": 23,
         "archivo": "piezas/cuisses/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Quijotes Dinastía con Marco de Oro Rosa (L2)",
-        "nivel": 34,
+        "nivel": 29,
         "archivo": "piezas/cuisses/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Quijotes de Bandas Horizontales Lamelar (D&D)",
-        "nivel": 40,
+        "nivel": 34,
         "archivo": "piezas/cuisses/7.glb"
+      },
+      {
+        "idx": 8,
+        "nombre": "Musleras Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/cuisses/8.glb"
       }
     ],
     "knees": [
@@ -511,38 +559,44 @@
       {
         "idx": 2,
         "nombre": "Rodilleras Facetadas con Ala Lateral",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/knees/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Rodilleras Abisales con Espolón",
-        "nivel": 14,
+        "nivel": 12,
         "archivo": "piezas/knees/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Rodilleras de Comandante Articuladas",
-        "nivel": 20,
+        "nivel": 18,
         "archivo": "piezas/knees/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Rodilleras Élficas en Punta Real",
-        "nivel": 27,
+        "nivel": 23,
         "archivo": "piezas/knees/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Rodilleras Dinastía con Aletas de Plumas (L2)",
-        "nivel": 34,
+        "nivel": 29,
         "archivo": "piezas/knees/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Rodilleras de Escama con Gema Rubí (D&D)",
-        "nivel": 40,
+        "nivel": 34,
         "archivo": "piezas/knees/7.glb"
+      },
+      {
+        "idx": 8,
+        "nombre": "Rodilleras Dark Crystal con Aletas de Cristal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/knees/8.glb"
       }
     ],
     "boots": [
@@ -555,32 +609,38 @@
       {
         "idx": 2,
         "nombre": "Botas Góticas Abisales en Punta",
-        "nivel": 9,
+        "nivel": 8,
         "archivo": "piezas/boots/2.glb"
       },
       {
         "idx": 3,
         "nombre": "Botas de Comandante de Acero Pesado",
-        "nivel": 17,
+        "nivel": 14,
         "archivo": "piezas/boots/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Botas Dinastía Celestial (Alas de Oro Rosa - L2)",
-        "nivel": 24,
+        "nivel": 20,
         "archivo": "piezas/boots/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Botas Élficas de Hoja de Laurel (D&D)",
-        "nivel": 32,
+        "nivel": 27,
         "archivo": "piezas/boots/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Botas de Escamas de Dragón & Puntera Reforzada (D&D)",
-        "nivel": 40,
+        "nivel": 34,
         "archivo": "piezas/boots/6.glb"
+      },
+      {
+        "idx": 13,
+        "nombre": "Botas & Escarpes Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/boots/13.glb"
       }
     ],
     "weapon": [
@@ -671,56 +731,56 @@
       {
         "idx": 13,
         "nombre": "Montante de Dos Manos",
-        "nivel": 10,
+        "nivel": 9,
         "archivo": "piezas/weapon/13.glb",
         "familia": "espada"
       },
       {
         "idx": 14,
         "nombre": "Falcata de Guerra",
-        "nivel": 14,
+        "nivel": 13,
         "archivo": "piezas/weapon/14.glb",
         "familia": "espada"
       },
       {
         "idx": 15,
         "nombre": "Cimitarra Dorada",
-        "nivel": 18,
+        "nivel": 17,
         "archivo": "piezas/weapon/15.glb",
         "familia": "espada"
       },
       {
         "idx": 16,
         "nombre": "Espada Bastarda Gótica",
-        "nivel": 23,
+        "nivel": 20,
         "archivo": "piezas/weapon/16.glb",
         "familia": "espada"
       },
       {
         "idx": 17,
         "nombre": "Estoque de Torneo",
-        "nivel": 27,
+        "nivel": 24,
         "archivo": "piezas/weapon/17.glb",
         "familia": "espada"
       },
       {
         "idx": 18,
         "nombre": "Espada Flamígera Ondulada",
-        "nivel": 31,
+        "nivel": 28,
         "archivo": "piezas/weapon/18.glb",
         "familia": "espada"
       },
       {
         "idx": 19,
         "nombre": "Claymore de Clan",
-        "nivel": 36,
+        "nivel": 32,
         "archivo": "piezas/weapon/19.glb",
         "familia": "espada"
       },
       {
         "idx": 20,
         "nombre": "Gladius Imperial",
-        "nivel": 40,
+        "nivel": 36,
         "archivo": "piezas/weapon/20.glb",
         "familia": "espada"
       },
@@ -1143,6 +1203,21 @@
         "nivel": 40,
         "archivo": "piezas/weapon/80.glb",
         "familia": "arco"
+      },
+      {
+        "idx": 81,
+        "nombre": "Espada Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/weapon/81.glb",
+        "familia": "espada"
+      }
+    ],
+    "shield": [
+      {
+        "idx": 11,
+        "nombre": "Escudo Dark Crystal (L2)",
+        "nivel": 40,
+        "archivo": "piezas/shield/11.glb"
       }
     ]
   },
@@ -1154,6 +1229,7 @@
       "gloves",
       "helmet",
       "knees",
+      "shield",
       "shoulders",
       "tassets",
       "torso",
