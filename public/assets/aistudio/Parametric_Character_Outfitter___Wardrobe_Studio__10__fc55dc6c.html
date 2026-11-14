@@ -5041,6 +5041,7 @@
 
     function clearAllArmorShells() {
       cachedCharBox = null;
+      if (typeof clearClothSimulation === 'function') clearClothSimulation();
       while (generatedArmorShells.length > 0) {
         const obj = generatedArmorShells.pop();
         if (obj.parent) obj.parent.remove(obj);
@@ -5053,6 +5054,630 @@
         });
       }
       Object.keys(slotArmorMeshes).forEach(k => { slotArmorMeshes[k] = []; });
+    }
+
+    /* =========================================================================
+       MOTOR DE FÍSICA FLEXIBLE DE TELA EN TIEMPO REAL (Capas, túnicas, estandartes y faldones)
+       - Simulación Verlet multi-paso sobre rejilla paramétrica contorneada (NU x NV)
+       - Anclaje exacto siguiendo el contorno superior de hombros o cinturón (pinW = 0 en borde)
+       - Inercia lineal/angular del cuerpo + gravedad diferencial + brisa orgánica
+       - Colisión con cápsulas vivas de muslos, espinillas, talones y punteras de pies
+         + impulso de estela trasera para que la capa se eche atrás al golpear los pies
+       - Restaura geometría exacta en pose de reposo al exportar GLB o anim === 'none'
+       ========================================================================= */
+    const CLOTH_SIM_ENTRIES = [];
+    let _clothColliderPrev = null;
+    let _clothSimClock = 0;
+
+    const _cV1 = new THREE.Vector3();
+    const _cV2 = new THREE.Vector3();
+    const _cV3 = new THREE.Vector3();
+    const _cV4 = new THREE.Vector3();
+    const _cV5 = new THREE.Vector3();
+    const _cM1 = new THREE.Matrix4();
+    const _cM2 = new THREE.Matrix4();
+    const _cQ1 = new THREE.Quaternion();
+
+    function clearClothSimulation() {
+      CLOTH_SIM_ENTRIES.length = 0;
+      _clothColliderPrev = null;
+    }
+
+    function restoreAllClothRestPose() {
+      for (let e = 0; e < CLOTH_SIM_ENTRIES.length; e++) {
+        const entry = CLOTH_SIM_ENTRIES[e];
+        if (!entry.isRestDirty) continue;
+        for (let m = 0; m < entry.meshData.length; m++) {
+          const md = entry.meshData[m];
+          const posAttr = md.mesh.geometry && md.mesh.geometry.attributes && md.mesh.geometry.attributes.position;
+          const nrmAttr = md.mesh.geometry && md.mesh.geometry.attributes && md.mesh.geometry.attributes.normal;
+          if (posAttr && md.restPos && posAttr.array.length === md.restPos.length) {
+            posAttr.array.set(md.restPos);
+            posAttr.needsUpdate = true;
+          }
+          if (nrmAttr && md.restNorm && nrmAttr.array.length === md.restNorm.length) {
+            nrmAttr.array.set(md.restNorm);
+            nrmAttr.needsUpdate = true;
+          }
+        }
+        for (let k = 0; k < entry.nodes.length; k++) {
+          const nd = entry.nodes[k];
+          nd.cur.copy(nd.rest);
+          nd.prev.copy(nd.rest);
+        }
+        entry.hasPrevWorld = false;
+        entry.isRestDirty = false;
+      }
+      _clothColliderPrev = null;
+    }
+
+    function registerFlexibleClothGroup(rootGroup, meshes, opts = {}) {
+      if (!rootGroup || !meshes || !meshes.length) return null;
+      const validMeshes = meshes.filter(m => m && m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position);
+      if (!validMeshes.length) return null;
+
+      rootGroup.updateWorldMatrix(true, true);
+      const invRoot = _cM1.copy(rootGroup.matrixWorld).invert();
+
+      const uMode = opts.uMode || 'x';
+      const NU = Math.max(4, opts.nu || (uMode === 'polar' ? 11 : 9));
+      const NV = Math.max(5, opts.nv || 12);
+      const pinFraction = opts.pinFraction != null ? opts.pinFraction : 0.08;
+      const pinPow = opts.pinPow != null ? opts.pinPow : 1.15;
+
+      const meshData = [];
+      let minU = Infinity, maxU = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let sumX = 0, sumY = 0, sumZ = 0, totalVerts = 0;
+
+      for (let mIdx = 0; mIdx < validMeshes.length; mIdx++) {
+        const mesh = validMeshes[mIdx];
+        const geo = mesh.geometry;
+        const posAttr = geo.attributes.position;
+        if (!geo.attributes.normal) geo.computeVertexNormals();
+        const nrmAttr = geo.attributes.normal;
+
+        const meshToRoot = new THREE.Matrix4().multiplyMatrices(invRoot, mesh.matrixWorld);
+        const rootToMesh = new THREE.Matrix4().copy(meshToRoot).invert();
+        const restPos = new Float32Array(posAttr.array);
+        const restNorm = nrmAttr ? new Float32Array(nrmAttr.array) : null;
+        const rootVerts = new Float32Array(posAttr.count * 3);
+
+        for (let i = 0; i < posAttr.count; i++) {
+          _cV1.fromBufferAttribute(posAttr, i).applyMatrix4(meshToRoot);
+          rootVerts[i * 3] = _cV1.x;
+          rootVerts[i * 3 + 1] = _cV1.y;
+          rootVerts[i * 3 + 2] = _cV1.z;
+
+          const uVal = uMode === 'polar'
+            ? Math.atan2(_cV1.x, -_cV1.z)
+            : (uMode === 'z' ? _cV1.z : _cV1.x);
+          if (uVal < minU) minU = uVal;
+          if (uVal > maxU) maxU = uVal;
+          if (_cV1.y < minY) minY = _cV1.y;
+          if (_cV1.y > maxY) maxY = _cV1.y;
+          sumX += _cV1.x; sumY += _cV1.y; sumZ += _cV1.z; totalVerts++;
+        }
+
+        meshData.push({
+          mesh,
+          rootToMesh,
+          restPos,
+          restNorm,
+          rootVerts,
+          uvWeights: new Float32Array(posAttr.count * 3) // [uGridF, vGridF, pinW]
+        });
+      }
+
+      if (totalVerts === 0 || (maxY - minY) < 0.03) return null;
+      const spanU = Math.max(0.015, maxU - minU);
+      const spanY = Math.max(0.03, maxY - minY);
+
+      // Perfil superior/inferior contorneado por columna u para anclar exactamente hombros, cinturón y escotes
+      const BINS = 16;
+      const binTopY = new Float32Array(BINS).fill(-Infinity);
+      const binBotY = new Float32Array(BINS).fill(Infinity);
+      for (let mIdx = 0; mIdx < meshData.length; mIdx++) {
+        const rv = meshData[mIdx].rootVerts;
+        const n = rv.length / 3;
+        for (let i = 0; i < n; i++) {
+          const rx = rv[i * 3], ry = rv[i * 3 + 1], rz = rv[i * 3 + 2];
+          const uRaw = uMode === 'polar' ? Math.atan2(rx, -rz) : (uMode === 'z' ? rz : rx);
+          const uN = Math.max(0, Math.min(1, (uRaw - minU) / spanU));
+          const b = Math.min(BINS - 1, Math.floor(uN * BINS));
+          if (ry > binTopY[b]) binTopY[b] = ry;
+          if (ry < binBotY[b]) binBotY[b] = ry;
+        }
+      }
+      for (let b = 0; b < BINS; b++) {
+        if (!isFinite(binTopY[b])) {
+          let best = maxY, bestD = 999;
+          for (let k = 0; k < BINS; k++) {
+            if (isFinite(binTopY[k]) && Math.abs(k - b) < bestD) { bestD = Math.abs(k - b); best = binTopY[k]; }
+          }
+          binTopY[b] = best;
+        }
+        if (!isFinite(binBotY[b])) {
+          let best = minY, bestD = 999;
+          for (let k = 0; k < BINS; k++) {
+            if (isFinite(binBotY[k]) && Math.abs(k - b) < bestD) { bestD = Math.abs(k - b); best = binBotY[k]; }
+          }
+          binBotY[b] = best;
+        }
+      }
+      const sampleColTop = (uN) => {
+        const f = Math.max(0, Math.min(BINS - 1.0001, uN * (BINS - 1)));
+        const i0 = Math.floor(f), t = f - i0;
+        return binTopY[i0] * (1 - t) + binTopY[Math.min(BINS - 1, i0 + 1)] * t;
+      };
+      const sampleColBot = (uN) => {
+        const f = Math.max(0, Math.min(BINS - 1.0001, uN * (BINS - 1)));
+        const i0 = Math.floor(f), t = f - i0;
+        return binBotY[i0] * (1 - t) + binBotY[Math.min(BINS - 1, i0 + 1)] * t;
+      };
+
+      // Calcular coordenadas normalizadas (u, v) y peso de flexibilidad para cada vértice
+      const allSamples = [];
+      for (let mIdx = 0; mIdx < meshData.length; mIdx++) {
+        const md = meshData[mIdx];
+        const rv = md.rootVerts;
+        const uvw = md.uvWeights;
+        const n = rv.length / 3;
+        const stepSample = n > 600 ? 2 : 1;
+        for (let i = 0; i < n; i++) {
+          const rx = rv[i * 3], ry = rv[i * 3 + 1], rz = rv[i * 3 + 2];
+          const uRaw = uMode === 'polar' ? Math.atan2(rx, -rz) : (uMode === 'z' ? rz : rx);
+          const uN = Math.max(0, Math.min(1, (uRaw - minU) / spanU));
+          const colTop = sampleColTop(uN);
+          const colBot = sampleColBot(uN);
+          const colSpan = Math.max(0.04, colTop - colBot);
+          const vN = Math.max(0, Math.min(1, (colTop - ry) / colSpan));
+
+          let pinW = 0;
+          if (vN > pinFraction) {
+            const t = (vN - pinFraction) / Math.max(0.04, 1 - pinFraction);
+            pinW = Math.pow(Math.min(1, t), pinPow);
+          }
+          uvw[i * 3] = uN * (NU - 1);
+          uvw[i * 3 + 1] = vN * (NV - 1);
+          uvw[i * 3 + 2] = pinW;
+
+          if (i % stepSample === 0) {
+            allSamples.push(uN, vN, rx, ry, rz);
+          }
+        }
+      }
+
+      // Construir la malla física (NU x NV) sobre la superficie real 3D del ropaje
+      const nodes = [];
+      const invSigU2 = 1.0 / (Math.pow(1.15 / Math.max(1, NU - 1), 2));
+      const invSigV2 = 1.0 / (Math.pow(1.15 / Math.max(1, NV - 1), 2));
+
+      for (let j = 0; j < NV; j++) {
+        const vT = j / (NV - 1);
+        for (let i = 0; i < NU; i++) {
+          const uT = i / (NU - 1);
+          let wx = 0, wy = 0, wz = 0, wSum = 0;
+          for (let s = 0; s < allSamples.length; s += 5) {
+            const du = allSamples[s] - uT;
+            const dv = allSamples[s + 1] - vT;
+            const d2 = du * du * invSigU2 + dv * dv * invSigV2;
+            if (d2 > 9.0) continue;
+            const w = Math.exp(-d2);
+            wx += allSamples[s + 2] * w;
+            wy += allSamples[s + 3] * w;
+            wz += allSamples[s + 4] * w;
+            wSum += w;
+          }
+          let p;
+          if (wSum > 1e-4) {
+            p = new THREE.Vector3(wx / wSum, wy / wSum, wz / wSum);
+          } else {
+            const colTop = sampleColTop(uT);
+            const colBot = sampleColBot(uT);
+            p = new THREE.Vector3(sumX / totalVerts, THREE.MathUtils.lerp(colTop, colBot, vT), sumZ / totalVerts);
+          }
+          const pinned = (j === 0 || vT <= pinFraction);
+          const nPin = pinned ? 0 : Math.pow((vT - pinFraction) / Math.max(0.05, 1 - pinFraction), 0.72);
+          nodes.push({
+            rest: p.clone(),
+            cur: p.clone(),
+            prev: p.clone(),
+            pinned,
+            flex: nPin
+          });
+        }
+      }
+
+      // Restricciones estructurales, de cizalla y de flexión vertical
+      const constraints = [];
+      const addC = (a, b, stiff) => {
+        if (nodes[a].pinned && nodes[b].pinned) return;
+        const d = nodes[a].rest.distanceTo(nodes[b].rest);
+        if (d > 1e-4) constraints.push({ a, b, restLen: d, stiff });
+      };
+      for (let j = 0; j < NV; j++) {
+        for (let i = 0; i < NU; i++) {
+          const idx = j * NU + i;
+          if (i + 1 < NU) addC(idx, idx + 1, 0.88);
+          if (j + 1 < NV) addC(idx, idx + NU, 0.96);
+          if (i + 1 < NU && j + 1 < NV) {
+            addC(idx, idx + NU + 1, 0.42);
+            addC(idx + 1, idx + NU, 0.42);
+          }
+          if (j + 2 < NV) addC(idx, idx + NU * 2, 0.46);
+          if (i + 2 < NU) addC(idx, idx + 2, 0.30);
+        }
+      }
+
+      const entry = {
+        rootGroup,
+        kind: opts.kind || 'cape',
+        side: opts.side || 0,
+        NU, NV,
+        nodes,
+        constraints,
+        meshData,
+        restCenterLocal: new THREE.Vector3(sumX / totalVerts, sumY / totalVerts, sumZ / totalVerts),
+        restReturn: opts.restReturn != null ? opts.restReturn : 14.0,
+        damping: opts.damping != null ? opts.damping : 0.945,
+        inertiaScale: opts.inertiaScale != null ? opts.inertiaScale : 1.0,
+        footKickBoost: opts.footKickBoost != null ? opts.footKickBoost : 1.35,
+        windAmp: opts.windAmp != null ? opts.windAmp : 0.55,
+        phase: CLOTH_SIM_ENTRIES.length * 1.37,
+        hasPrevWorld: false,
+        prevWorldOrigin: new THREE.Vector3(),
+        prevWorldVel: new THREE.Vector3(),
+        prevForwardW: new THREE.Vector3(0, 0, 1),
+        isRestDirty: false
+      };
+      CLOTH_SIM_ENTRIES.push(entry);
+      return entry;
+    }
+
+    function _clothPointToSegment(p, a, b, outClosest) {
+      const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+      const lenSq = abx * abx + aby * aby + abz * abz;
+      let t = 0;
+      if (lenSq > 1e-8) {
+        t = ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / lenSq;
+        if (t < 0) t = 0; else if (t > 1) t = 1;
+      }
+      outClosest.set(a.x + abx * t, a.y + aby * t, a.z + abz * t);
+      return t;
+    }
+
+    function _collectWorldClothColliders(dt) {
+      if (!mannequinRoot) return [];
+      const bPelvis = findBoneFlexible(['Pelvis', 'Hips', 'mixamorigHips']);
+      const bTorso = findBoneFlexible(['Torso', 'Chest', 'Spine2', 'mixamorigSpine2']);
+      const bHipL = findBoneFlexible(['Hip_L', 'Thigh_L', 'LeftUpLeg', 'mixamorigLeftUpLeg']);
+      const bHipR = findBoneFlexible(['Hip_R', 'Thigh_R', 'RightUpLeg', 'mixamorigRightUpLeg']);
+      const bKneeL = findBoneFlexible(['Knee_L', 'Shin_L', 'LeftLeg', 'mixamorigLeftLeg']);
+      const bKneeR = findBoneFlexible(['Knee_R', 'Shin_R', 'RightLeg', 'mixamorigRightLeg']);
+      const bAnkleL = findBoneFlexible(['Ankle_L', 'LeftFoot', 'mixamorigLeftFoot', 'Foot_L', 'foot_l']);
+      const bAnkleR = findBoneFlexible(['Ankle_R', 'RightFoot', 'mixamorigRightFoot', 'Foot_R', 'foot_r']);
+
+      const charBox = getCharacterWorldBox();
+      const charH = charBox ? Math.max(0.8, charBox.max.y - charBox.min.y) : 1.75;
+      const sc = (charH / 1.75) * (STATE.fit.limbScale || 1.0);
+      const rawCaps = [];
+
+      const pushCap = (id, a, b, r, role) => {
+        rawCaps.push({ id, a, b, r, role, vel: new THREE.Vector3() });
+      };
+
+      const pPos = bPelvis ? new THREE.Vector3().setFromMatrixPosition(bPelvis.matrixWorld) : null;
+      const tPos = bTorso ? new THREE.Vector3().setFromMatrixPosition(bTorso.matrixWorld) : null;
+      if (pPos && tPos) {
+        const backOffset = _cV1.set(0, 0, -0.028 * sc).applyQuaternion(bPelvis.getWorldQuaternion(_cQ1));
+        pushCap('pelvisBack', pPos.clone().add(backOffset), tPos.clone().lerp(pPos, 0.55).add(backOffset), 0.125 * sc, 'body');
+      }
+
+      [['L', bHipL, bKneeL, bAnkleL], ['R', bHipR, bKneeR, bAnkleR]].forEach(([sd, hip, knee, ankle]) => {
+        if (!hip || !knee) return;
+        const hp = new THREE.Vector3().setFromMatrixPosition(hip.matrixWorld);
+        const kp = new THREE.Vector3().setFromMatrixPosition(knee.matrixWorld);
+        pushCap(`thigh_${sd}`, hp, kp, 0.088 * sc, 'thigh');
+        if (ankle) {
+          const ap = new THREE.Vector3().setFromMatrixPosition(ankle.matrixWorld);
+          pushCap(`shin_${sd}`, kp, ap, 0.068 * sc, 'shin');
+          // Pie completo desde el talón (-Z) hasta la puntera (+Z) para detectar golpes de pies/botas
+          const heelLocal = new THREE.Vector3(0, -0.042 * sc, -0.078 * sc).applyMatrix4(ankle.matrixWorld);
+          const toeLocal = new THREE.Vector3(0, -0.048 * sc, 0.165 * sc).applyMatrix4(ankle.matrixWorld);
+          pushCap(`foot_${sd}`, heelLocal, toeLocal, 0.064 * sc, 'foot');
+        }
+      });
+
+      const nextPrev = {};
+      for (let i = 0; i < rawCaps.length; i++) {
+        const cap = rawCaps[i];
+        const mid = _cV1.copy(cap.a).add(cap.b).multiplyScalar(0.5);
+        nextPrev[cap.id] = mid.clone();
+        if (_clothColliderPrev && _clothColliderPrev[cap.id] && dt > 1e-4) {
+          const dMid = _cV2.copy(mid).sub(_clothColliderPrev[cap.id]);
+          if (dMid.length() < 0.85) {
+            cap.vel.copy(dMid).multiplyScalar(1 / dt);
+            if (cap.vel.length() > 7.5) cap.vel.setLength(7.5);
+          }
+        }
+      }
+      _clothColliderPrev = nextPrev;
+      return rawCaps;
+    }
+
+    function updateClothSimulation(delta) {
+      if (!CLOTH_SIM_ENTRIES.length) return;
+      if (exportBusy || STATE.currentAnim === 'none') {
+        restoreAllClothRestPose();
+        return;
+      }
+
+      const dt = Math.min(Math.max(delta || (1 / 60), 1 / 120), 0.030);
+      _clothSimClock += dt;
+
+      if (mannequinRoot) mannequinRoot.updateMatrixWorld(true);
+      const worldColliders = _collectWorldClothColliders(dt);
+
+      const SUBSTEPS = 2;
+      const h = dt / SUBSTEPS;
+      const h2 = h * h;
+
+      for (let e = 0; e < CLOTH_SIM_ENTRIES.length; e++) {
+        const entry = CLOTH_SIM_ENTRIES[e];
+        const rg = entry.rootGroup;
+        if (!rg || !rg.parent || !rg.visible) continue;
+
+        const worldMat = rg.matrixWorld;
+        const invWorld = _cM1.copy(worldMat).invert();
+
+        // Centro de masa y ejes actuales en coordenadas mundo
+        const worldOrigin = _cV1.copy(entry.restCenterLocal).applyMatrix4(worldMat);
+        const worldForward = _cV2.set(0, 0, 1).transformDirection(worldMat).normalize();
+        const invWorldRot = _cM2.extractRotation(invWorld);
+
+        const worldVel = new THREE.Vector3();
+        const worldAccel = new THREE.Vector3();
+        let yawTurn = 0;
+
+        if (entry.hasPrevWorld) {
+          const stepDisp = _cV3.copy(worldOrigin).sub(entry.prevWorldOrigin);
+          if (stepDisp.length() < 0.45) {
+            worldVel.copy(stepDisp).multiplyScalar(1 / dt);
+            worldAccel.copy(worldVel).sub(entry.prevWorldVel).multiplyScalar(1 / dt);
+            if (worldAccel.length() > 22) worldAccel.setLength(22);
+            if (worldVel.length() > 7) worldVel.setLength(7);
+            yawTurn = (worldForward.x * entry.prevForwardW.z - worldForward.z * entry.prevForwardW.x) / dt;
+            yawTurn = Math.max(-9, Math.min(9, yawTurn));
+          } else {
+            entry.prevWorldVel.set(0, 0, 0);
+          }
+        }
+        entry.prevWorldOrigin.copy(worldOrigin);
+        entry.prevWorldVel.copy(worldVel);
+        entry.prevForwardW.copy(worldForward);
+        entry.hasPrevWorld = true;
+
+        // Gravedad diferencial: solo la componente que cambia al inclinarse torso/pelvis (preserva silueta en reposo)
+        const gravNowLocal = _cV3.set(0, -9.81, 0).applyMatrix4(invWorldRot);
+        gravNowLocal.y -= -9.81;
+
+        // Fuerza inercial + resistencia del aire en espacio local del ropaje
+        const inertiaWorld = _cV4.copy(worldAccel).multiplyScalar(-0.48 * entry.inertiaScale)
+          .addScaledVector(worldVel, -2.6 * entry.inertiaScale);
+        const inertiaLocal = inertiaWorld.applyMatrix4(invWorldRot);
+
+        // Detectar máxima velocidad de golpe de pie/pierna para estela dinámica de la capa
+        let maxFootSpeed = 0;
+        const localCaps = [];
+        for (let c = 0; c < worldColliders.length; c++) {
+          const wc = worldColliders[c];
+          const la = wc.a.clone().applyMatrix4(invWorld);
+          const lb = wc.b.clone().applyMatrix4(invWorld);
+          const lvel = wc.vel.clone().applyMatrix4(invWorldRot);
+          if (wc.role === 'foot' || wc.role === 'shin') {
+            const sp = lvel.length();
+            if (sp > maxFootSpeed) maxFootSpeed = sp;
+          }
+          localCaps.push({ role: wc.role, a: la, b: lb, r: wc.r, vel: lvel });
+        }
+
+        const isBackCloth = (entry.kind === 'cape' || entry.kind === 'mantle' || entry.kind === 'duster');
+        const isFrontCloth = (entry.kind === 'front_banner');
+        const damp = Math.pow(entry.damping, 60 * h);
+
+        for (let step = 0; step < SUBSTEPS; step++) {
+          // 1. Integración Verlet + fuerzas inerciales, giro, brisa y retorno elástico suave
+          for (let k = 0; k < entry.nodes.length; k++) {
+            const nd = entry.nodes[k];
+            if (nd.pinned) {
+              nd.cur.copy(nd.rest);
+              nd.prev.copy(nd.rest);
+              continue;
+            }
+            const vx = (nd.cur.x - nd.prev.x) * damp;
+            const vy = (nd.cur.y - nd.prev.y) * damp;
+            const vz = (nd.cur.z - nd.prev.z) * damp;
+            nd.prev.copy(nd.cur);
+
+            const w = nd.flex;
+            const restDiffX = nd.rest.x - nd.cur.x;
+            const restDiffY = nd.rest.y - nd.cur.y;
+            const restDiffZ = nd.rest.z - nd.cur.z;
+
+            // Brisa orgánica suave + ondulación de avance
+            const wt = _clothSimClock * 2.4 + entry.phase + nd.rest.x * 5.2 + nd.rest.y * 2.1;
+            const windX = Math.sin(wt) * entry.windAmp * 0.45;
+            const windZ = (Math.cos(wt * 0.83) * 0.42 - 0.35) * entry.windAmp * (isBackCloth ? 1.15 : 0.45);
+
+            // Fuerza centrífuga/tangencial de giro al rotar cadera o torso
+            const spinForceX = yawTurn * (nd.cur.z - entry.restCenterLocal.z) * 1.85;
+            const spinForceZ = -yawTurn * nd.cur.x * 1.85;
+
+            const kRest = entry.restReturn * (1.25 - 0.74 * w);
+            const ax = (gravNowLocal.x + inertiaLocal.x + windX + spinForceX) * w + restDiffX * kRest;
+            const ay = (gravNowLocal.y + inertiaLocal.y) * w + restDiffY * (kRest * 1.25);
+            const az = (gravNowLocal.z + inertiaLocal.z + windZ + spinForceZ) * w + restDiffZ * kRest;
+
+            nd.cur.x += vx + ax * h2;
+            nd.cur.y += vy + ay * h2;
+            nd.cur.z += vz + az * h2;
+
+            // Estela aerodinámica cuando los pies golpean rápido: empuja la capa hacia atrás (-Z) y abre lados
+            if (isBackCloth && maxFootSpeed > 0.35 && w > 0.22) {
+              const kickFlare = Math.min(2.1, (maxFootSpeed - 0.35) * 0.42) * w * entry.footKickBoost;
+              nd.cur.z -= kickFlare * h2 * 7.2;
+              nd.cur.x += Math.sign(nd.rest.x || (entry.side || 0)) * kickFlare * h2 * 1.35;
+            }
+          }
+
+          // 2. Restricciones estructurales/flexión + colisión con cápsulas de piernas y pies
+          for (let iter = 0; iter < 4; iter++) {
+            for (let c = 0; c < entry.constraints.length; c++) {
+              const cs = entry.constraints[c];
+              const nA = entry.nodes[cs.a];
+              const nB = entry.nodes[cs.b];
+              _cV1.subVectors(nB.cur, nA.cur);
+              const dist = _cV1.length();
+              if (dist < 1e-6) continue;
+              const diff = ((dist - cs.restLen) / dist) * cs.stiff;
+              if (nA.pinned) {
+                nB.cur.addScaledVector(_cV1, -diff);
+              } else if (nB.pinned) {
+                nA.cur.addScaledVector(_cV1, diff);
+              } else {
+                const hDiff = diff * 0.5;
+                nA.cur.addScaledVector(_cV1, hDiff);
+                nB.cur.addScaledVector(_cV1, -hDiff);
+              }
+            }
+
+            // Resolver colisiones contra muslos, espinillas, pies/talones y respaldo de pelvis
+            if (iter === 1 || iter === 3) {
+              for (let k = 0; k < entry.nodes.length; k++) {
+                const nd = entry.nodes[k];
+                if (nd.pinned) continue;
+                for (let c = 0; c < localCaps.length; c++) {
+                  const cap = localCaps[c];
+                  if (cap.role === 'body' && isFrontCloth) continue;
+                  _clothPointToSegment(nd.cur, cap.a, cap.b, _cV1);
+                  _cV2.subVectors(nd.cur, _cV1); // desde cápsula hacia nodo de tela
+                  const dist = _cV2.length();
+                  const margin = cap.role === 'foot' ? 0.044 : (cap.role === 'shin' ? 0.036 : (cap.role === 'thigh' ? 0.028 : 0.018));
+                  const rEff = cap.r + margin;
+
+                  // Zona de estela previa al impacto de pie/espinilla: transfiere velocidad y echa atrás la capa
+                  const speed = cap.vel.length();
+                  if (iter === 1 && (cap.role === 'foot' || cap.role === 'shin') && dist < rEff + 0.13 && speed > 0.30) {
+                    const wakeFactor = (1 - Math.max(0, dist - rEff) / 0.13) * Math.min(1.15, speed * 0.28) * h * entry.footKickBoost;
+                    nd.cur.addScaledVector(cap.vel, wakeFactor * 0.42);
+                    if (isBackCloth) {
+                      nd.cur.z -= Math.min(0.026, wakeFactor * 0.34);
+                    }
+                  }
+
+                  if (dist < rEff) {
+                    if (dist > 1e-5) _cV2.divideScalar(dist);
+                    else _cV2.set(isBackCloth ? 0 : (nd.cur.x >= 0 ? 1 : -1), 0, isBackCloth ? -1 : 1).normalize();
+
+                    // Orientación segura para que la tela no quede atrapada al lado erróneo del hueso
+                    if (isBackCloth && _cV2.z > -0.22 && (cap.role === 'thigh' || cap.role === 'shin' || cap.role === 'foot' || cap.role === 'body')) {
+                      _cV2.z = Math.min(_cV2.z, -0.62);
+                      _cV2.normalize();
+                    } else if (isFrontCloth && _cV2.z < 0.25 && (cap.role === 'thigh' || cap.role === 'shin')) {
+                      _cV2.z = Math.max(_cV2.z, 0.62);
+                      _cV2.normalize();
+                    } else if ((entry.kind === 'robe_side' || entry.kind === 'hip_flap') && (cap.role === 'thigh' || cap.role === 'shin')) {
+                      _cV5.set(nd.cur.x, 0, nd.cur.z);
+                      if (_cV5.lengthSq() > 1e-5) {
+                        _cV5.normalize();
+                        _cV2.lerp(_cV5, 0.55).normalize();
+                      }
+                    }
+
+                    const pushDist = rEff - dist;
+                    nd.cur.addScaledVector(_cV2, pushDist);
+
+                    // Impulso de retroceso al chocar con pies/piernas para que la capa se eche atrás de forma flexible
+                    if (iter === 3) {
+                      const kickTransfer = Math.min(0.028, pushDist * 0.52 * entry.footKickBoost);
+                      if (isBackCloth) {
+                        nd.prev.z += kickTransfer * 0.92; // velocidad en -Z
+                        nd.prev.x -= Math.sign(nd.cur.x || 1) * kickTransfer * 0.22;
+                      } else if (isFrontCloth) {
+                        nd.prev.z -= kickTransfer * 0.65; // velocidad en +Z
+                      } else {
+                        nd.prev.addScaledVector(_cV2, -kickTransfer * 0.55);
+                      }
+                      if (speed > 0.22) {
+                        nd.cur.addScaledVector(cap.vel, Math.min(0.018, speed * 0.0034 * entry.footKickBoost));
+                      }
+                    }
+                  }
+                }
+
+                // Límite de seguridad frente a la posición de reposo (evita estiramientos imposibles)
+                _cV1.subVectors(nd.cur, nd.rest);
+                const dispLen = _cV1.length();
+                if (dispLen > 0.44) {
+                  nd.cur.copy(nd.rest).addScaledVector(_cV1, 0.44 / dispLen);
+                }
+              }
+            }
+          }
+        }
+
+        // Aplicar desplazamientos interpolados bilinealmente a todas las mallas del grupo de tela
+        const NU = entry.NU, NV = entry.NV;
+        const nodes = entry.nodes;
+        const nU1 = NU - 1, nV1 = NV - 1;
+
+        for (let mIdx = 0; mIdx < entry.meshData.length; mIdx++) {
+          const md = entry.meshData[mIdx];
+          const posAttr = md.mesh.geometry.attributes.position;
+          const posArr = posAttr.array;
+          const rv = md.rootVerts;
+          const uvw = md.uvWeights;
+          const rm = md.rootToMesh.elements;
+          const m0 = rm[0], m1 = rm[1], m2 = rm[2];
+          const m4 = rm[4], m5 = rm[5], m6 = rm[6];
+          const m8 = rm[8], m9 = rm[9], m10 = rm[10];
+          const m12 = rm[12], m13 = rm[13], m14 = rm[14];
+
+          const count = posAttr.count;
+          for (let i = 0; i < count; i++) {
+            const w = uvw[i * 3 + 2];
+            if (w <= 1e-4) continue;
+
+            const uf = uvw[i * 3];
+            const vf = uvw[i * 3 + 1];
+            const u0 = uf >= nU1 ? nU1 - 1 : (uf < 0 ? 0 : uf | 0);
+            const v0 = vf >= nV1 ? nV1 - 1 : (vf < 0 ? 0 : vf | 0);
+            const u1 = u0 + 1, v1 = v0 + 1;
+            const tu = uf - u0, tv = vf - v0;
+            const otu = 1 - tu, otv = 1 - tv;
+
+            const w00 = otu * otv, w10 = tu * otv, w01 = otu * tv, w11 = tu * tv;
+            const k00 = v0 * NU + u0, k10 = v0 * NU + u1, k01 = v1 * NU + u0, k11 = v1 * NU + u1;
+
+            const n00 = nodes[k00], n10 = nodes[k10], n01 = nodes[k01], n11 = nodes[k11];
+            const dx = (n00.cur.x - n00.rest.x) * w00 + (n10.cur.x - n10.rest.x) * w10 + (n01.cur.x - n01.rest.x) * w01 + (n11.cur.x - n11.rest.x) * w11;
+            const dy = (n00.cur.y - n00.rest.y) * w00 + (n10.cur.y - n10.rest.y) * w10 + (n01.cur.y - n01.rest.y) * w01 + (n11.cur.y - n11.rest.y) * w11;
+            const dz = (n00.cur.z - n00.rest.z) * w00 + (n10.cur.z - n10.rest.z) * w10 + (n01.cur.z - n01.rest.z) * w01 + (n11.cur.z - n11.rest.z) * w11;
+
+            const rx = rv[i * 3] + dx * w;
+            const ry = rv[i * 3 + 1] + dy * w;
+            const rz = rv[i * 3 + 2] + dz * w;
+
+            posArr[i * 3]     = m0 * rx + m4 * ry + m8 * rz + m12;
+            posArr[i * 3 + 1] = m1 * rx + m5 * ry + m9 * rz + m13;
+            posArr[i * 3 + 2] = m2 * rx + m6 * ry + m10 * rz + m14;
+          }
+          posAttr.needsUpdate = true;
+          md.mesh.geometry.computeVertexNormals();
+        }
+        entry.isRestDirty = true;
+      }
     }
 
     function getMeshesByAnatomy(partsList) {
@@ -5555,7 +6180,8 @@
         return new THREE.Vector3(Math.sin(ang) * rOut + s * w * 0.5, y, Math.cos(ang) * (rz + 0.025 + v * 0.06));
       };
       const stGeo = createArmorPlatePatch(streamerSurf, { uSegs: 10, vSegs: 16, thickness: 0.003, refCenter: new THREE.Vector3(0, -0.2, 0) });
-      group.add(new THREE.Mesh(stGeo, mats.crimsonMat));
+      const streamerMesh = new THREE.Mesh(stGeo, mats.crimsonMat);
+      group.add(streamerMesh);
 
       // 2. GABARDINA LARGA PARTIDA (Split Duster Coat Tails: rodea lados y espalda, abierta al frente)
       const dusterLen = Math.min(0.76, charH * 0.42);
@@ -5581,9 +6207,11 @@
         uSegs: 48, vSegs: 18, thickness: 0.0048,
         refCenter: new THREE.Vector3(0, -dusterLen * 0.5, 0)
       });
-      group.add(new THREE.Mesh(coatGeo, mats.clothMat));
+      const coatMesh = new THREE.Mesh(coatGeo, mats.clothMat);
+      group.add(coatMesh);
 
       // Forro carmesí visible en las solapas internas de la abertura frontal de la gabardina
+      const liningMeshes = [];
       [-1, 1].forEach(sg => {
         const liningSurf = (u, v) => {
           const a = sg * (splitStart + u * 0.34);
@@ -5600,12 +6228,38 @@
           uSegs: 10, vSegs: 14, thickness: 0.003,
           refCenter: new THREE.Vector3(0, -dusterLen * 0.5, 0)
         });
-        group.add(new THREE.Mesh(lGeo, mats.crimsonMat));
+        const lMesh = new THREE.Mesh(lGeo, mats.crimsonMat);
+        group.add(lMesh);
+        liningMeshes.push(lMesh);
       });
 
       _rbTag(group, 'belt');
       const socket = armorSockets.belt || armorSockets.torso || mannequinRoot;
       attachOrnamentWorld(socket, group, waistPos, new THREE.Quaternion(), 'belt');
+      registerFlexibleClothGroup(group, [streamerMesh], {
+        kind: 'hip_flap',
+        side: 1,
+        uMode: 'x',
+        nu: 4,
+        nv: 11,
+        pinFraction: 0.09,
+        restReturn: 13.5,
+        damping: 0.945,
+        footKickBoost: 1.35,
+        windAmp: 0.55
+      });
+      registerFlexibleClothGroup(group, [coatMesh, ...liningMeshes], {
+        kind: 'duster',
+        uMode: 'polar',
+        nu: 11,
+        nv: 13,
+        pinFraction: 0.08,
+        restReturn: 12.0,
+        damping: 0.95,
+        inertiaScale: 1.15,
+        footKickBoost: 1.45,
+        windAmp: 0.62
+      });
     }
 
     function buildRavenboneTassets() {
@@ -6047,7 +6701,8 @@
             return new THREE.Vector3(x, y, arcZ);
           };
           const mGeo = createArmorPlatePatch(mantleSurf, { uSegs: 26, vSegs: 18, thickness: 0.005, refCenter: new THREE.Vector3(0, 0, 0.2) });
-          mantleGroup.add(new THREE.Mesh(mGeo, mats.clothMat));
+          const mMesh = new THREE.Mesh(mGeo, mats.clothMat);
+          mantleGroup.add(mMesh);
 
           // Cenefa carmesí rasgada en el bajo del manto
           const trimSurf = (u, v) => {
@@ -6056,10 +6711,23 @@
             return p;
           };
           const mtGeo = createArmorPlatePatch(trimSurf, { uSegs: 24, vSegs: 4, thickness: 0.003, refCenter: new THREE.Vector3(0, 0, 0.2) });
-          mantleGroup.add(new THREE.Mesh(mtGeo, mats.crimsonMat));
+          const mtMesh = new THREE.Mesh(mtGeo, mats.crimsonMat);
+          mantleGroup.add(mtMesh);
 
           _rbTag(mantleGroup, 'torso');
           attachOrnamentWorld(armorSockets.torso, mantleGroup, new THREE.Vector3(tc.x, tc.y, tc.z), new THREE.Quaternion(), 'torso');
+          registerFlexibleClothGroup(mantleGroup, [mMesh, mtMesh], {
+            kind: 'mantle',
+            uMode: 'x',
+            nu: 9,
+            nv: 12,
+            pinFraction: 0.08,
+            restReturn: 12.5,
+            damping: 0.95,
+            inertiaScale: 1.15,
+            footKickBoost: 1.45,
+            windAmp: 0.65
+          });
         }
       }
 
@@ -6503,6 +7171,7 @@
     function buildArchetypeBeltExtras(beltType, pMesh, bBox, pSize, pCenter, bBulk) {
       if (!armorSockets.pelvis) return;
       const grp = new THREE.Group();
+      const extraClothSides = [];
 
       if (beltType === 10) {
         // 10. Soberano Dracónico: cadenas laterales con sellos de rubí
@@ -6534,15 +7203,18 @@
               pCenter.z + Math.cos(ang) * rZ
             );
           };
-          grp.add(new THREE.Mesh(
+          const ctM = new THREE.Mesh(
             createArmorPlatePatch(coatTailSurf, { uSegs: 12, vSegs: 16, thickness: 0.004, refCenter: pCenter }),
             m.vermilionMat
-          ));
+          );
+          grp.add(ctM);
           const trimSurf = (u, v) => coatTailSurf(u, 0.90 + v * 0.10);
-          grp.add(new THREE.Mesh(
+          const trM = new THREE.Mesh(
             createArmorPlatePatch(trimSurf, { uSegs: 12, vSegs: 4, thickness: 0.0055, refCenter: pCenter }),
             m.brassMat
-          ));
+          );
+          grp.add(trM);
+          extraClothSides.push({ side: sd, meshes: [ctM, trM] });
         });
         _rbTag(grp, 'belt');
       } else if (beltType === 12) {
@@ -6562,26 +7234,36 @@
               pCenter.z + Math.cos(ang) * rZ
             );
           };
-          grp.add(new THREE.Mesh(
+          const rsM = new THREE.Mesh(
             createArmorPlatePatch(robeSkirtSurf, { uSegs: 18, vSegs: 20, thickness: 0.0048, refCenter: pCenter }),
             m.velvetMat
-          ));
+          );
+          grp.add(rsM);
           // Cenefa inferior y borde frontal en oro rosa
           const hemSurf = (u, v) => robeSkirtSurf(u, 0.91 + v * 0.09);
-          grp.add(new THREE.Mesh(
+          const hmM = new THREE.Mesh(
             createArmorPlatePatch(hemSurf, { uSegs: 18, vSegs: 4, thickness: 0.0065, refCenter: pCenter }),
             m.bronzeMat
-          ));
+          );
+          grp.add(hmM);
           const frontEdgeSurf = (u, v) => robeSkirtSurf(u * 0.12, v);
-          grp.add(new THREE.Mesh(
+          const feM = new THREE.Mesh(
             createArmorPlatePatch(frontEdgeSurf, { uSegs: 4, vSegs: 18, thickness: 0.0065, refCenter: pCenter }),
             m.bronzeMat
-          ));
+          );
+          grp.add(feM);
+          extraClothSides.push({ side: sd, meshes: [rsM, hmM, feM] });
         });
         _rbTag(grp, 'belt');
       }
 
       armorSockets.pelvis.add(grp);
+      extraClothSides.forEach(item => {
+        registerFlexibleClothGroup(grp, item.meshes, {
+          kind: 'robe_side', side: item.side, uMode: 'polar', nu: 7, nv: 11,
+          pinFraction: 0.09, restReturn: 14.0, damping: 0.945, footKickBoost: 1.35
+        });
+      });
     }
 
     // 10. Mangas catedralicias flotantes de seda perlada para los Guantes del Archimago Serafín (gloveType === 10)
@@ -6990,6 +7672,7 @@
 
       const beltGroup = new THREE.Group();
       beltGroup.name = `Belt_Sovereign_${style}`;
+      const sovereignClothGroups = [];
       // >= 45% más grandes que la versión anterior (0.38..0.58m de largo, estolas ~1.45x anchas)
       const bannerLen = Math.min(0.60, Math.max(0.38, pSize.y * (STATE.fit.mageRobe ? 2.40 : 2.15))) * (STATE.fit.beltCrotchLength || 1.0);
       const { glowMat } = mats;
@@ -7013,6 +7696,7 @@
         const skirt = new THREE.Mesh(new THREE.ConeGeometry(rad, len * 0.78, 12, 1, false), strandMat);
         skirt.position.copy(pos).add(new THREE.Vector3(0, -len * 0.62, 0));
         beltGroup.add(skirt);
+        return [cap, skirt];
       };
 
       if (style === 'imperial_celestial') {
@@ -7085,17 +7769,21 @@
           const z = cTopPt.z + v * 0.026 + Math.sin(u * Math.PI * 3) * 0.004 * v;
           return safeFrontBannerPt(x, y, z, 0.024);
         };
-        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(centralSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), ivoryMat));
+        const cClothList = [];
+        const cMesh = new THREE.Mesh(createArmorPlatePatch(centralSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), ivoryMat);
+        beltGroup.add(cMesh); cClothList.push(cMesh);
         const spearCurve = new THREE.CatmullRomCurve3([
           centralSurf(0.5, 0.05), centralSurf(0.28, 0.32), centralSurf(0.5, 0.88), centralSurf(0.72, 0.32), centralSurf(0.5, 0.05)
         ]);
-        beltGroup.add(new THREE.Mesh(new THREE.TubeGeometry(spearCurve, 32, 0.0040 * bScale, 6, false), goldMat));
+        const sMesh = new THREE.Mesh(new THREE.TubeGeometry(spearCurve, 32, 0.0040 * bScale, 6, false), goldMat);
+        beltGroup.add(sMesh); cClothList.push(sMesh);
         for (let f = 0; f <= 12; f++) {
           const fp = centralSurf(f / 12, 1.0);
           const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.0022 * bScale, 0.0016 * bScale, 0.042 * bScale, 5), goldMat);
           fr.position.copy(fp).add(new THREE.Vector3(0, -0.021 * bScale, 0));
-          beltGroup.add(fr);
+          beltGroup.add(fr); cClothList.push(fr);
         }
+        sovereignClothGroups.push({ meshes: cClothList, opts: { kind: 'front_banner', uMode: 'x', nu: 6, nv: 11, pinFraction: 0.08, restReturn: 14.0, damping: 0.945 } });
 
         // Faldones laterales marfil amplios, largos (+45%) y siempre por fuera de las musleras
         [-1, 1].forEach(sd => {
@@ -7106,16 +7794,19 @@
             const flare = 0.010 + v * (0.032 + u * 0.014);
             return safeDropPt(a, 0.34, v * drop, minClear, flare);
           };
+          const sClothList = [];
           const sGeo = createArmorPlatePatch(sideSurf, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
-          beltGroup.add(new THREE.Mesh(sGeo, ivoryMat));
+          const sideM = new THREE.Mesh(sGeo, ivoryMat);
+          beltGroup.add(sideM); sClothList.push(sideM);
           const hemRim = createRolledRimAlongRow(sGeo, sGeo.userData.rows - 1, 0.0042 * bScale);
-          if (hemRim) beltGroup.add(new THREE.Mesh(hemRim, goldMat));
+          if (hemRim) { const hrM = new THREE.Mesh(hemRim, goldMat); beltGroup.add(hrM); sClothList.push(hrM); }
           for (let f = 1; f < 11; f++) {
             const fp = sideSurf(f / 11, 1.0);
             const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.0022 * bScale, 0.0016 * bScale, 0.042 * bScale, 5), goldMat);
             fr.position.copy(fp).add(new THREE.Vector3(0, -0.021 * bScale, 0));
-            beltGroup.add(fr);
+            beltGroup.add(fr); sClothList.push(fr);
           }
+          sovereignClothGroups.push({ meshes: sClothList, opts: { kind: 'robe_side', side: sd, uMode: 'polar', nu: 7, nv: 12, pinFraction: 0.08, restReturn: 13.5, damping: 0.945, footKickBoost: 1.35 } });
         });
 
       } else if (style === 'sylvan_verdant') {
@@ -7176,13 +7867,16 @@
             const flare = 0.012 + v * 0.036 + Math.sin(u * Math.PI * 4) * 0.006 * v;
             return safeDropPt(a, 0.36, v * drop, 0.020 + v * 0.020, flare);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(drapeSurf, { uSegs: 16, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), sd < 0 ? emeraldMat : oliveGoldMat));
+          const dClothList = [];
+          const dMesh = new THREE.Mesh(createArmorPlatePatch(drapeSurf, { uSegs: 16, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), sd < 0 ? emeraldMat : oliveGoldMat);
+          beltGroup.add(dMesh); dClothList.push(dMesh);
           for (let f = 1; f < 10; f++) {
             const fp = drapeSurf(f / 10, 1.0);
             const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.0020 * bScale, 0.0016 * bScale, 0.038 * bScale, 5), bronzeMat);
             fr.position.copy(fp).add(new THREE.Vector3(0, -0.019 * bScale, 0));
-            beltGroup.add(fr);
+            beltGroup.add(fr); dClothList.push(fr);
           }
+          sovereignClothGroups.push({ meshes: dClothList, opts: { kind: 'robe_side', side: sd, uMode: 'polar', nu: 7, nv: 12, pinFraction: 0.08, restReturn: 13.5, damping: 0.945, footKickBoost: 1.35 } });
 
           // Dos cintas delanteras anchas y largas con lianas verdes
           const ribTop = waistPt(sd * 0.18, 0.42, 0.022);
@@ -7195,7 +7889,9 @@
             const z = ribTop.z + v * 0.030 + Math.sin(v * Math.PI * 2) * 0.005;
             return safeFrontBannerPt(x, y, z, 0.024);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(ribSurf, { uSegs: 6, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), vineMat));
+          const rMesh = new THREE.Mesh(createArmorPlatePatch(ribSurf, { uSegs: 6, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), vineMat);
+          beltGroup.add(rMesh);
+          sovereignClothGroups.push({ meshes: [rMesh], opts: { kind: 'front_banner', side: sd, uMode: 'x', nu: 5, nv: 11, pinFraction: 0.08, restReturn: 14.0, damping: 0.945, footKickBoost: 1.30 } });
         });
 
       } else if (style === 'astral_runic') {
@@ -7273,11 +7969,14 @@
           const z = cTop.z + v * 0.028 + Math.sin(u * Math.PI * 3) * 0.004 * v;
           return safeFrontBannerPt(x, y, z, 0.024);
         };
-        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(astralCenterSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat));
+        const aClothList = [];
+        const aMesh = new THREE.Mesh(createArmorPlatePatch(astralCenterSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat);
+        beltGroup.add(aMesh); aClothList.push(aMesh);
         for (let t = 0; t <= 8; t++) {
           const tp = astralCenterSurf(t / 8, 1.0);
-          addTassel(tp, 0.065 * bScale, 0.0072 * bScale, silverMat, lavenderMat);
+          aClothList.push(...addTassel(tp, 0.065 * bScale, 0.0072 * bScale, silverMat, lavenderMat));
         }
+        sovereignClothGroups.push({ meshes: aClothList, opts: { kind: 'front_banner', uMode: 'x', nu: 6, nv: 11, pinFraction: 0.08, restReturn: 14.0, damping: 0.945 } });
         [-1, 1].forEach(sd => {
           const sidePanel = (u, v) => {
             const a = sd * (0.34 + u * 0.96);
@@ -7285,8 +7984,11 @@
             const flare = 0.010 + v * 0.032 + Math.sin(u * Math.PI * 4) * 0.006 * v;
             return safeDropPt(a, 0.38, v * drop, 0.022 + v * 0.020, flare);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(sidePanel, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat));
-          addTassel(sidePanel(0.5, 1.0), 0.080 * bScale, 0.0110 * bScale, silverMat, lavenderMat);
+          const spList = [];
+          const spM = new THREE.Mesh(createArmorPlatePatch(sidePanel, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat);
+          beltGroup.add(spM); spList.push(spM);
+          spList.push(...addTassel(sidePanel(0.5, 1.0), 0.080 * bScale, 0.0110 * bScale, silverMat, lavenderMat));
+          sovereignClothGroups.push({ meshes: spList, opts: { kind: 'robe_side', side: sd, uMode: 'polar', nu: 7, nv: 12, pinFraction: 0.08, restReturn: 13.5, damping: 0.945, footKickBoost: 1.35 } });
         });
 
       } else {
@@ -7358,10 +8060,13 @@
           const z = fTop.z + v * 0.030;
           return safeFrontBannerPt(x, y, z, 0.026);
         };
+        const cfList = [];
         const cfGeo = createArmorPlatePatch(centerFlameSurf, { uSegs: 10, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
-        beltGroup.add(new THREE.Mesh(cfGeo, flameMat));
+        const cfM = new THREE.Mesh(cfGeo, flameMat);
+        beltGroup.add(cfM); cfList.push(cfM);
         const cfRim = createRolledRimAlongRow(cfGeo, cfGeo.userData.rows - 1, 0.0038 * bScale);
-        if (cfRim) beltGroup.add(new THREE.Mesh(cfRim, goldMat));
+        if (cfRim) { const cfRimM = new THREE.Mesh(cfRim, goldMat); beltGroup.add(cfRimM); cfList.push(cfRimM); }
+        sovereignClothGroups.push({ meshes: cfList, opts: { kind: 'front_banner', uMode: 'x', nu: 6, nv: 11, pinFraction: 0.08, restReturn: 14.0, damping: 0.945 } });
 
         [-1, 1].forEach(sd => {
           const wingFlameSurf = (u, v) => {
@@ -7370,14 +8075,20 @@
             const flare = 0.012 + v * 0.034;
             return safeDropPt(a, 0.34, v * drop, 0.020 + v * 0.020, flare);
           };
+          const wfList = [];
           const wfGeo = createArmorPlatePatch(wingFlameSurf, { uSegs: 14, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
-          beltGroup.add(new THREE.Mesh(wfGeo, flameMat));
-          addTassel(wingFlameSurf(0.88, 1.0), 0.088 * bScale, 0.0115 * bScale, goldMat, goldMat);
+          const wfM = new THREE.Mesh(wfGeo, flameMat);
+          beltGroup.add(wfM); wfList.push(wfM);
+          wfList.push(...addTassel(wingFlameSurf(0.88, 1.0), 0.088 * bScale, 0.0115 * bScale, goldMat, goldMat));
+          sovereignClothGroups.push({ meshes: wfList, opts: { kind: 'robe_side', side: sd, uMode: 'polar', nu: 7, nv: 12, pinFraction: 0.08, restReturn: 13.5, damping: 0.945, footKickBoost: 1.35 } });
         });
       }
 
       _rbTag(beltGroup, 'belt');
       attachOrnamentWorld(armorSockets.belt, beltGroup, pCenter, new THREE.Quaternion(), 'belt');
+      sovereignClothGroups.forEach(sg => {
+        registerFlexibleClothGroup(beltGroup, sg.meshes, sg.opts);
+      });
     }
 
     function buildArticulatedBelt() {
@@ -7715,6 +8426,7 @@
       beltGroup.name = 'Belt_Buckle_And_Tabard';
 
       // Tabardo Heráldico Colgante con pliegues orgánicos de tela 3D y remates heráldicos variados
+      const tabardClothMeshes = [];
       if (cLen > 0.25) {
         const tabardW = waistW * 0.48 * (STATE.fit.tabardWidthMult || 1);
         const tabardLen = Math.max(0.14, pSize.y * 1.15 * cLen);
@@ -7740,15 +8452,17 @@
         const bannerMesh = new THREE.Mesh(bannerGeo, clothMat);
         bannerMesh.position.set(0, tabardTopY - tabardLen * 0.5, frontSurfaceZ - 0.002);
         beltGroup.add(bannerMesh);
+        tabardClothMeshes.push(bannerMesh);
 
-        // Bordes laterales dorados del tabardo
+        // Bordes laterales dorados del tabardo (con subdivisión vertical para doblarse con la tela)
         [-1, 1].forEach(sgn => {
           const borderStrip = new THREE.Mesh(
-            new THREE.BoxGeometry(tabardW * 0.12, tabardLen, 0.009 * bScale),
+            new THREE.BoxGeometry(tabardW * 0.12, tabardLen, 0.009 * bScale, 2, 16, 1),
             trimMat
           );
           borderStrip.position.set(sgn * (tabardW * 0.44), tabardTopY - tabardLen * 0.5, frontSurfaceZ - 0.001);
           beltGroup.add(borderStrip);
+          tabardClothMeshes.push(borderStrip);
         });
 
         // Remates inferiores con variedad de pliegues según el tipo de cinturón
@@ -7756,29 +8470,39 @@
         {
           let tabGem = glowMat, tabDm = glowMat;
           try { tabGem = getFacetedGemMaterial(beltType === 8 ? 'cyan_crystal' : (beltType === 6 || beltType === 11 ? 'emerald' : (beltType === 12 ? 'amethyst' : (beltType === 2 ? 'sapphire' : 'ruby'))), 'belt'); tabDm = getFacetedGemMaterial('diamond', 'belt'); } catch (e) { }
-          addFacetedJewel(beltGroup, new THREE.Vector3(0, tabardTopY - tabardLen * 0.36, frontSurfaceZ + 0.008 * bScale), new THREE.Vector3(0, 0, 1), tabardW * 0.12, tabGem, trimMat, tabDm, 6);
+          const tabJewelGroup = new THREE.Group();
+          addFacetedJewel(tabJewelGroup, new THREE.Vector3(0, tabardTopY - tabardLen * 0.36, frontSurfaceZ + 0.008 * bScale), new THREE.Vector3(0, 0, 1), tabardW * 0.12, tabGem, trimMat, tabDm, 6);
+          beltGroup.add(tabJewelGroup);
+          tabJewelGroup.traverse(m => { if (m.isMesh) tabardClothMeshes.push(m); });
+
           const hemPts = []; for (let i = 0; i <= 12; i++) { const x = (i / 12 - 0.5) * tabardW * 0.92; hemPts.push(new THREE.Vector3(x, tabardTopY - tabardLen * 0.94, frontSurfaceZ + 0.004)); }
-          beltGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemPts), 24, 0.0025 * bScale, 6, false), trimMat));
+          const hemCord = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemPts), 24, 0.0025 * bScale, 6, false), trimMat);
+          beltGroup.add(hemCord);
+          tabardClothMeshes.push(hemCord);
         }
         if (beltType === 1 || beltType === 2) {
           // Tipo 1 & 2: Punta en V gótica con cenefa dorada y cruz heráldica
           const tipSize = tabardW * 0.707;
-          const tipCloth = new THREE.Mesh(new THREE.BoxGeometry(tipSize, tipSize, 0.008 * bScale), clothMat);
+          const tipCloth = new THREE.Mesh(new THREE.BoxGeometry(tipSize, tipSize, 0.008 * bScale, 4, 4, 1), clothMat);
           tipCloth.rotation.z = Math.PI / 4;
           tipCloth.position.set(0, tabardTopY - tabardLen, frontSurfaceZ - 0.003);
           beltGroup.add(tipCloth);
+          tabardClothMeshes.push(tipCloth);
 
-          const tipTrim = new THREE.Mesh(new THREE.BoxGeometry(tipSize * 1.06, tipSize * 1.06, 0.010 * bScale), trimMat);
+          const tipTrim = new THREE.Mesh(new THREE.BoxGeometry(tipSize * 1.06, tipSize * 1.06, 0.010 * bScale, 4, 4, 1), trimMat);
           tipTrim.rotation.z = Math.PI / 4;
           tipTrim.position.set(0, tabardTopY - tabardLen - 0.005, frontSurfaceZ - 0.004);
           beltGroup.add(tipTrim);
+          tabardClothMeshes.push(tipTrim);
 
-          const centerCrossV = new THREE.Mesh(new THREE.BoxGeometry(tabardW * 0.14, tabardLen * 0.65, 0.011 * bScale), trimMat);
+          const centerCrossV = new THREE.Mesh(new THREE.BoxGeometry(tabardW * 0.14, tabardLen * 0.65, 0.011 * bScale, 2, 12, 1), trimMat);
           centerCrossV.position.set(0, tabardTopY - tabardLen * 0.46, frontSurfaceZ);
           beltGroup.add(centerCrossV);
-          const centerCrossH = new THREE.Mesh(new THREE.BoxGeometry(tabardW * 0.48, tabardW * 0.13, 0.011 * bScale), trimMat);
+          tabardClothMeshes.push(centerCrossV);
+          const centerCrossH = new THREE.Mesh(new THREE.BoxGeometry(tabardW * 0.48, tabardW * 0.13, 0.011 * bScale, 6, 2, 1), trimMat);
           centerCrossH.position.set(0, tabardTopY - tabardLen * 0.35, frontSurfaceZ + 0.001);
           beltGroup.add(centerCrossH);
+          tabardClothMeshes.push(centerCrossH);
         } else if (beltType === 3 || beltType === 5) {
           // Tipo 3 & 5: Remate de flecos en 3 lengüetas rectangulares con ribete
           [-1, 0, 1].forEach(col => {
@@ -7786,6 +8510,7 @@
             const tongue = new THREE.Mesh(new THREE.BoxGeometry(tabardW * 0.26, tongueH, 0.010 * bScale), trimMat);
             tongue.position.set(col * (tabardW * 0.32), tabardTopY - tabardLen - tongueH * 0.45, frontSurfaceZ - 0.002);
             beltGroup.add(tongue);
+            tabardClothMeshes.push(tongue);
           });
         } else if (beltType === 4) {
           // Tipo 4: Cola de golondrina (swallow-tail) con hendidura central y doble punta
@@ -7795,6 +8520,7 @@
             tail.scale.set(1.0, 1.0, 0.35);
             tail.position.set(sgn * (tabardW * 0.26), tabardTopY - tabardLen - tabardW * 0.22, frontSurfaceZ - 0.002);
             beltGroup.add(tail);
+            tabardClothMeshes.push(tail);
           });
         } else if (beltType === 6 || beltType === 7 || beltType === 11) {
           // Tipo 6 (Dinastía), 7 & 11 (Élfico): Arco conopial festoneado con engaste de gema
@@ -7804,23 +8530,27 @@
             lobe.rotation.x = Math.PI / 2;
             lobe.position.set(l * (tabardW * 0.28), tabardTopY - tabardLen - lobR * (l === 0 ? 0.75 : 0.45), frontSurfaceZ - 0.002);
             beltGroup.add(lobe);
+            tabardClothMeshes.push(lobe);
           });
           const gem = new THREE.Mesh(new THREE.OctahedronGeometry(tabardW * 0.14), glowMat);
           gem.position.set(0, tabardTopY - tabardLen - lobR * 0.75, frontSurfaceZ + 0.006);
           beltGroup.add(gem);
+          tabardClothMeshes.push(gem);
         } else if (beltType === 8 || beltType === 10 || beltType === 12) {
           // Tipo 8 (Dark Crystal), 10 (Soberano Dracónico) & 12 (Archimago Serafín): Remate en chevrón real con puntas doradas y joya colgante
           const dcSize = tabardW * 0.707;
-          const dcTip = new THREE.Mesh(new THREE.BoxGeometry(dcSize, dcSize, 0.009 * bScale), clothMat);
+          const dcTip = new THREE.Mesh(new THREE.BoxGeometry(dcSize, dcSize, 0.009 * bScale, 4, 4, 1), clothMat);
           dcTip.rotation.z = Math.PI / 4;
           dcTip.position.set(0, tabardTopY - tabardLen, frontSurfaceZ - 0.003);
           beltGroup.add(dcTip);
+          tabardClothMeshes.push(dcTip);
           [-1, 1].forEach(sgn => {
             const wingTip = new THREE.Mesh(new THREE.ConeGeometry(tabardW * 0.17, tabardW * 0.48, 4), trimMat);
             wingTip.rotation.z = Math.PI - sgn * 0.15;
             wingTip.scale.set(1.0, 1.0, 0.36);
             wingTip.position.set(sgn * (tabardW * 0.30), tabardTopY - tabardLen - tabardW * 0.16, frontSurfaceZ - 0.001);
             beltGroup.add(wingTip);
+            tabardClothMeshes.push(wingTip);
           });
           let dcGem = glowMat;
           try { dcGem = getFacetedGemMaterial(beltType === 10 ? 'ruby' : (beltType === 12 ? 'amethyst' : 'cyan_crystal'), 'belt'); } catch (e) { }
@@ -7828,6 +8558,7 @@
           crystalDrop.scale.set(0.75, 1.45, 0.48);
           crystalDrop.position.set(0, tabardTopY - tabardLen - tabardW * 0.22, frontSurfaceZ + 0.007);
           beltGroup.add(crystalDrop);
+          tabardClothMeshes.push(crystalDrop);
         }
       }
 
@@ -7835,6 +8566,12 @@
       addBeltBuckle(beltGroup, new THREE.Vector3(0, buckleY, frontSurfaceZ + 0.008 * bScale), beltH * 0.85, beltType, { mainMat, trimMat, glowMat });
 
       attachOrnamentWorld(armorSockets.belt, beltGroup, pCenter, new THREE.Quaternion(), 'belt');
+      if (tabardClothMeshes.length) {
+        registerFlexibleClothGroup(beltGroup, tabardClothMeshes, {
+          kind: 'front_banner', uMode: 'x', nu: 6, nv: 11,
+          pinFraction: 0.09, restReturn: 14.5, damping: 0.945, footKickBoost: 1.30
+        });
+      }
     }
 
     /* === 2. ESCARCELAS COLGANTES (TASSETS) MOLDEADAS CON BORDES DORADOS Y PUNTA EN V === */
@@ -12359,24 +13096,31 @@
         return new THREE.Vector3(x, y, z);
       };
 
+      const capeClothMeshes = [];
       const capeGeo = createArmorPlatePatch(capeSurf, {
         uSegs: 40, vSegs: 28, thickness: 0.0046,
         refCenter: new THREE.Vector3(0, -len * 0.35, 0.25)
       });
-      group.add(new THREE.Mesh(capeGeo, cloakMat));
+      const capeMainMesh = new THREE.Mesh(capeGeo, cloakMat);
+      group.add(capeMainMesh);
+      capeClothMeshes.push(capeMainMesh);
 
       // Cordón metálico fino rematando el bajo festoneado y ambos orillos exteriores de la capa
       const hemCordPts = [];
       for (let i = 0; i <= 48; i++) {
         hemCordPts.push(capeSurf(i / 48, 0.996).add(new THREE.Vector3(0, 0, -0.0032)));
       }
-      group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemCordPts), 54, 0.0028, 6, false), stitchGoldMat));
+      const hemCordMesh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemCordPts), 54, 0.0028, 6, false), stitchGoldMat);
+      group.add(hemCordMesh);
+      capeClothMeshes.push(hemCordMesh);
       [0.003, 0.997].forEach(uEdge => {
         const edgePts = [];
         for (let i = 0; i <= 24; i++) {
           edgePts.push(capeSurf(uEdge, i / 24).add(new THREE.Vector3(0, 0, -0.0028)));
         }
-        group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edgePts), 28, 0.0026, 6, false), stitchGoldMat));
+        const edgeMesh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edgePts), 28, 0.0026, 6, false), stitchGoldMat);
+        group.add(edgeMesh);
+        capeClothMeshes.push(edgeMesh);
       });
 
       // Manto superior drapeado estilo Cuervo (cubre hombros y espalda alta en segunda capa rasgada)
@@ -12394,17 +13138,21 @@
         const z = zBack - 0.026 - v * 0.092 - Math.cos(uSpan * Math.PI * 0.5) * 0.028 + Math.pow(Math.abs(uSpan), 1.7) * 0.068 * wrapM + pleatM;
         return new THREE.Vector3(x, y, z);
       };
-      group.add(new THREE.Mesh(createArmorPlatePatch(mantleSurf, {
+      const mantleMesh = new THREE.Mesh(createArmorPlatePatch(mantleSurf, {
         uSegs: 32, vSegs: 16, thickness: 0.0044,
         refCenter: new THREE.Vector3(0, 0, 0.25)
-      }), mantleMat));
+      }), mantleMat);
+      group.add(mantleMesh);
+      capeClothMeshes.push(mantleMesh);
 
       // Cordón metálico fino rematando el borde del manto superior
       const mCordPts = [];
       for (let i = 0; i <= 36; i++) {
         mCordPts.push(mantleSurf(i / 36, 0.995).add(new THREE.Vector3(0, 0, -0.0032)));
       }
-      group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(mCordPts), 40, 0.0028, 6, false), stitchGoldMat));
+      const mCordMesh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(mCordPts), 40, 0.0028, 6, false), stitchGoldMat);
+      group.add(mCordMesh);
+      capeClothMeshes.push(mCordMesh);
 
       group.traverse(n => {
         if (n.isMesh) {
@@ -12417,6 +13165,10 @@
       });
 
       attachOrnamentWorld(armorSockets.torso, group, tc, new THREE.Quaternion(), 'torso');
+      registerFlexibleClothGroup(group, capeClothMeshes, {
+        kind: 'cape', uMode: 'x', nu: 11, nv: 14, pinFraction: 0.08,
+        restReturn: 11.5, damping: 0.955, inertiaScale: 1.15, footKickBoost: 1.55, windAmp: 0.72
+      });
     }
 
     /* === MAGOS POR NIVEL (D..SR): TÚNICAS FLUIDAS, PROTECCIONES LIGERAS Y CINTURONES CRUZADOS ESTRECHOS === */
@@ -12591,6 +13343,7 @@
         // A) FALDÓN DE TÚNICA LARGA FLUIDA POR NIVEL (con pliegues profundos de tela y abertura frontal hasta media pantorrilla / tobillos)
         const skirtLen = Math.max(0.46, pSize.y * (isLow ? 3.10 : (isMid ? 3.75 : 4.35)));
         const skirtTopY = pSize.y * 0.30;
+        const robeSideCloth = [];
         [-1, 1].forEach(sd => {
           const robeSkirtSurf = (u, v) => {
             // Envuelve desde el borde frontal (con abertura en A) hasta el centro trasero
@@ -12603,21 +13356,25 @@
             const y = skirtTopY - v * skirtLen;
             return new THREE.Vector3(Math.sin(ang) * rX, y, Math.cos(ang) * rZ);
           };
-          robeGrp.add(new THREE.Mesh(
+          const mSkirt = new THREE.Mesh(
             createArmorPlatePatch(robeSkirtSurf, { uSegs: 24, vSegs: 28, thickness: 0.0050, refCenter: new THREE.Vector3(0, -skirtLen * 0.4, 0) }),
             robeBodyMat
-          ));
+          );
+          robeGrp.add(mSkirt);
           // Cenefa inferior y ribete vertical delantero de la túnica
           const hemSurf = (u, v) => robeSkirtSurf(u, 0.93 + v * 0.07);
-          robeGrp.add(new THREE.Mesh(
+          const mHem = new THREE.Mesh(
             createArmorPlatePatch(hemSurf, { uSegs: 24, vSegs: 3, thickness: 0.0068, refCenter: new THREE.Vector3(0, -skirtLen * 0.9, 0) }),
             robeAccentMat
-          ));
+          );
+          robeGrp.add(mHem);
           const frontBorder = (u, v) => robeSkirtSurf(u * 0.08, v);
-          robeGrp.add(new THREE.Mesh(
+          const mBorder = new THREE.Mesh(
             createArmorPlatePatch(frontBorder, { uSegs: 3, vSegs: 24, thickness: 0.0068, refCenter: new THREE.Vector3(0, -skirtLen * 0.4, 0) }),
             robeAccentMat
-          ));
+          );
+          robeGrp.add(mBorder);
+          robeSideCloth.push({ side: sd, meshes: [mSkirt, mHem, mBorder] });
         });
 
         // Faldón interior / estola central larga bajo la abertura delantera de la túnica
@@ -12630,10 +13387,12 @@
           const z = pSize.z * 0.55 * (1 + v * 0.30) + Math.sin(u * Math.PI * 3) * 0.007 * v;
           return new THREE.Vector3(x, y, z);
         };
-        robeGrp.add(new THREE.Mesh(
+        const mUnder = new THREE.Mesh(
           createArmorPlatePatch(underSurf, { uSegs: 12, vSegs: 22, thickness: 0.0042, refCenter: new THREE.Vector3(0, -underPanelLen * 0.4, 0) }),
           clothMat
-        ));
+        );
+        robeGrp.add(mUnder);
+        let mTongue = null;
 
         // B) CINTURONES CRUZADOS ESTRECHOS EN LA CINTURA Y CADERA (solo D..A; los niveles S/SR >= 10 usan buildSovereignOrnateBelt)
         if (STATE.equipment.belt < 10) {
@@ -12670,7 +13429,8 @@
             new THREE.Vector3(0.055, skirtTopY - 0.16, rWaistZ + 0.018),
             new THREE.Vector3(0.065, skirtTopY - 0.30, rWaistZ + 0.014)
           ];
-          robeGrp.add(new THREE.Mesh(buildStrapRibbon(new THREE.CatmullRomCurve3(tonguePts), 0.018, 0.004, 18), narrowBeltMat));
+          mTongue = new THREE.Mesh(buildStrapRibbon(new THREE.CatmullRomCurve3(tonguePts), 0.018, 0.004, 18), narrowBeltMat);
+          robeGrp.add(mTongue);
 
           // Escarcela/bolsa de hechicero o grimorio sujeto al cinturón cruzado en la cadera izquierda
           const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.032), narrowBeltMat);
@@ -12683,6 +13443,22 @@
         }
 
         attachOrnamentWorld(armorSockets.belt || armorSockets.pelvis, robeGrp, pc, new THREE.Quaternion(), 'belt');
+        robeSideCloth.forEach(item => {
+          registerFlexibleClothGroup(robeGrp, item.meshes, {
+            kind: 'robe_side', side: item.side, uMode: 'polar', nu: 8, nv: 13,
+            pinFraction: 0.08, restReturn: 13.5, damping: 0.945, footKickBoost: 1.35
+          });
+        });
+        registerFlexibleClothGroup(robeGrp, [mUnder], {
+          kind: 'front_banner', uMode: 'x', nu: 6, nv: 11,
+          pinFraction: 0.08, restReturn: 15.0, damping: 0.94, footKickBoost: 1.30
+        });
+        if (mTongue) {
+          registerFlexibleClothGroup(robeGrp, [mTongue], {
+            kind: 'front_banner', uMode: 'x', nu: 4, nv: 9,
+            pinFraction: 0.12, restReturn: 16.0, damping: 0.94
+          });
+        }
       }
     }
 
@@ -12699,6 +13475,7 @@
 
       const group = new THREE.Group();
       group.name = 'Light_Cloth_Side_Flaps';
+      const clothFlapsBySide = [];
       [-1, 1].forEach(s => {
         // Tela con pliegues verticales que se ensanchan hacia el bajo
         const geo = new THREE.PlaneGeometry(flapW, flapLen, 8, 16);
@@ -12715,12 +13492,19 @@
         group.add(flap);
 
         // Orla dorada en el dobladillo
-        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, flapW), trimMat);
+        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, flapW, 1, 1, 8), trimMat);
         hem.position.set(s * pSize.x * 0.50, topY - flapLen, 0);
         group.add(hem);
+        clothFlapsBySide.push({ side: s, meshes: [flap, hem] });
       });
 
       attachOrnamentWorld(armorSockets.belt, group, pCenter, new THREE.Quaternion(), 'belt');
+      clothFlapsBySide.forEach(item => {
+        registerFlexibleClothGroup(group, item.meshes, {
+          kind: 'hip_flap', side: item.side, uMode: 'z', nu: 6, nv: 9,
+          pinFraction: 0.10, restReturn: 16.0, damping: 0.94, footKickBoost: 1.25
+        });
+      });
 
       // Culera: dos faldones curvos que siguen el glúteo (uno por nalga, para no cruzar el eje trasero).
       // Se amoldan a la malla como las escarcelas, así que nunca quedan como un plano recto.
@@ -19259,6 +20043,7 @@
 
     function exportSlotToGLB(slotName) {
       if (typeof THREE.GLTFExporter === 'undefined') { showToast("Cargando GLTFExporter..."); return; }
+      if (typeof restoreAllClothRestPose === 'function') restoreAllClothRestPose();
       const exporter = new THREE.GLTFExporter();
       const exportGroup = new THREE.Group();
       exportGroup.name = `Wardrobe_${slotName}`;
@@ -19965,6 +20750,7 @@
         const restoreBow = prepareBowForExport();
         try {
           if (typeof restoreBindPose === 'function') restoreBindPose();
+          if (typeof restoreAllClothRestPose === 'function') restoreAllClothRestPose();
           const clips = getLightExportClips(15);
           const built = buildLightweightExportScene({ armorOnly, maxTex: 512, clips, simplifyRatio: MS ? 0.5 : 1.0, simplifyError: 0.0025 });
           restoreBow();                      // la escena ligera ya es una copia: el arco del visor vuelve a su sitio
@@ -25802,6 +26588,7 @@ function resetCharacter() {
         updateHeldStance();
         updateArchery(delta);
         applyHandGrip();
+        updateClothSimulation(delta);
       }
       controls.update();
       renderer.render(scene, camera);
@@ -25831,6 +26618,8 @@ function resetCharacter() {
       get controls() { return controls; },
       get archeryTime() { return archeryT; },
       setArcheryTime(t) { archeryT = t; archeryLastU = 0; },
+      get clothEntries() { return CLOTH_SIM_ENTRIES; },
+      updateClothSimulation, restoreAllClothRestPose,
       updateWardrobePieces, applyHandGrip, getHandGripAnchor, handGripWorld,
       archeryApplyPose, bakeArcheryClip, getLightExportClips, AR_DRAW
     };
