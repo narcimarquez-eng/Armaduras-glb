@@ -343,21 +343,16 @@ def build_basalt_shoulders() -> Dict[str, Dict[str, MeshPart]]:
         _horn(u["iron"], [(sgn * 0.082, 0.052, -0.02), (sgn * 0.155, 0.118, -0.05), (sgn * 0.195, 0.195, -0.09)], 0.015)
         u["magma"].add(*make_sphere(0.016, segs=8, rings=6, center=(sgn * 0.098, 0.055, 0.045)))
 
-    # Torso: Media capa imperial carmesí + 6 alas dorsales dracónicas desplegadas
+    # Torso: Gran capa larga fluida estilo cuervo en carmesí con cenefa bordada en oro (sin alas rígidas ni adorno dorsal)
     tr = out["Torso"]
     tr["copper"].add(*make_curved_shell(
-        -0.46, 0.18, 0.215, 0.185, 0.155, 0.140,
-        math.pi * 0.55, math.pi * 1.32, thickness=0.007, ny=12, na=18, flare_bot=0.065, tatter_waves=4, tatter_amp=0.028
+        -0.68, 0.22, 0.240, 0.195, 0.162, 0.145,
+        math.pi * 0.45, math.pi * 1.55, thickness=0.007, ny=16, na=24, flare_bot=0.095, tatter_waves=5, tatter_amp=0.048
     ))
-    for sgn in (-1, 1):
-        for w in range(3):
-            wing_pts = [(0.0, -0.04), (sgn * (0.14 - w * 0.02), 0.06), (sgn * (0.26 - w * 0.04), 0.16 - w * 0.03), (sgn * (0.18 - w * 0.03), -0.02)]
-            tr["brass" if w == 1 else "basalt"].add(*make_extruded_polygon(
-                wing_pts, 0.010, bevel=0.003,
-                center=(sgn * 0.075, 0.14 - w * 0.055, -0.155 - w * 0.010),
-                rot=(0.0, -sgn * (0.30 + w * 0.08), 0.0)
-            ))
-    tr["magma"].add(*make_sphere(0.030, segs=10, rings=8, center=(0.0, 0.12, -0.172), scale=(0.8, 1.5, 0.6)))
+    tr["brass"].add(*make_curved_shell(
+        -0.68, -0.56, 0.245, 0.200, 0.232, 0.190,
+        math.pi * 0.47, math.pi * 1.53, thickness=0.006, ny=4, na=22, tatter_waves=5, tatter_amp=0.042
+    ))
     return out
 
 
@@ -401,58 +396,58 @@ def build_basalt_gloves() -> Dict[str, Dict[str, MeshPart]]:
 
 
 def build_basalt_belt() -> Dict[str, Dict[str, MeshPart]]:
-    """Fajín Carmesí de Escamas de Dragón & Llamas (Diseño 4: hebilla flamígera en V, escamas superpuestas, cadenas doradas con borlas negras y estandartes flamígeros)."""
+    """Fajín Carmesí de Escamas de Dragón & Llamas (hebilla flamígera en V grande, escamas superpuestas, cadenas doradas con borlas y estandarte ampliado >=40%)."""
     out = {"Pelvis": _bp()}
     p = out["Pelvis"]
-    # Cinturón base V-peaked en obsidiana/plata negra y filete dorado
-    p["basalt"].add(*make_curved_shell(-0.055, 0.045, 0.180, 0.144, 0.186, 0.150, -math.pi, math.pi, thickness=0.013, ny=6, na=24, peak_front_y=-0.025))
-    p["brass"].add(*make_curved_shell(0.032, 0.052, 0.184, 0.148, 0.188, 0.152, -math.pi, math.pi, thickness=0.010, ny=3, na=22))
-    # Hebilla flamígera en V esculpida en oro real con rubí central
-    b_pts = [(0.0, -0.088), (0.048, -0.025), (0.082, 0.035), (0.046, 0.068), (0.0, 0.042), (-0.046, 0.068), (-0.082, 0.035), (-0.048, -0.025)]
-    p["brass"].add(*make_extruded_polygon(b_pts, 0.020, bevel=0.006, center=(0, -0.005, 0.158)))
-    p["magma"].add(*make_sphere(0.022, segs=10, rings=8, center=(0, -0.002, 0.174), scale=(0.82, 1.38, 0.58)))
-    # 3 filas de escamas de dragón superpuestas en carmesí y obsidiana en ambos costados/caderas
-    scale_pts = [(0.0, -0.042), (0.032, -0.012), (0.028, 0.024), (-0.028, 0.024), (-0.032, -0.012)]
+    # Cinturón base ceñido en V en obsidiana/plata negra y filete dorado (sin abultar en cintura)
+    p["basalt"].add(*make_curved_shell(-0.062, 0.052, 0.172, 0.136, 0.178, 0.142, -math.pi, math.pi, thickness=0.011, ny=6, na=24, peak_front_y=-0.032))
+    p["brass"].add(*make_curved_shell(0.038, 0.058, 0.176, 0.140, 0.180, 0.144, -math.pi, math.pi, thickness=0.009, ny=3, na=22))
+    # Gran hebilla flamígera en V esculpida en oro real con rubí central (+45%)
+    b_pts = [(0.0, -0.125), (0.068, -0.035), (0.115, 0.048), (0.064, 0.092), (0.0, 0.058), (-0.064, 0.092), (-0.115, 0.048), (-0.068, -0.035)]
+    p["brass"].add(*make_extruded_polygon(b_pts, 0.022, bevel=0.007, center=(0, -0.008, 0.150)))
+    p["magma"].add(*make_sphere(0.030, segs=10, rings=8, center=(0, -0.004, 0.170), scale=(0.84, 1.40, 0.58)))
+    # 3 filas de escamas de dragón ampliadas sin sobresalir del muslo
+    scale_pts = [(0.0, -0.058), (0.044, -0.016), (0.038, 0.032), (-0.038, 0.032), (-0.044, -0.016)]
     for row in range(3):
-        yc = -0.065 - row * 0.055
+        yc = -0.075 - row * 0.074
         n_cols = 4 - row
         for c in range(n_cols):
             for sgn in (-1, 1):
                 ang = sgn * (0.48 + c * 0.28 + row * 0.08)
-                rx = 0.182 + row * 0.008
-                rz = 0.148 + row * 0.008
+                rx = 0.186 + row * 0.012
+                rz = 0.150 + row * 0.012
                 px = math.sin(ang) * rx
                 pz = math.cos(ang) * rz
                 mat_k = "leather" if (row + c) % 2 == 0 else "copper"
                 p[mat_k].add(*make_extruded_polygon(
-                    scale_pts, 0.010, bevel=0.003,
+                    scale_pts, 0.011, bevel=0.003,
                     center=(px, yc, pz),
                     rot=(0.14, ang, 0.0)
                 ))
-                p["brass"].add(*make_sphere(0.006, segs=6, rings=5, center=(px * 1.03, yc + 0.012, pz * 1.03)))
-    # Estandarte central puntiagudo con llamas doradas + alerones laterales carmesí
-    apron_pts = [(0.0, -0.39), (0.072, -0.23), (0.086, -0.03), (-0.086, -0.03), (-0.072, -0.23)]
-    p["copper"].add(*make_extruded_polygon(apron_pts, 0.012, bevel=0.004, center=(0, -0.05, 0.152), rot=(-0.06, 0, 0)))
-    flame_trim_pts = [(0.0, -0.35), (0.046, -0.22), (0.018, -0.14), (0.054, -0.06), (0.0, -0.09), (-0.054, -0.06), (-0.018, -0.14), (-0.046, -0.22)]
-    p["brass"].add(*make_extruded_polygon(flame_trim_pts, 0.008, bevel=0.002, center=(0, -0.05, 0.160), rot=(-0.06, 0, 0)))
-    # Faldón trasero y alerones flameados en las caderas
+                p["brass"].add(*make_sphere(0.008, segs=6, rings=5, center=(px * 1.03, yc + 0.014, pz * 1.03)))
+    # Gran estandarte central puntiagudo con llamas doradas (+45% longitud y anchura)
+    apron_pts = [(0.0, -0.56), (0.104, -0.33), (0.122, -0.04), (-0.122, -0.04), (-0.104, -0.33)]
+    p["copper"].add(*make_extruded_polygon(apron_pts, 0.014, bevel=0.004, center=(0, -0.06, 0.156), rot=(-0.08, 0, 0)))
+    flame_trim_pts = [(0.0, -0.50), (0.066, -0.31), (0.026, -0.19), (0.078, -0.08), (0.0, -0.12), (-0.078, -0.08), (-0.026, -0.19), (-0.066, -0.31)]
+    p["brass"].add(*make_extruded_polygon(flame_trim_pts, 0.009, bevel=0.002, center=(0, -0.06, 0.166), rot=(-0.08, 0, 0)))
+    # Faldón trasero ampliado con holgura sobre muslos
     p["copper"].add(*make_curved_shell(
-        -0.50, -0.03, 0.224, 0.192, 0.182, 0.146,
-        0.46, math.tau - 0.46, thickness=0.008, ny=12, na=26, flare_bot=0.048, tatter_waves=5, tatter_amp=0.048
+        -0.62, -0.04, 0.240, 0.205, 0.178, 0.142,
+        0.46, math.tau - 0.46, thickness=0.009, ny=14, na=26, flare_bot=0.068, tatter_waves=5, tatter_amp=0.062
     ))
-    # Cadenas doradas arqueadas con borlas de seda negra colgantes en los flancos
+    # Cadenas doradas arqueadas y borlas de seda ampliadas ~45%
     for sgn in (-1, 1):
         p["brass"].add(*make_tube_curve([
-            (sgn * 0.055, -0.025, 0.156), (sgn * 0.135, -0.115, 0.125), (sgn * 0.198, -0.055, 0.025)
-        ], [0.006, 0.007, 0.006], segs=7))
+            (sgn * 0.065, -0.032, 0.154), (sgn * 0.155, -0.165, 0.132), (sgn * 0.208, -0.075, 0.025)
+        ], [0.008, 0.009, 0.008], segs=7))
         p["brass"].add(*make_tube_curve([
-            (sgn * 0.065, -0.045, 0.152), (sgn * 0.152, -0.165, 0.105), (sgn * 0.205, -0.085, 0.005)
-        ], [0.005, 0.006, 0.005], segs=7))
-        for tx, ty, tz in ((sgn * 0.125, -0.165, 0.128), (sgn * 0.168, -0.215, 0.085), (0.0, -0.425, 0.175)):
+            (sgn * 0.075, -0.060, 0.150), (sgn * 0.172, -0.235, 0.112), (sgn * 0.215, -0.115, 0.005)
+        ], [0.007, 0.008, 0.007], segs=7))
+        for tx, ty, tz in ((sgn * 0.145, -0.235, 0.135), (sgn * 0.188, -0.305, 0.092), (0.0, -0.595, 0.190)):
             if sgn < 0 and tx == 0.0:
                 continue
-            p["brass"].add(*make_sphere(0.011, segs=7, rings=5, center=(tx, ty + 0.032, tz)))
-            p["basalt"].add(*make_cylinder(0.005, 0.015, 0.058, segs=8, center=(tx, ty, tz)))
+            p["brass"].add(*make_sphere(0.016, segs=7, rings=5, center=(tx, ty + 0.045, tz)))
+            p["basalt"].add(*make_cylinder(0.007, 0.021, 0.082, segs=8, center=(tx, ty, tz)))
     return out
 
 
@@ -633,13 +628,17 @@ def build_dune_helmet() -> Dict[str, Dict[str, MeshPart]]:
 
 
 def build_dune_shoulders() -> Dict[str, Dict[str, MeshPart]]:
-    """Guardahombros Foliares de Mithril + Manto Silvano de Hoja + Dagas Gemelas."""
+    """Guardahombros Foliares de Mithril + Capa Larga Silvana Bordada Estilo Cuervo."""
     out = {"UpperArm_L": _dp(), "Torso": _dp(), "UpperArm_R": _dp()}
     tr = out["Torso"]
-    # Manto foliar élfico en damasco esmeralda cayendo sobre la espalda
+    # Gran capa larga fluida estilo cuervo en damasco esmeralda con cenefa bordada dorada
     tr["vermilion"].add(*make_curved_shell(
-        -0.36, 0.24, 0.215, 0.180, 0.155, 0.140,
-        math.pi * 0.48, math.pi * 1.52, thickness=0.007, ny=12, na=20, flare_bot=0.055, tatter_waves=4, tatter_amp=0.038
+        -0.68, 0.24, 0.238, 0.195, 0.160, 0.145,
+        math.pi * 0.44, math.pi * 1.56, thickness=0.007, ny=16, na=24, flare_bot=0.092, tatter_waves=5, tatter_amp=0.046
+    ))
+    tr["brass"].add(*make_curved_shell(
+        -0.68, -0.56, 0.242, 0.200, 0.230, 0.190,
+        math.pi * 0.46, math.pi * 1.54, thickness=0.006, ny=4, na=22, tatter_waves=5, tatter_amp=0.040
     ))
     for sgn in (-1, 1):
         u = out["UpperArm_L" if sgn > 0 else "UpperArm_R"]
@@ -692,45 +691,45 @@ def build_dune_gloves() -> Dict[str, Dict[str, MeshPart]]:
 
 
 def build_dune_belt() -> Dict[str, Dict[str, MeshPart]]:
-    """Ceñidor Silvano Foliar (Diseño 2: corsé de hojas esculpidas, 3 gemas en frente y caderas, fajín drapeado, doble estola frontal con enredaderas y faldones asimétricos)."""
+    """Ceñidor Silvano Foliar (corsé de hojas esculpidas, 3 gemas en frente y caderas, fajín ceñido, doble estola frontal amplia y faldones >=40% más grandes)."""
     out = {"Pelvis": _dp()}
     p = out["Pelvis"]
-    # Corsé esculpido en oro foliar y mithril con ribete superior/inferior
-    p["brass"].add(*make_curved_shell(-0.065, 0.048, 0.174, 0.138, 0.178, 0.142, -math.pi, math.pi, thickness=0.011, ny=6, na=24, peak_front_y=-0.020))
-    p["steel"].add(*make_curved_shell(-0.048, 0.032, 0.178, 0.142, 0.181, 0.145, -1.65, 1.65, thickness=0.008, ny=4, na=18))
-    # Hojas esculpidas radiando desde el broche central y las caderas
-    leaf_pts = [(0.0, -0.048), (0.022, -0.010), (0.014, 0.042), (0.0, 0.056), (-0.014, 0.042), (-0.022, -0.010)]
-    for ang, sc in ((0.0, 1.1), (-0.42, 0.9), (0.42, 0.9), (-1.15, 0.85), (1.15, 0.85)):
-        px = math.sin(ang) * 0.180
-        pz = math.cos(ang) * 0.146
+    # Corsé esculpido ceñido en cintura (sin abultar) en oro foliar y mithril
+    p["brass"].add(*make_curved_shell(-0.072, 0.056, 0.168, 0.132, 0.172, 0.136, -math.pi, math.pi, thickness=0.010, ny=6, na=24, peak_front_y=-0.028))
+    p["steel"].add(*make_curved_shell(-0.052, 0.036, 0.172, 0.136, 0.176, 0.140, -1.65, 1.65, thickness=0.008, ny=4, na=18))
+    # Hojas esculpidas más amplias radiando desde el broche central y las caderas (+45%)
+    leaf_pts = [(0.0, -0.068), (0.031, -0.014), (0.020, 0.058), (0.0, 0.078), (-0.020, 0.058), (-0.031, -0.014)]
+    for ang, sc in ((0.0, 1.12), (-0.42, 0.92), (0.42, 0.92), (-1.15, 0.88), (1.15, 0.88)):
+        px = math.sin(ang) * 0.178
+        pz = math.cos(ang) * 0.144
         p["brass"].add(*make_extruded_polygon(
-            [(x * sc, y * sc) for x, y in leaf_pts], 0.009, bevel=0.003,
-            center=(px, -0.004, pz), rot=(0.0, ang, -ang * 0.25)
+            [(x * sc, y * sc) for x, y in leaf_pts], 0.010, bevel=0.003,
+            center=(px, -0.006, pz), rot=(0.0, ang, -ang * 0.25)
         ))
-    # 3 gemas ovaladas (centro + ambas caderas)
-    p["turq"].add(*make_sphere(0.018, segs=10, rings=8, center=(0, -0.004, 0.160), scale=(0.82, 1.32, 0.58)))
+    # 3 gemas ovaladas ampliadas (centro + ambas caderas)
+    p["turq"].add(*make_sphere(0.025, segs=10, rings=8, center=(0, -0.006, 0.156), scale=(0.84, 1.36, 0.58)))
     for sgn in (-1, 1):
-        p["turq"].add(*make_sphere(0.015, segs=8, rings=6, center=(sgn * 0.168, -0.010, 0.068), scale=(0.65, 1.25, 0.85)))
-    # Fajín de tela drapeada bajo el corsé
-    p["vermilion"].add(*make_curved_shell(-0.115, -0.052, 0.186, 0.150, 0.182, 0.146, -math.pi, math.pi, thickness=0.009, ny=5, na=24))
-    # Doble estola/cinta estrecha frontal con bordado foliar
-    ribbon_pts = [(0.0, -0.44), (0.024, -0.22), (0.026, -0.03), (-0.026, -0.03), (-0.024, -0.22)]
+        p["turq"].add(*make_sphere(0.021, segs=8, rings=6, center=(sgn * 0.170, -0.012, 0.065), scale=(0.65, 1.28, 0.85)))
+    # Fajín de tela drapeada ajustado bajo el corsé
+    p["vermilion"].add(*make_curved_shell(-0.125, -0.058, 0.184, 0.148, 0.178, 0.142, -math.pi, math.pi, thickness=0.008, ny=5, na=24))
+    # Doble estola/cinta frontal amplia (+45% longitud y anchura) con bordado foliar
+    ribbon_pts = [(0.0, -0.62), (0.036, -0.31), (0.038, -0.04), (-0.038, -0.04), (-0.036, -0.31)]
     for sgn in (-1, 1):
         p["sand"].add(*make_extruded_polygon(
-            ribbon_pts, 0.006, bevel=0.002,
-            center=(sgn * 0.042, -0.06, 0.156), rot=(-0.05, sgn * 0.08, sgn * -0.05)
+            ribbon_pts, 0.007, bevel=0.002,
+            center=(sgn * 0.052, -0.06, 0.158), rot=(-0.06, sgn * 0.08, sgn * -0.05)
         ))
         p["brass"].add(*make_tube_curve([
-            (sgn * 0.042, -0.09, 0.162), (sgn * 0.050, -0.24, 0.165), (sgn * 0.042, -0.42, 0.168)
-        ], [0.0045, 0.005, 0.004], segs=6))
-    # Faldones esmeralda asimétricos con cenefa dorada
+            (sgn * 0.052, -0.10, 0.165), (sgn * 0.062, -0.34, 0.176), (sgn * 0.052, -0.59, 0.184)
+        ], [0.006, 0.0065, 0.0055], segs=6))
+    # Faldones esmeralda asimétricos ampliados con holgura sobre muslos y cenefa dorada
     p["indigo"].add(*make_curved_shell(
-        -0.58, -0.05, 0.244, 0.208, 0.180, 0.144,
-        0.38, math.tau - 0.38, thickness=0.007, ny=12, na=28, flare_bot=0.055, tatter_waves=4, tatter_amp=0.052
+        -0.70, -0.06, 0.262, 0.222, 0.184, 0.146,
+        0.38, math.tau - 0.38, thickness=0.008, ny=14, na=28, flare_bot=0.075, tatter_waves=4, tatter_amp=0.062
     ))
     p["brass"].add(*make_curved_shell(
-        -0.58, -0.54, 0.248, 0.212, 0.242, 0.206,
-        0.42, math.tau - 0.42, thickness=0.006, ny=3, na=24
+        -0.70, -0.63, 0.266, 0.226, 0.258, 0.220,
+        0.42, math.tau - 0.42, thickness=0.007, ny=3, na=24
     ))
     return out
 
@@ -874,7 +873,7 @@ def _ap() -> Dict[str, MeshPart]:
 
 
 def build_astro_helmet() -> Dict[str, Dict[str, MeshPart]]:
-    """Corona Serafín del Eclipse & Halo Radiante (100% rostro abierto)."""
+    """Corona Serafín del Eclipse (100% rostro abierto, sin aros)."""
     out = {"Head": _ap()}
     h = out["Head"]
     h["bronze"].add(*make_curved_shell(
@@ -882,37 +881,25 @@ def build_astro_helmet() -> Dict[str, Dict[str, MeshPart]]:
         -math.pi * 0.92, math.pi * 0.92, thickness=0.008, ny=6, na=22, peak_front_y=-0.024
     ))
     h["astral"].add(*make_sphere(0.017, segs=8, rings=6, center=(0, 0.192, 0.142), scale=(0.8, 1.35, 0.6)))
-    # Rayos solares y alas de serafín en las sienes + halo astral detrás de la coronilla
+    # Alas de serafín en las sienes (sin halos tras la cabeza)
     for sgn in (-1, 1):
         _horn(h["bronze"], [(sgn * 0.095, 0.195, 0.02), (sgn * 0.160, 0.285, -0.02), (sgn * 0.148, 0.395, -0.08)], 0.018)
         _horn(h["silver"], [(sgn * 0.072, 0.205, 0.04), (sgn * 0.118, 0.295, 0.00), (sgn * 0.105, 0.375, -0.05)], 0.012)
-    h["bronze"].add(*make_torus(0.185, 0.007, 28, 8, center=(0, 0.265, -0.05), rot=(0.25, 0.0, 0.0)))
-    h["amber"].add(*make_torus(0.145, 0.005, 24, 6, center=(0, 0.265, -0.05), rot=(-0.25, 0.35, 0.0)))
     return out
 
 
 def build_astro_shoulders() -> Dict[str, Dict[str, MeshPart]]:
-    """6 Alas de Serafín en Oro Rosa + Planetario Giroscópico Triple + Cuello Real Medici."""
+    """Guardahombros Serafín + Gran Capa Larga de Terciopelo Amatista Bordada en Oro Rosa (sin aros ni alas pequeñas)."""
     out = {"Torso": _ap(), "UpperArm_L": _ap(), "UpperArm_R": _ap()}
     tr = out["Torso"]
-    cx, cy, cz = 0.0, 0.22, -0.22
-    tr["bronze"].add(*make_torus(0.26, 0.009, 32, 8, center=(cx, cy, cz)))
-    tr["silver"].add(*make_torus(0.195, 0.007, 28, 6, center=(cx, cy, cz), rot=(0.35, 0.32, 0.20)))
-    tr["amber"].add(*make_torus(0.135, 0.005, 24, 6, center=(cx, cy, cz), rot=(-0.35, -0.40, 0.32)))
-    tr["astral"].add(*make_sphere(0.032, segs=10, rings=8, center=(cx, cy, cz)))
-    # 6 Alas de Serafín desplegadas desde el planetario dorsal
-    for sgn in (-1, 1):
-        for w in range(3):
-            wing_pts = [(0.0, 0.0), (sgn * (0.15 - w * 0.02), 0.09), (sgn * (0.30 - w * 0.04), 0.20 - w * 0.04), (sgn * (0.18 - w * 0.02), -0.03)]
-            tr["silver" if w == 1 else "bronze"].add(*make_extruded_polygon(
-                wing_pts, 0.008, bevel=0.003,
-                center=(sgn * 0.08, 0.20 - w * 0.065, -0.19 - w * 0.008),
-                rot=(0.0, -sgn * 0.22, 0.0)
-            ))
-    # Cuello Medici real alto detrás de la nuca
+    # Gran capa larga fluida estilo cuervo en terciopelo amatista con cenefa bordada en oro rosa y plata
     tr["velvet"].add(*make_curved_shell(
-        0.22, 0.42, 0.118, 0.116, 0.175, 0.155,
-        math.pi * 0.45, math.pi * 1.55, thickness=0.009, ny=8, na=18, flare_top=0.045, tatter_waves=7, tatter_amp=0.018
+        -0.70, 0.23, 0.242, 0.198, 0.162, 0.146,
+        math.pi * 0.44, math.pi * 1.56, thickness=0.007, ny=16, na=24, flare_bot=0.098, tatter_waves=5, tatter_amp=0.046
+    ))
+    tr["bronze"].add(*make_curved_shell(
+        -0.70, -0.57, 0.246, 0.202, 0.234, 0.192,
+        math.pi * 0.46, math.pi * 1.54, thickness=0.006, ny=4, na=22, tatter_waves=5, tatter_amp=0.040
     ))
     for sgn in (-1, 1):
         u = out["UpperArm_L" if sgn > 0 else "UpperArm_R"]
@@ -955,46 +942,45 @@ def build_astro_gloves() -> Dict[str, Dict[str, MeshPart]]:
 
 
 def build_astro_belt() -> Dict[str, Dict[str, MeshPart]]:
-    """Cíngulo Rúnico Astral & Faldón Catedralicio de Túnica de Mago (Diseño 3: chevrones rúnicos escalonados, amatistas, cadenas con astrolabios y viales cristalinos, estandartes estelares)."""
+    """Cíngulo Rúnico Astral & Faldón Catedralicio (cintura ceñida, chevrones, amatistas, viales, estandarte y faldón ampliados >=40%)."""
     out = {"Pelvis": _ap()}
     p = out["Pelvis"]
-    # 3 placas frontales escalonadas en V de acero/plata astral con gemas amatista
-    p["silver"].add(*make_curved_shell(-0.045, 0.048, 0.184, 0.148, 0.186, 0.150, -math.pi, math.pi, thickness=0.010, ny=6, na=24, peak_front_y=-0.020))
-    for tier, dy, sc in ((0, 0.020, 1.0), (1, -0.022, 0.90), (2, -0.060, 0.78)):
-        chev_pts = [(0.0, -0.042 * sc), (0.092 * sc, 0.012 * sc), (0.078 * sc, 0.036 * sc), (0.0, -0.008 * sc), (-0.078 * sc, 0.036 * sc), (-0.092 * sc, 0.012 * sc)]
+    # Cinturón base ceñido en cintura (sin abultar)
+    p["silver"].add(*make_curved_shell(-0.052, 0.054, 0.174, 0.138, 0.176, 0.140, -math.pi, math.pi, thickness=0.009, ny=6, na=24, peak_front_y=-0.026))
+    # 3 placas frontales escalonadas en V de plata astral ampliadas (+45%)
+    for tier, dy, sc in ((0, 0.028, 1.38), (1, -0.028, 1.24), (2, -0.080, 1.08)):
+        chev_pts = [(0.0, -0.044 * sc), (0.094 * sc, 0.012 * sc), (0.080 * sc, 0.036 * sc), (0.0, -0.008 * sc), (-0.080 * sc, 0.036 * sc), (-0.094 * sc, 0.012 * sc)]
         p["silver" if tier != 1 else "bronze"].add(*make_extruded_polygon(
-            chev_pts, 0.012, bevel=0.003, center=(0, dy, 0.156 + tier * 0.004)
+            chev_pts, 0.013, bevel=0.003, center=(0, dy, 0.148 + tier * 0.005)
         ))
-        p["astral"].add(*make_sphere(0.012 * sc, segs=8, rings=6, center=(0, dy - 0.012 * sc, 0.168 + tier * 0.004)))
-    # Broche superior con cabujón ovalado de amatista y marco de plata
-    p["astral"].add(*make_sphere(0.019, segs=10, rings=8, center=(0, 0.024, 0.166), scale=(0.82, 1.32, 0.6)))
-    p["silver"].add(*make_torus(0.022, 0.004, 18, 6, center=(0, 0.024, 0.165), rot=(math.pi / 2, 0, 0), scale=(0.85, 1.0, 1.30)))
-    # Cadenas de plata arqueadas + medallones circulares de astrolabio + 3 viales de amatista
+        p["astral"].add(*make_sphere(0.014 * sc, segs=8, rings=6, center=(0, dy - 0.012 * sc, 0.162 + tier * 0.005)))
+    # Broche superior ampliado con cabujón ovalado de amatista y marco esculpido
+    p["bronze"].add(*make_sphere(0.032, segs=10, rings=8, center=(0, 0.030, 0.156), scale=(0.95, 1.40, 0.45)))
+    p["astral"].add(*make_sphere(0.026, segs=10, rings=8, center=(0, 0.030, 0.162), scale=(0.82, 1.32, 0.58)))
+    # Cadenas de plata arqueadas + medallones sólidos de astrolabio + 3 viales ampliados (+45%)
     for sgn in (-1, 1):
         p["silver"].add(*make_tube_curve([
-            (sgn * 0.062, -0.010, 0.160), (sgn * 0.135, -0.098, 0.130), (sgn * 0.195, -0.035, 0.025)
-        ], [0.005, 0.0055, 0.005], segs=7))
-        # Medallón circular de astrolabio en las caderas
-        mx, my, mz = sgn * 0.165, -0.088, 0.085
-        p["silver"].add(*make_torus(0.024, 0.0045, 20, 6, center=(mx, my, mz), rot=(0, sgn * 0.95, math.pi / 2)))
-        p["bronze"].add(*make_torus(0.014, 0.003, 16, 6, center=(mx, my, mz), rot=(0, sgn * 0.95, math.pi / 2)))
-        p["astral"].add(*make_sphere(0.008, segs=6, rings=5, center=(mx, my, mz)))
-    for vx, vy, vz in ((-0.048, -0.115, 0.164), (0.0, -0.132, 0.168), (0.048, -0.115, 0.164)):
-        p["silver"].add(*make_cylinder(0.009, 0.009, 0.010, segs=8, center=(vx, vy + 0.018, vz)))
-        p["astral"].add(*make_cylinder(0.007, 0.005, 0.034, segs=8, center=(vx, vy, vz)))
-    # Estandarte frontal puntiagudo de terciopelo con constelaciones y borla lavanda
-    banner_pts = [(0.0, -0.44), (0.064, -0.27), (0.072, -0.07), (-0.072, -0.07), (-0.064, -0.27)]
-    p["velvet"].add(*make_extruded_polygon(banner_pts, 0.009, bevel=0.003, center=(0, -0.05, 0.158), rot=(-0.05, 0, 0)))
-    p["silver"].add(*make_sphere(0.011, segs=8, rings=6, center=(0, -0.495, 0.180)))
-    p["silk"].add(*make_cylinder(0.005, 0.016, 0.062, segs=8, center=(0, -0.530, 0.182)))
-    # Faldón catedralicio plisado abierto por delante en terciopelo amatista con cenefa de oro rosa y faldón interior de seda
-    p["silk"].add(*make_curved_shell(-0.62, -0.04, 0.238, 0.205, 0.172, 0.138, -math.pi, math.pi, thickness=0.006, ny=10, na=24, flare_bot=0.048))
+            (sgn * 0.072, -0.015, 0.152), (sgn * 0.155, -0.135, 0.132), (sgn * 0.205, -0.048, 0.025)
+        ], [0.007, 0.0075, 0.007], segs=7))
+        mx, my, mz = sgn * 0.178, -0.118, 0.092
+        p["silver"].add(*make_cylinder(0.032, 0.032, 0.009, segs=12, center=(mx, my, mz), rot=(0, 0, sgn * 0.95)))
+        p["astral"].add(*make_sphere(0.014, segs=8, rings=6, center=(mx, my, mz + 0.004)))
+    for vx, vy, vz in ((-0.068, -0.155, 0.168), (0.0, -0.180, 0.174), (0.068, -0.155, 0.168)):
+        p["silver"].add(*make_cylinder(0.013, 0.013, 0.014, segs=8, center=(vx, vy + 0.026, vz)))
+        p["astral"].add(*make_cylinder(0.010, 0.007, 0.048, segs=8, center=(vx, vy, vz)))
+    # Gran estandarte frontal puntiagudo de terciopelo (+45%) y borla lavanda
+    banner_pts = [(0.0, -0.64), (0.092, -0.39), (0.104, -0.09), (-0.104, -0.09), (-0.092, -0.39)]
+    p["velvet"].add(*make_extruded_polygon(banner_pts, 0.011, bevel=0.003, center=(0, -0.06, 0.162), rot=(-0.07, 0, 0)))
+    p["silver"].add(*make_sphere(0.016, segs=8, rings=6, center=(0, -0.71, 0.204)))
+    p["silk"].add(*make_cylinder(0.008, 0.023, 0.088, segs=8, center=(0, -0.758, 0.208)))
+    # Faldón catedralicio plisado ampliado con holgura sobre muslos
+    p["silk"].add(*make_curved_shell(-0.74, -0.05, 0.258, 0.220, 0.174, 0.140, -math.pi, math.pi, thickness=0.006, ny=12, na=24, flare_bot=0.065))
     for a0, a1 in ((0.38, math.pi - 0.12), (math.pi + 0.12, math.tau - 0.38)):
         p["velvet"].add(*make_curved_shell(
-            -0.66, -0.03, 0.258, 0.222, 0.178, 0.142,
-            a0, a1, thickness=0.009, ny=12, na=16, flare_bot=0.062, tatter_waves=4, tatter_amp=0.032
+            -0.78, -0.04, 0.278, 0.238, 0.180, 0.144,
+            a0, a1, thickness=0.009, ny=14, na=16, flare_bot=0.082, tatter_waves=4, tatter_amp=0.042
         ))
-        p["bronze"].add(*make_curved_shell(-0.66, -0.60, 0.262, 0.226, 0.254, 0.220, a0 + 0.04, a1 - 0.04, thickness=0.007))
+        p["bronze"].add(*make_curved_shell(-0.78, -0.70, 0.282, 0.242, 0.272, 0.234, a0 + 0.04, a1 - 0.04, thickness=0.007))
     return out
 
 
