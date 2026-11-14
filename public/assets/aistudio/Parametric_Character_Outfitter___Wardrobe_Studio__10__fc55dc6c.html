@@ -911,7 +911,11 @@
         { name: 'Fajín Carmesí & Gabardina Larga Partida', shortName: 'Gabardina', icon: 'layers' },
         { name: 'Cinturón Real Dracónico & Tabardo Carmesí Bordado (Soberano)', shortName: 'Cinto Dracónico', icon: 'flame' },
         { name: 'Ceñidor Élfico de Hojas & Faldón Silvano Partido (Silvano)', shortName: 'Ceñidor Élfico', icon: 'feather' },
-        { name: 'Cíngulo de Eclipse & Faldón Catedralicio Plisado (Serafín)', shortName: 'Faldón Serafín', icon: 'sparkles' }
+        { name: 'Cíngulo de Eclipse & Faldón Catedralicio Plisado (Serafín)', shortName: 'Faldón Serafín', icon: 'sparkles' },
+        { name: 'Cinturón Imperial de Filigrana & Zafiro (SR)', shortName: 'Imperial Zafiro', icon: 'crown' },
+        { name: 'Cinturón Silvano de Hojas & Ámbar (S/SR)', shortName: 'Silvano Ámbar', icon: 'feather' },
+        { name: 'Cinturón Rúnico Astral & Cadenas de Astrolabio (S/SR)', shortName: 'Astral Rúnico', icon: 'sparkles' },
+        { name: 'Cinturón Dracónico de Escamas & Llamas (S/SR)', shortName: 'Escamas Llamas', icon: 'flame' }
       ],
       tassets: [
         { name: 'Sin Escarcelas', icon: 'ban' },
@@ -1388,7 +1392,11 @@
       8: { fold: 'swallow_tail',     depth: 0.12, vTip: 0.18, flare: 0.38, span: 0.27, lames: 2, relief: 'chevron', gem: 'cyan_crystal', rivets: true },
       10:{ fold: 'triple_v',         depth: 0.14, vTip: 0.20, flare: 0.40, span: 0.28, lames: 3, relief: 'chevron', gem: 'ruby',     rivets: true  },
       11:{ fold: 'foliate',          depth: 0.11, vTip: 0.15, flare: 0.38, span: 0.27, lames: 2, relief: 'vine',    gem: 'emerald',  rivets: false },
-      12:{ fold: 'swallow_tail',     depth: 0.13, vTip: 0.18, flare: 0.42, span: 0.28, lames: 2, relief: 'cross',   gem: 'amethyst', rivets: false }
+      12:{ fold: 'swallow_tail',     depth: 0.13, vTip: 0.18, flare: 0.42, span: 0.28, lames: 2, relief: 'cross',   gem: 'amethyst', rivets: false },
+      13:{ fold: 'ogee_conopial',    depth: 0.14, vTip: 0.22, flare: 0.42, span: 0.28, lames: 2, relief: 'sun',     gem: 'sapphire', rivets: false },
+      14:{ fold: 'foliate',          depth: 0.12, vTip: 0.18, flare: 0.40, span: 0.28, lames: 2, relief: 'vine',    gem: 'topaz',    rivets: false },
+      15:{ fold: 'swallow_tail',     depth: 0.14, vTip: 0.20, flare: 0.44, span: 0.29, lames: 3, relief: 'cross',   gem: 'amethyst', rivets: true  },
+      16:{ fold: 'triple_v',         depth: 0.15, vTip: 0.22, flare: 0.42, span: 0.29, lames: 3, relief: 'chevron', gem: 'ruby',     rivets: true  }
     };
 
     const ARMOR_RANKS = {
@@ -1417,13 +1425,13 @@
         chest: { windowCutout: 'rib_slots', backStyle: 'laminated', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.18 }
       },
       S: {
-        name: 'S', hint: 'Capas nobles por arquetipo, aletas estridentes y gema central', badge: 'bg-amber-900 text-amber-200',
+        name: 'S', hint: 'Capas nobles, cinturones reales con cadenas/faldones, aletas estridentes', badge: 'bg-amber-900 text-amber-200',
         fluting: 1.10, rolled: 1.20, simpleLeather: false,
         shoulder: { scaleMult: 1.05, stridentTilt: 0.20, sharpness: 1.70, extraStridentFin: true, finLength: 1.9, finCurve: 0.15, armFoldStyle: 'swallow_tail' },
         chest: { windowCutout: 'diamond_sternum', backStyle: 'winged_shell', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.19 }
       },
       SR: {
-        name: 'SR', hint: 'Capas imperiales y astrales, escudos dorsales y máxima gala', badge: 'bg-rose-900 text-rose-200',
+        name: 'SR', hint: 'Capas imperiales/astrales, cinturones de gala con filigrana, escamas y runas', badge: 'bg-rose-900 text-rose-200',
         fluting: 1.35, rolled: 1.30, simpleLeather: false,
         shoulder: { scaleMult: 1.08, stridentTilt: 0.25, sharpness: 2.00, extraStridentFin: true, finLength: 2.2, finCurve: 0.20, armFoldStyle: 'upward_arch' },
         chest: { windowCutout: 'keyhole_sternum', backStyle: 'wide_dorsal_shields_3d', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.21, dorsalWingScale: 1.15, dorsalFinSpread: 1.10 }
@@ -1478,36 +1486,36 @@
         gear: { underlayer: 12, helmet: 1, torso: 6, gloves: 1, belt: 2, tassets: 5, cuisses: 5, knees: 2, boots: 1, weapon: 5 } },
       { rank: 'A', cls: 'mago', name: 'Invocador de Obsidiana', tex: 'black_gold_marble',
         gear: { underlayer: 15, helmet: 3, torso: 10, gloves: 3, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 6, weapon: 10 } },
-      // ---- S (Distintos tipos de capas nobles + tirantes en ligeras + túnicas y cinturones cruzados en magos) ----
+      // ---- S (Capas nobles + cinturones reales ornamentados con cadenas, escamas, hojas y runas) ----
       { rank: 'S', cls: 'pesada', name: 'Soberano Dracónico Carmesí & Plata Negra', tex: 'basalt_forge', cape: 'asymmetric_half',
-        gear: { underlayer: 18, helmet: 11, shoulders: 14, torso: 22, gloves: 8, belt: 10, tassets: 11, cuisses: 10, knees: 10, boots: 15, weapon: 83, shield: 13 } },
+        gear: { underlayer: 18, helmet: 11, shoulders: 14, torso: 22, gloves: 8, belt: 16, tassets: 11, cuisses: 10, knees: 10, boots: 15, weapon: 83, shield: 13 } },
       { rank: 'S', cls: 'ligera', name: 'Cazador Élfico de Esmeralda & Luz Lunar', tex: 'dune_nomad', cape: 'sylvan_leaf', strapStyle: 'crossed_x',
-        gear: { underlayer: 19, helmet: 12, shoulders: 15, torso: 23, gloves: 9, belt: 11, tassets: 12, cuisses: 11, knees: 11, boots: 16, weapon: 84, shield: 14 } },
+        gear: { underlayer: 19, helmet: 12, shoulders: 15, torso: 23, gloves: 9, belt: 14, tassets: 12, cuisses: 11, knees: 11, boots: 16, weapon: 84, shield: 14 } },
       { rank: 'S', cls: 'mago', name: 'Archimago Serafín del Eclipse & Terciopelo', tex: 'astrolabe_mage', cape: 'scholar_stole',
-        gear: { underlayer: 20, helmet: 13, shoulders: 16, torso: 24, gloves: 10, belt: 12, tassets: 0, cuisses: 0, knees: 0, boots: 17, weapon: 85, shield: 15 } },
+        gear: { underlayer: 20, helmet: 13, shoulders: 16, torso: 24, gloves: 10, belt: 15, tassets: 0, cuisses: 0, knees: 0, boots: 17, weapon: 85, shield: 15 } },
       { rank: 'S', cls: 'ligera', name: 'Segador de Cuervo & Hueso (Asimétrico)', tex: 'ravenbone_reaper', cape: 'phoenix_wings',
         gear: { underlayer: 17, helmet: 10, shoulders: 13, torso: 21, gloves: 7, belt: 9, tassets: 10, cuisses: 9, knees: 9, boots: 14, weapon: 82, shield: 12 } },
       { rank: 'S', cls: 'pesada', name: 'Estrella del Norte Mjölnir', tex: 'mjolnir_thunder_plate', cape: 'imperial_drape',
-        gear: { underlayer: 6, helmet: 5, torso: 10, gloves: 3, belt: 2, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 5 } },
+        gear: { underlayer: 6, helmet: 5, torso: 10, gloves: 3, belt: 15, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 5 } },
       { rank: 'S', cls: 'pesada', name: 'Dragón Imperial de Rubí', tex: 'dragon_scale_ruby', cape: 'asymmetric_half',
-        gear: { underlayer: 11, helmet: 4, torso: 15, gloves: 5, belt: 6, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
+        gear: { underlayer: 11, helmet: 4, torso: 15, gloves: 5, belt: 16, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
       { rank: 'S', cls: 'ligera', name: 'Danzarina Élfica de Filigrana', tex: 'emerald_elven_filigree', cape: 'sylvan_leaf', strapStyle: 'parallel_buckled',
-        gear: { underlayer: 7, helmet: 3, torso: 14, gloves: 1, belt: 4, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 8 } },
+        gear: { underlayer: 7, helmet: 3, torso: 14, gloves: 1, belt: 14, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 8 } },
       { rank: 'S', cls: 'ligera', name: 'Lancero Solar Ligero', tex: 'paladin_sun_gold', cape: 'split_swallowtail', strapStyle: 'crossed_x',
-        gear: { underlayer: 8, helmet: 6, torso: 1, gloves: 1, belt: 1, tassets: 1, cuisses: 1, knees: 1, boots: 1, weapon: 5 } },
+        gear: { underlayer: 8, helmet: 6, torso: 1, gloves: 1, belt: 13, tassets: 1, cuisses: 1, knees: 1, boots: 1, weapon: 5 } },
       { rank: 'S', cls: 'mago', name: 'Oráculo Astral', tex: 'ornate', cape: 'scholar_stole',
-        gear: { underlayer: 15, helmet: 5, torso: 17, gloves: 4, belt: 1, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
-      // ---- SR (Capas imperiales, colas de golondrina, fénix, silvanas y estolas cósmicas) ----
+        gear: { underlayer: 15, helmet: 5, torso: 17, gloves: 4, belt: 15, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- SR (Capas imperiales/astrales y los 4 cinturones reales de gala) ----
       { rank: 'SR', cls: 'pesada', name: 'Dinastía Celestial', tex: 'dynasty_celestial_rose', cape: 'imperial_drape',
-        gear: { underlayer: 4, helmet: 2, torso: 5, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
+        gear: { underlayer: 4, helmet: 2, torso: 5, gloves: 4, belt: 13, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
       { rank: 'SR', cls: 'pesada', name: 'Soberano de Vacío', tex: 'void_corrupted_adamant', cape: 'split_swallowtail',
-        gear: { underlayer: 12, helmet: 5, torso: 19, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 9 } },
+        gear: { underlayer: 12, helmet: 5, torso: 19, gloves: 4, belt: 15, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 9 } },
       { rank: 'SR', cls: 'ligera', name: 'Serafín Ligero de Mithril', tex: 'mithril_starlight_weave', cape: 'sylvan_leaf', strapStyle: 'parallel_buckled',
-        gear: { underlayer: 7, helmet: 5, torso: 17, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
+        gear: { underlayer: 7, helmet: 5, torso: 17, gloves: 4, belt: 13, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
       { rank: 'SR', cls: 'ligera', name: 'Fénix Ígneo Ligero', tex: 'phoenix_flame_plumage', cape: 'phoenix_wings', strapStyle: 'crossed_x',
-        gear: { underlayer: 11, helmet: 4, torso: 16, gloves: 4, belt: 7, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
+        gear: { underlayer: 11, helmet: 4, torso: 16, gloves: 4, belt: 16, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
       { rank: 'SR', cls: 'mago', name: 'Archimago Cósmico', tex: 'celestial_astral_constellation', cape: 'scholar_stole',
-        gear: { underlayer: 15, helmet: 5, torso: 19, gloves: 4, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 4, weapon: 10 } }
+        gear: { underlayer: 15, helmet: 5, torso: 19, gloves: 4, belt: 15, tassets: 0, cuisses: 0, knees: 0, boots: 4, weapon: 10 } }
     ];
 
     // Aplica una armadura por clase y rango: equipo, ajuste, overrides de forma y material
@@ -1555,21 +1563,27 @@
       const rankKeys = Object.keys(ARMOR_RANKS);
       const rank = rankKeys[Math.floor(Math.random() * rankKeys.length)];
       const isSimple = (rank === 'D' || rank === 'C');
+      const isRoyal = (rank === 'S' || rank === 'SR');
       const pool = isSimple
         ? TEXTURE_PRESETS.filter(t => t.category === 'cuero')
         : TEXTURE_PRESETS;
       const tp = pool[Math.floor(Math.random() * pool.length)] || TEXTURE_PRESETS[0];
       const pick = arr => 1 + Math.floor(Math.random() * (arr.length - 1));
+      const royalBelts = [13, 14, 15, 16];
+      const pickedBelt = isRoyal
+        ? royalBelts[Math.floor(Math.random() * royalBelts.length)]
+        : (1 + Math.floor(Math.random() * 7));
       const capeChoices = ['imperial_drape', 'asymmetric_half', 'split_swallowtail', 'sylvan_leaf', 'phoenix_wings', 'scholar_stole'];
-      const cape = (rank === 'S' || rank === 'SR') ? capeChoices[Math.floor(Math.random() * capeChoices.length)] : 'none';
+      const cape = isRoyal ? capeChoices[Math.floor(Math.random() * capeChoices.length)] : 'none';
       const strapStyle = Math.random() < 0.5 ? 'parallel_buckled' : 'crossed_x';
 
       const gear = (clsKey === 'mago')
         ? {
             underlayer: pick(ITEMS_DB.underlayer),
             helmet: Math.random() < 0.75 ? pick(ITEMS_DB.helmet) : 0,
-            torso: 0, gloves: 0,
-            belt: pick(ITEMS_DB.belt),
+            torso: pick(ITEMS_DB.torso),
+            gloves: pick(ITEMS_DB.gloves),
+            belt: pickedBelt,
             tassets: 0, cuisses: 0, knees: 0,
             boots: pick(ITEMS_DB.boots),
             weapon: 10,
@@ -1580,7 +1594,7 @@
             helmet: Math.random() < 0.8 ? pick(ITEMS_DB.helmet) : 0,
             torso: pick(ITEMS_DB.torso),
             gloves: pick(ITEMS_DB.gloves),
-            belt: pick(ITEMS_DB.belt),
+            belt: pickedBelt,
             tassets: pick(ITEMS_DB.tassets),
             cuisses: pick(ITEMS_DB.cuisses),
             knees: pick(ITEMS_DB.knees),
@@ -6775,9 +6789,655 @@
       });
     }
 
+    const sovereignBeltTexCache = {};
+    function getSovereignBeltTexture(kind) {
+      if (sovereignBeltTexCache[kind]) return sovereignBeltTexCache[kind];
+      const S = 512;
+      const c = document.createElement('canvas'); c.width = S; c.height = S;
+      const ctx = c.getContext('2d');
+      const b = document.createElement('canvas'); b.width = S; b.height = S;
+      const bCtx = b.getContext('2d');
+      bCtx.fillStyle = '#808080'; bCtx.fillRect(0, 0, S, S);
+
+      if (kind === 'imperial_ivory') {
+        // Brocado marfil cálido con filigrana dorada elegante y bordes verticales limpios
+        const g = ctx.createLinearGradient(0, 0, S, 0);
+        g.addColorStop(0, '#cfc2aa'); g.addColorStop(0.5, '#faf6ee'); g.addColorStop(1, '#cfc2aa');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        ctx.strokeStyle = 'rgba(175,152,112,0.16)'; ctx.lineWidth = 1;
+        for (let y = 0; y < S; y += 6) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke(); }
+        // Cenefas doradas laterales limpias
+        ctx.strokeStyle = '#c89b3c'; ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(22, S); ctx.moveTo(S - 22, 0); ctx.lineTo(S - 22, S); ctx.stroke();
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(36, 0); ctx.lineTo(36, S); ctx.moveTo(S - 36, 0); ctx.lineTo(S - 36, S); ctx.stroke();
+        bCtx.strokeStyle = '#e5e5e5'; bCtx.lineWidth = 8;
+        bCtx.beginPath(); bCtx.moveTo(22, 0); bCtx.lineTo(22, S); bCtx.moveTo(S - 22, 0); bCtx.lineTo(S - 22, S); bCtx.stroke();
+        // Lanza y arabescos simétricos de filigrana dorada en el centro
+        for (let row = 0; row < 3; row++) {
+          const cy = 96 + row * 150;
+          [-1, 1].forEach(sd => {
+            ctx.strokeStyle = '#c6932f'; ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(S * 0.5, cy);
+            ctx.bezierCurveTo(S * 0.5 + sd * 75, cy - 52, S * 0.5 + sd * 125, cy + 48, S * 0.5 + sd * 165, cy - 10);
+            ctx.stroke();
+            bCtx.strokeStyle = '#ececec'; bCtx.lineWidth = 5;
+            bCtx.beginPath();
+            bCtx.moveTo(S * 0.5, cy);
+            bCtx.bezierCurveTo(S * 0.5 + sd * 75, cy - 52, S * 0.5 + sd * 125, cy + 48, S * 0.5 + sd * 165, cy - 10);
+            bCtx.stroke();
+          });
+        }
+        ctx.strokeStyle = '#d4a644'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(S * 0.5, 24); ctx.lineTo(S * 0.62, S * 0.5); ctx.lineTo(S * 0.5, S - 24); ctx.lineTo(S * 0.38, S * 0.5); ctx.closePath(); ctx.stroke();
+      } else if (kind === 'sylvan_vine') {
+        // Cinta crema/lino con bordes dorados y liana verde esmeralda bordada de hojas
+        const g = ctx.createLinearGradient(0, 0, S, 0);
+        g.addColorStop(0, '#c2ad83'); g.addColorStop(0.5, '#efe4cc'); g.addColorStop(1, '#c2ad83');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        ctx.strokeStyle = '#8c6d32'; ctx.lineWidth = 14;
+        ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(16, S); ctx.moveTo(S - 16, 0); ctx.lineTo(S - 16, S); ctx.stroke();
+        ctx.strokeStyle = '#15803d'; ctx.lineWidth = 7;
+        ctx.beginPath();
+        for (let y = 0; y <= S; y += 8) {
+          const x = S * 0.5 + Math.sin((y / S) * Math.PI * 8) * 58;
+          if (y === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        bCtx.strokeStyle = '#e5e5e5'; bCtx.lineWidth = 8;
+        bCtx.beginPath();
+        for (let y = 0; y <= S; y += 8) {
+          const x = S * 0.5 + Math.sin((y / S) * Math.PI * 8) * 58;
+          if (y === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        bCtx.stroke();
+        for (let i = 0; i < 16; i++) {
+          const ly = 18 + i * 31;
+          const sd = i % 2 === 0 ? 1 : -1;
+          const lx = S * 0.5 + Math.sin((ly / S) * Math.PI * 8) * 58 + sd * 38;
+          ctx.fillStyle = '#166534';
+          ctx.beginPath(); ctx.ellipse(lx, ly, 26, 12, sd * 0.55, 0, Math.PI * 2); ctx.fill();
+          bCtx.fillStyle = '#f0f0f0';
+          bCtx.beginPath(); bCtx.ellipse(lx, ly, 26, 12, sd * 0.55, 0, Math.PI * 2); bCtx.fill();
+        }
+      } else if (kind === 'astral_runes') {
+        // Placa acero plata oscura grabada con runas arcanas brillantes
+        const g = ctx.createLinearGradient(0, 0, 0, S);
+        g.addColorStop(0, '#64748b'); g.addColorStop(0.5, '#334155'); g.addColorStop(1, '#1e293b');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 5;
+        ctx.strokeRect(8, 22, S - 16, S - 44);
+        bCtx.strokeStyle = '#303030'; bCtx.lineWidth = 6;
+        bCtx.strokeRect(8, 22, S - 16, S - 44);
+        const glyphCount = 12;
+        for (let i = 0; i < glyphCount; i++) {
+          const rx = 28 + i * ((S - 56) / glyphCount);
+          const ry = S * 0.5;
+          ctx.strokeStyle = '#d8b4fe'; ctx.lineWidth = 5;
+          bCtx.strokeStyle = '#242424'; bCtx.lineWidth = 6;
+          const drawRune = (cTarget) => {
+            cTarget.beginPath();
+            cTarget.moveTo(rx, ry - 70); cTarget.lineTo(rx, ry + 70);
+            if (i % 3 === 0) { cTarget.moveTo(rx - 14, ry - 30); cTarget.lineTo(rx + 16, ry); cTarget.lineTo(rx - 14, ry + 35); }
+            else if (i % 3 === 1) { cTarget.moveTo(rx - 16, ry - 48); cTarget.lineTo(rx, ry - 10); cTarget.lineTo(rx + 16, ry - 48); cTarget.moveTo(rx - 12, ry + 28); cTarget.lineTo(rx + 14, ry + 28); }
+            else { cTarget.moveTo(rx - 14, ry); cTarget.lineTo(rx, ry - 42); cTarget.lineTo(rx + 14, ry); cTarget.lineTo(rx, ry + 42); cTarget.closePath(); }
+            cTarget.stroke();
+          };
+          drawRune(ctx); drawRune(bCtx);
+        }
+      } else if (kind === 'astral_cosmos') {
+        // Terciopelo azul medianoche & violeta real con constelaciones doradas/plata
+        const g = ctx.createLinearGradient(0, 0, S, S);
+        g.addColorStop(0, '#0d1945'); g.addColorStop(0.5, '#241047'); g.addColorStop(1, '#0e1b49');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        ctx.strokeStyle = '#cbb6ff'; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(18, S); ctx.moveTo(S - 18, 0); ctx.lineTo(S - 18, S); ctx.stroke();
+        const stars = [
+          [110, 80], [200, 130], [155, 225], [260, 275], [340, 180], [400, 105],
+          [125, 360], [230, 415], [320, 345], [395, 405], [256, 170], [256, 325]
+        ];
+        ctx.strokeStyle = 'rgba(226, 208, 255, 0.78)'; ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        [[0,1],[1,2],[2,3],[3,4],[4,5],[2,10],[10,4],[6,7],[7,8],[8,9],[3,11],[11,8]].forEach(([a, bIdx]) => {
+          ctx.moveTo(stars[a][0], stars[a][1]); ctx.lineTo(stars[bIdx][0], stars[bIdx][1]);
+        });
+        ctx.stroke();
+        stars.forEach(([sx, sy], idx) => {
+          const r = idx % 3 === 0 ? 7.5 : 4.5;
+          ctx.fillStyle = idx % 2 === 0 ? '#fde68a' : '#e9d5ff';
+          ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+          bCtx.fillStyle = '#ffffff';
+          bCtx.beginPath(); bCtx.arc(sx, sy, r, 0, Math.PI * 2); bCtx.fill();
+        });
+      } else if (kind === 'crimson_flame') {
+        // Terciopelo carmesí & negro con llamas doradas en los bordes y centro
+        const g = ctx.createLinearGradient(0, 0, S, 0);
+        g.addColorStop(0, '#1f0509'); g.addColorStop(0.5, '#7c101e'); g.addColorStop(1, '#1f0509');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+        ctx.strokeStyle = '#d4a038'; ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(18, S); ctx.moveTo(S - 18, 0); ctx.lineTo(S - 18, S); ctx.stroke();
+        for (let k = -1; k <= 1; k++) {
+          const bx = S * 0.5 + k * 145;
+          ctx.strokeStyle = k === 0 ? '#f59e0b' : '#c88e2b'; ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(bx, S - 24);
+          ctx.bezierCurveTo(bx - 42, S * 0.65, bx + 42, S * 0.36, bx, 38);
+          ctx.bezierCurveTo(bx - 18, S * 0.38, bx + 26, S * 0.66, bx, S - 24);
+          ctx.stroke();
+          bCtx.strokeStyle = '#f0f0f0'; bCtx.lineWidth = 7;
+          bCtx.beginPath();
+          bCtx.moveTo(bx, S - 24);
+          bCtx.bezierCurveTo(bx - 42, S * 0.65, bx + 42, S * 0.36, bx, 38);
+          bCtx.stroke();
+        }
+      } else if (kind === 'crimson_scales') {
+        // Escamas de dragón carmesí oscurecido con filos bruñidos de oro/rojo
+        ctx.fillStyle = '#1f080d'; ctx.fillRect(0, 0, S, S);
+        const step = 64;
+        for (let row = 0; row <= S + step; row += step / 2) {
+          const off = (Math.round(row / (step / 2)) % 2) * (step / 2);
+          for (let col = -step; col <= S + step; col += step) {
+            const cx = col + off, cy = row;
+            const sg = ctx.createRadialGradient(cx, cy - 10, 4, cx, cy, step * 0.55);
+            sg.addColorStop(0, '#991b1b'); sg.addColorStop(0.72, '#3b0712'); sg.addColorStop(1, '#120306');
+            ctx.fillStyle = sg;
+            ctx.beginPath(); ctx.moveTo(cx, cy + 28); ctx.lineTo(cx + 30, cy); ctx.lineTo(cx, cy - 28); ctx.lineTo(cx - 30, cy); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#c88b32'; ctx.lineWidth = 2.5; ctx.stroke();
+            bCtx.fillStyle = '#d4d4d4';
+            bCtx.beginPath(); bCtx.moveTo(cx, cy + 24); bCtx.lineTo(cx + 26, cy); bCtx.lineTo(cx, cy - 24); bCtx.lineTo(cx - 26, cy); bCtx.closePath(); bCtx.fill();
+          }
+        }
+      }
+
+      const colorTex = new THREE.CanvasTexture(c);
+      colorTex.wrapS = THREE.RepeatWrapping; colorTex.wrapT = THREE.RepeatWrapping;
+      colorTex.colorSpace = THREE.SRGBColorSpace;
+      const bumpTex = new THREE.CanvasTexture(b);
+      bumpTex.wrapS = THREE.RepeatWrapping; bumpTex.wrapT = THREE.RepeatWrapping;
+      sovereignBeltTexCache[kind] = { colorTex, bumpTex };
+      return sovereignBeltTexCache[kind];
+    }
+
+    // Construye los 4 diseños de cinturones reales de gala para niveles S y SR (y estilos 10..16):
+    //  - 'imperial_celestial' (belt 13): Corona dorada de filigrana + zafiro azul + alerones de cadera + faldón marfil con flecos dorados
+    //  - 'sylvan_verdant'     (belt 11, 14): Corsé de bronce con hojas 3D + 3 gemas ámbar + fajas esmeralda/oro + doble cinta con lianas
+    //  - 'astral_runic'       (belt 12, 15): Bandas de acero con runas + amatistas + cadenas con medallones astrolabio + faldón de constelaciones y borlas
+    //  - 'crimson_dragonscale'(belt 10, 16): Hebilla de fuego dorado + escamas de dragón superpuestas + cadenas con borlas negras + faldones flameados
+    function buildSovereignOrnateBelt(beltType, pelvisMeshes, mats) {
+      const pelvisBox = getWorldBoxOfParts(['pelvis']);
+      if (!pelvisBox || !armorSockets.belt) return;
+
+      const styleMap = {
+        10: 'crimson_dragonscale',
+        11: 'sylvan_verdant',
+        12: 'astral_runic',
+        13: 'imperial_celestial',
+        14: 'sylvan_verdant',
+        15: 'astral_runic',
+        16: 'crimson_dragonscale'
+      };
+      const style = styleMap[beltType] || 'imperial_celestial';
+      const pSize = pelvisBox.getSize(new THREE.Vector3());
+      const pCenter = pelvisBox.getCenter(new THREE.Vector3());
+      const bScale = STATE.fit.beltScale || 1.0;
+      const bOffY = STATE.fit.beltOffsetY || 0;
+      const bOffZ = STATE.fit.beltOffsetZ || 0;
+
+      // Muestreador radial exacto sobre pelvis y peto (sin incluir faldón largo de mago para no inflar el radio de cintura)
+      const HB = 16, AB = 48;
+      const yMinScan = pelvisBox.min.y - 0.04;
+      const yMaxScan = pelvisBox.max.y + 0.14;
+      const rGrid = new Float32Array(HB * AB);
+      const baseRx = pSize.x * 0.50;
+      const baseRz = pSize.z * 0.50;
+      for (let h = 0; h < HB; h++) {
+        for (let k = 0; k < AB; k++) {
+          const a = -Math.PI + (k / AB) * Math.PI * 2;
+          rGrid[h * AB + k] = Math.hypot(Math.sin(a) * baseRx, Math.cos(a) * baseRz);
+        }
+      }
+
+      const toH = (yw) => Math.max(0, Math.min(HB - 1, Math.round(((yw - yMinScan) / (yMaxScan - yMinScan)) * (HB - 1))));
+      const toK = (a) => ((Math.round(((a + Math.PI) / (Math.PI * 2)) * AB) % AB) + AB) % AB;
+      const vTmp = new THREE.Vector3();
+      const scanObjs = [...(pelvisMeshes || []), ...(slotArmorMeshes.torso || [])];
+      scanObjs.forEach(obj => {
+        if (!obj) return;
+        obj.traverse(m => {
+          if (!m.isMesh || !m.geometry || !m.geometry.attributes || !m.geometry.attributes.position) return;
+          m.updateWorldMatrix(true, false);
+          const pos = m.geometry.attributes.position;
+          const stepV = pos.count > 1200 ? 2 : 1;
+          for (let i = 0; i < pos.count; i += stepV) {
+            vTmp.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+            if (vTmp.y < yMinScan || vTmp.y > yMaxScan) continue;
+            const dx = vTmp.x - pCenter.x, dz = vTmp.z - pCenter.z;
+            const r = Math.hypot(dx, dz);
+            if (r > pSize.x * 0.88) continue;
+            const a = Math.atan2(dx, dz);
+            const idx = toH(vTmp.y) * AB + toK(a);
+            if (r > rGrid[idx]) rGrid[idx] = r;
+          }
+        });
+      });
+      for (let pass = 0; pass < 2; pass++) {
+        const cp = new Float32Array(rGrid);
+        for (let h = 0; h < HB; h++) for (let k = 0; k < AB; k++) {
+          const c = cp[h * AB + k];
+          const avg = (cp[h * AB + (k + 1) % AB] + cp[h * AB + (k - 1 + AB) % AB]) * 0.5;
+          rGrid[h * AB + k] = Math.max(c * 0.985, c * 0.55 + avg * 0.45);
+        }
+      }
+      const envWorldR = (vn, a) => {
+        const yw = pelvisBox.min.y + vn * pSize.y;
+        const hf = Math.max(0, Math.min(HB - 1.001, ((yw - yMinScan) / (yMaxScan - yMinScan)) * (HB - 1)));
+        let af = ((a + Math.PI) / (Math.PI * 2)) * AB; af = ((af % AB) + AB) % AB;
+        const h0 = Math.floor(hf), h1 = Math.min(HB - 1, h0 + 1), th = hf - h0;
+        const k0 = Math.floor(af) % AB, k1 = (k0 + 1) % AB, ta = af - Math.floor(af);
+        const s0 = rGrid[h0 * AB + k0] * (1 - ta) + rGrid[h0 * AB + k1] * ta;
+        const s1 = rGrid[h1 * AB + k0] * (1 - ta) + rGrid[h1 * AB + k1] * ta;
+        return (s0 * (1 - th) + s1 * th) * (0.98 + 0.04 * bScale) + (STATE.fit.mageRobe ? 0.014 : 0);
+      };
+      const waistPt = (a, vn, outExtra = 0.008) => {
+        const r = envWorldR(vn, a) + outExtra * bScale;
+        const y = (vn - 0.5 + bOffY) * pSize.y;
+        return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r + bOffZ);
+      };
+
+      const beltGroup = new THREE.Group();
+      beltGroup.name = `Belt_Sovereign_${style}`;
+      // Longitud media de muslo (0.28..0.38m) proporcional al maniquí para no cubrir las grebas
+      const bannerLen = Math.min(0.40, Math.max(0.26, pSize.y * (STATE.fit.mageRobe ? 1.65 : 1.50))) * (STATE.fit.beltCrotchLength || 1.0);
+      const { glowMat } = mats;
+
+      const addHangingChain = (pts, radius, mat, withBeads = true) => {
+        const curve = new THREE.CatmullRomCurve3(pts);
+        beltGroup.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, radius, 6, false), mat));
+        if (withBeads) {
+          for (let b = 1; b < 9; b++) {
+            const link = new THREE.Mesh(new THREE.SphereGeometry(radius * 1.45, 6, 5), mat);
+            link.position.copy(curve.getPoint(b / 9));
+            beltGroup.add(link);
+          }
+        }
+        return curve;
+      };
+      const addTassel = (pos, len, rad, capMat, strandMat) => {
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.45, rad * 0.72, len * 0.24, 10), capMat);
+        cap.position.copy(pos).add(new THREE.Vector3(0, -len * 0.12, 0));
+        beltGroup.add(cap);
+        const skirt = new THREE.Mesh(new THREE.ConeGeometry(rad, len * 0.78, 12, 1, false), strandMat);
+        skirt.position.copy(pos).add(new THREE.Vector3(0, -len * 0.62, 0));
+        beltGroup.add(skirt);
+      };
+
+      if (style === 'imperial_celestial') {
+        // === 1. IMPERIAL CELESTIAL (Marfil & Filigrana Dorada + Zafiro + Alerones Picudos + Flecos Oro) ===
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xe6b84c, roughness: 0.22, metalness: 0.92 });
+        const ivoryPack = getSovereignBeltTexture('imperial_ivory');
+        const ivoryMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, map: ivoryPack.colorTex, bumpMap: ivoryPack.bumpTex, bumpScale: 0.015,
+          roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide
+        });
+        let saphMat = glowMat;
+        try { saphMat = getFacetedGemMaterial('sapphire', 'belt'); } catch (e) { }
+
+        const crownSurf = (u, v) => {
+          const a = (u - 0.5) * Math.PI * 2;
+          const vApex = Math.max(0, 1 - Math.abs(a) / 0.85);
+          const vTop = 0.78 + 0.28 * vApex;
+          const vBot = 0.46 - 0.16 * vApex;
+          return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.010 + 0.006 * vApex);
+        };
+        const crownGeo = createArmorPlatePatch(crownSurf, { uSegs: 64, vSegs: 8, thickness: 0.006 * bScale, refCenter: new THREE.Vector3(0, 0.22 * pSize.y, 0), wrapU: true });
+        beltGroup.add(new THREE.Mesh(crownGeo, goldMat));
+        const rTop = createRolledRimAlongRow(crownGeo, crownGeo.userData.rows - 1, 0.0038 * bScale, { closed: true });
+        if (rTop) beltGroup.add(new THREE.Mesh(rTop, goldMat));
+        const rBot = createRolledRimAlongRow(crownGeo, 0, 0.0036 * bScale, { closed: true });
+        if (rBot) beltGroup.add(new THREE.Mesh(rBot, goldMat));
+
+        [-1, 1].forEach(sd => {
+          const scrollPts = [
+            waistPt(sd * 0.12, 0.66, 0.018),
+            waistPt(sd * 0.26, 0.76, 0.018),
+            waistPt(sd * 0.44, 0.62, 0.016),
+            waistPt(sd * 0.64, 0.72, 0.015)
+          ];
+          beltGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(scrollPts), 20, 0.0034 * bScale, 6, false), goldMat));
+
+          // Alerones picudos afilados en las caderas (punta diagonal descendente hacia los flancos)
+          const wingSurf = (u, v) => {
+            const a = sd * (0.36 + u * 0.68);
+            const tipBias = Math.sin(u * Math.PI * 0.75);
+            const vTop = 0.70 - 0.18 * u;
+            const vBot = 0.46 - 0.34 * tipBias;
+            const vn = THREE.MathUtils.lerp(vBot, vTop, v);
+            const out = 0.014 + (1 - v) * 0.016 * tipBias;
+            return waistPt(a, vn, out);
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(wingSurf, { uSegs: 12, vSegs: 6, thickness: 0.0045 * bScale, refCenter: new THREE.Vector3(0, 0, 0) }), goldMat));
+        });
+
+        const gemCenter = waistPt(0, 0.72, 0.025);
+        const saph = new THREE.Mesh(new THREE.SphereGeometry(0.018 * bScale, 16, 12), saphMat);
+        saph.scale.set(0.76, 1.32, 0.52);
+        saph.position.copy(gemCenter);
+        beltGroup.add(saph);
+        const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.020 * bScale, 0.0038 * bScale, 8, 22), goldMat);
+        bezel.scale.set(0.84, 1.38, 1.0);
+        bezel.position.copy(gemCenter).add(new THREE.Vector3(0, 0, -0.002));
+        beltGroup.add(bezel);
+
+        // Estola central estrecha marfil (sin tapar las caderas) + lanza dorada + flecos
+        const cTopPt = waistPt(0, 0.44, 0.020);
+        const tabW = Math.max(0.056, pSize.x * 0.185) * bScale;
+        const centralSurf = (u, v) => {
+          const s = u * 2 - 1;
+          const x = s * tabW * 0.5 * (0.86 + 0.16 * v);
+          const y = cTopPt.y - v * (bannerLen * 0.86);
+          const z = cTopPt.z + v * 0.022 + Math.sin(u * Math.PI * 3) * 0.003 * v;
+          return new THREE.Vector3(x, y, z);
+        };
+        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(centralSurf, { uSegs: 12, vSegs: 18, thickness: 0.0038, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), ivoryMat));
+        const spearCurve = new THREE.CatmullRomCurve3([
+          centralSurf(0.5, 0.05), centralSurf(0.28, 0.30), centralSurf(0.5, 0.86), centralSurf(0.72, 0.30), centralSurf(0.5, 0.05)
+        ]);
+        beltGroup.add(new THREE.Mesh(new THREE.TubeGeometry(spearCurve, 32, 0.0026 * bScale, 6, false), goldMat));
+        for (let f = 0; f <= 10; f++) {
+          const fp = centralSurf(f / 10, 1.0);
+          const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0012, 0.028 * bScale, 5), goldMat);
+          fr.position.copy(fp).add(new THREE.Vector3(0, -0.014 * bScale, 0));
+          beltGroup.add(fr);
+        }
+
+        // Faldones laterales marfil que envuelven las caderas exteriores (desde a=0.32 hacia los flancos, puntas diagonales)
+        [-1, 1].forEach(sd => {
+          const sideSurf = (u, v) => {
+            const a = sd * (0.32 + u * 0.92);
+            const drop = bannerLen * (0.60 + 0.44 * u);
+            const flare = 0.012 + v * (0.028 + u * 0.012);
+            const pt = waistPt(a, 0.44, flare);
+            pt.y -= v * drop;
+            return pt;
+          };
+          const sGeo = createArmorPlatePatch(sideSurf, { uSegs: 14, vSegs: 18, thickness: 0.0038, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
+          beltGroup.add(new THREE.Mesh(sGeo, ivoryMat));
+          const hemRim = createRolledRimAlongRow(sGeo, sGeo.userData.rows - 1, 0.0032 * bScale);
+          if (hemRim) beltGroup.add(new THREE.Mesh(hemRim, goldMat));
+          for (let f = 1; f < 9; f++) {
+            const fp = sideSurf(f / 9, 1.0);
+            const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0012, 0.028 * bScale, 5), goldMat);
+            fr.position.copy(fp).add(new THREE.Vector3(0, -0.014 * bScale, 0));
+            beltGroup.add(fr);
+          }
+        });
+
+      } else if (style === 'sylvan_verdant') {
+        // === 2. SYLVAN VERDANT (Bronce Foliar + 3 Ámbares + Fajas Esmeralda/Oro + Cintas con Lianas) ===
+        const bronzeMat = new THREE.MeshStandardMaterial({ color: 0xb08944, roughness: 0.30, metalness: 0.85 });
+        const emeraldMat = new THREE.MeshStandardMaterial({ color: 0x0b533a, roughness: 0.58, metalness: 0.14, side: THREE.DoubleSide });
+        const oliveGoldMat = new THREE.MeshStandardMaterial({ color: 0x8b6c2b, roughness: 0.48, metalness: 0.25, side: THREE.DoubleSide });
+        const vinePack = getSovereignBeltTexture('sylvan_vine');
+        const vineMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, map: vinePack.colorTex, bumpMap: vinePack.bumpTex, bumpScale: 0.015,
+          roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide
+        });
+        let amberMat = glowMat;
+        try { amberMat = getFacetedGemMaterial('topaz', 'belt'); } catch (e) { }
+
+        const leafBeltSurf = (u, v) => {
+          const a = (u - 0.5) * Math.PI * 2;
+          const vApex = Math.max(0, 1 - Math.abs(a) / 0.85);
+          const sideLeaf = Math.pow(Math.abs(Math.sin(a * 2)), 1.5) * 0.06;
+          const vTop = 0.78 + 0.22 * vApex + sideLeaf;
+          const vBot = 0.46 - 0.14 * vApex;
+          return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.012 + 0.006 * vApex);
+        };
+        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(leafBeltSurf, { uSegs: 60, vSegs: 8, thickness: 0.006 * bScale, refCenter: new THREE.Vector3(0, 0.15 * pSize.y, 0), wrapU: true }), bronzeMat));
+
+        for (let lf = -3; lf <= 3; lf++) {
+          const ang = lf * 0.11;
+          const blade = new THREE.Mesh(new THREE.OctahedronGeometry(0.016 * bScale, 0), bronzeMat);
+          blade.scale.set(0.42, 1.55, 0.25);
+          blade.position.copy(waistPt(ang, 0.66 + (3 - Math.abs(lf)) * 0.05, 0.021));
+          blade.rotation.set(0, -ang, -lf * 0.38);
+          beltGroup.add(blade);
+        }
+        [0, -0.78, 0.78].forEach((ga, idx) => {
+          const gPos = waistPt(ga, idx === 0 ? 0.64 : 0.66, 0.024);
+          const gem = new THREE.Mesh(new THREE.SphereGeometry((idx === 0 ? 0.018 : 0.013) * bScale, 14, 10), amberMat);
+          gem.scale.set(0.78, 1.25, 0.52);
+          gem.position.copy(gPos);
+          gem.rotation.y = ga;
+          beltGroup.add(gem);
+        });
+
+        [-1, 1].forEach(sd => {
+          const sashSurf = (u, v) => {
+            const a = sd * (0.24 + u * 0.96);
+            const pleat = Math.sin(v * Math.PI * 5) * 0.005;
+            const vn = THREE.MathUtils.lerp(0.14 - 0.14 * u, 0.46 - 0.08 * u, v);
+            return waistPt(a, vn, 0.012 + (1 - v) * 0.012 + pleat);
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(sashSurf, { uSegs: 16, vSegs: 10, thickness: 0.0038, refCenter: new THREE.Vector3(0, 0, 0) }), emeraldMat));
+
+          // Faldones laterales exteriores asimétricos con holgura suficiente sobre musleras
+          const drapeSurf = (u, v) => {
+            const a = sd * (0.34 + u * 0.96);
+            const drop = bannerLen * (0.64 + (sd > 0 ? u : (1 - u)) * 0.40);
+            const pt = waistPt(a, 0.40, 0.014 + v * 0.030 + Math.sin(u * Math.PI * 4) * 0.005 * v);
+            pt.y -= v * drop;
+            return pt;
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(drapeSurf, { uSegs: 14, vSegs: 18, thickness: 0.0036, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), sd < 0 ? emeraldMat : oliveGoldMat));
+          for (let f = 1; f < 9; f++) {
+            const fp = drapeSurf(f / 9, 1.0);
+            const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0012, 0.026 * bScale, 5), bronzeMat);
+            fr.position.copy(fp).add(new THREE.Vector3(0, -0.013 * bScale, 0));
+            beltGroup.add(fr);
+          }
+
+          // Dos cintas delanteras estrechas con lianas verdes claramente por delante y terminación en V
+          const ribTop = waistPt(sd * 0.14, 0.46, 0.028);
+          const ribW = Math.max(0.028, pSize.x * 0.095) * bScale;
+          const ribSurf = (u, v) => {
+            const s = Math.abs(u * 2 - 1);
+            const x = ribTop.x + (u - 0.5) * ribW + sd * v * 0.012;
+            const vTip = v > 0.86 ? (1 - s) * ((v - 0.86) / 0.14) * 0.032 : 0;
+            const y = ribTop.y - v * (bannerLen * 0.98) - vTip;
+            const z = ribTop.z + v * 0.026 + Math.sin(v * Math.PI * 2) * 0.004;
+            return new THREE.Vector3(x, y, z);
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(ribSurf, { uSegs: 6, vSegs: 20, thickness: 0.0035, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), vineMat));
+        });
+
+      } else if (style === 'astral_runic') {
+        // === 3. ASTRAL RUNIC (3 Chevrones Escalonados con Runas + Amatistas + Cadenas con Astrolabios + Constelaciones & Borlas) ===
+        const runePack = getSovereignBeltTexture('astral_runes');
+        const runeMetalMat = new THREE.MeshStandardMaterial({
+          color: 0xcbd5e1, map: runePack.colorTex, bumpMap: runePack.bumpTex, bumpScale: 0.018,
+          roughness: 0.30, metalness: 0.86, emissive: new THREE.Color(0x6d28d9), emissiveIntensity: 0.32
+        });
+        const cosmosPack = getSovereignBeltTexture('astral_cosmos');
+        const cosmosMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, map: cosmosPack.colorTex, bumpMap: cosmosPack.bumpTex, bumpScale: 0.012,
+          roughness: 0.62, metalness: 0.14, side: THREE.DoubleSide
+        });
+        const silverMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.25, metalness: 0.92 });
+        const lavenderMat = new THREE.MeshStandardMaterial({ color: 0xc4b5fd, roughness: 0.55, metalness: 0.25 });
+        let ameMat = glowMat;
+        try { ameMat = getFacetedGemMaterial('amethyst', 'belt'); } catch (e) { }
+
+        // 3 bandas escalonadas en V claramente separadas y con el metal rúnico en primer plano
+        for (let band = 0; band < 3; band++) {
+          const yOff = band * 0.14;
+          const bandSurf = (u, v) => {
+            const a = (u - 0.5) * Math.PI * 2;
+            const vApex = Math.max(0, 1 - Math.abs(a) / 0.88);
+            const vTop = (0.86 - yOff) + 0.16 * vApex;
+            const vBot = (0.71 - yOff) - 0.16 * vApex;
+            return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.012 + (2 - band) * 0.0045 + 0.004 * vApex);
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(bandSurf, { uSegs: 60, vSegs: 5, thickness: 0.005 * bScale, refCenter: new THREE.Vector3(0, 0.1 * pSize.y, 0), wrapU: true }), band < 2 ? runeMetalMat : silverMat));
+        }
+
+        [-0.45, -0.22, 0.22, 0.45].forEach(aa => {
+          const st = new THREE.Mesh(new THREE.OctahedronGeometry(0.0085 * bScale, 0), ameMat);
+          st.position.copy(waistPt(aa, 0.78, 0.026));
+          beltGroup.add(st);
+        });
+        const centerGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.022 * bScale, 0), ameMat);
+        centerGem.scale.set(0.75, 1.38, 0.55);
+        centerGem.position.copy(waistPt(0, 0.76, 0.032));
+        beltGroup.add(centerGem);
+
+        const chCenter = waistPt(0, 0.40, 0.030);
+        [-1, 1].forEach(sd => {
+          const hipMid = waistPt(sd * 0.46, 0.20, 0.038);
+          const hipSide = waistPt(sd * 0.88, 0.54, 0.026);
+          addHangingChain([chCenter, hipMid, hipSide], 0.0026 * bScale, silverMat, true);
+
+          const medPos = hipMid.clone().add(new THREE.Vector3(0, -0.052 * bScale, 0.008));
+          addHangingChain([hipMid, medPos], 0.0018 * bScale, silverMat, false);
+          const medRing = new THREE.Mesh(new THREE.TorusGeometry(0.020 * bScale, 0.0030 * bScale, 8, 22), silverMat);
+          medRing.position.copy(medPos);
+          medRing.rotation.y = sd * 0.42;
+          beltGroup.add(medRing);
+          const crossA = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.038 * bScale, 6), silverMat);
+          crossA.position.copy(medPos);
+          beltGroup.add(crossA);
+          const crossB = crossA.clone(); crossB.rotation.z = Math.PI / 2; crossB.rotation.x = 0; beltGroup.add(crossB);
+        });
+        [-0.034, 0.0, 0.034].forEach((vx, idx) => {
+          const vp = chCenter.clone().add(new THREE.Vector3(vx, -0.042 - (idx === 1 ? 0.014 : 0), 0.010));
+          const vial = new THREE.Mesh(new THREE.CylinderGeometry(0.0050 * bScale, 0.0050 * bScale, 0.026 * bScale, 8), ameMat);
+          vial.position.copy(vp);
+          beltGroup.add(vial);
+        });
+
+        // Estola central estrecha en rombo con constelaciones y flecos-borlas lavanda
+        const cTop = waistPt(0, 0.42, 0.020);
+        const tabW = Math.max(0.062, pSize.x * 0.205) * bScale;
+        const astralCenterSurf = (u, v) => {
+          const s = u * 2 - 1;
+          const x = s * tabW * 0.5 * (1.0 - v * 0.14);
+          const vTip = (v > 0.72) ? (1 - Math.abs(s)) * ((v - 0.72) / 0.28) * 0.075 : 0;
+          const y = cTop.y - (v * bannerLen * 0.80 + vTip);
+          const z = cTop.z + v * 0.022 + Math.sin(u * Math.PI * 3) * 0.003 * v;
+          return new THREE.Vector3(x, y, z);
+        };
+        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(astralCenterSurf, { uSegs: 12, vSegs: 18, thickness: 0.0038, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat));
+        for (let t = 0; t <= 8; t++) {
+          const tp = astralCenterSurf(t / 8, 1.0);
+          addTassel(tp, 0.045 * bScale, 0.0050 * bScale, silverMat, lavenderMat);
+        }
+        [-1, 1].forEach(sd => {
+          const sidePanel = (u, v) => {
+            const a = sd * (0.34 + u * 0.90);
+            const drop = bannerLen * (0.64 + Math.sin(u * Math.PI) * 0.36);
+            const pt = waistPt(a, 0.44, 0.012 + v * 0.026 + Math.sin(u * Math.PI * 4) * 0.005 * v);
+            pt.y -= v * drop;
+            return pt;
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(sidePanel, { uSegs: 14, vSegs: 18, thickness: 0.0038, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat));
+          addTassel(sidePanel(0.5, 1.0), 0.055 * bScale, 0.0075 * bScale, silverMat, lavenderMat);
+        });
+
+      } else {
+        // === 4. CRIMSON DRAGONSCALE & FLAME (Hebilla Oro Fuego + Escamas Dragón + Cadenas & Borlas Negras + Estandartes Flameados) ===
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xdca434, roughness: 0.24, metalness: 0.90 });
+        const flamePack = getSovereignBeltTexture('crimson_flame');
+        const flameMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, map: flamePack.colorTex, bumpMap: flamePack.bumpTex, bumpScale: 0.016,
+          roughness: 0.48, metalness: 0.25, side: THREE.DoubleSide
+        });
+        const scalePack = getSovereignBeltTexture('crimson_scales');
+        const scaleMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff, map: scalePack.colorTex, bumpMap: scalePack.bumpTex, bumpScale: 0.020,
+          roughness: 0.36, metalness: 0.52, side: THREE.DoubleSide
+        });
+        const blackSilkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
+        let rubyMat = glowMat;
+        try { rubyMat = getFacetedGemMaterial('ruby', 'belt'); } catch (e) { }
+
+        const flameBeltSurf = (u, v) => {
+          const a = (u - 0.5) * Math.PI * 2;
+          const vApex = Math.max(0, 1 - Math.abs(a) / 0.85);
+          const vTop = 0.78 + 0.26 * vApex;
+          const vBot = 0.48 - 0.16 * vApex;
+          return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.012 + 0.006 * vApex);
+        };
+        const fbGeo = createArmorPlatePatch(flameBeltSurf, { uSegs: 60, vSegs: 7, thickness: 0.006 * bScale, refCenter: new THREE.Vector3(0, 0.15 * pSize.y, 0), wrapU: true });
+        beltGroup.add(new THREE.Mesh(fbGeo, goldMat));
+        const rFlameTop = createRolledRimAlongRow(fbGeo, fbGeo.userData.rows - 1, 0.0036 * bScale, { closed: true });
+        if (rFlameTop) beltGroup.add(new THREE.Mesh(rFlameTop, goldMat));
+
+        const buckleGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.016 * bScale, 0), rubyMat);
+        buckleGem.scale.set(0.75, 1.35, 0.5);
+        buckleGem.position.copy(waistPt(0, 0.70, 0.025));
+        beltGroup.add(buckleGem);
+
+        // 3 filas prominentes de escamas de dragón superpuestas sobre las caderas y frente
+        for (let row = 0; row < 3; row++) {
+          const scaleFlap = (u, v) => {
+            const a = (u - 0.5) * Math.PI * 1.45;
+            const frontV = Math.max(0, 1 - Math.abs(a) / 0.90) * 0.16;
+            const vn = THREE.MathUtils.lerp(0.30 - row * 0.14 - frontV, 0.50 - row * 0.12 - frontV * 0.4, v);
+            const out = 0.019 + (2 - row) * 0.005 + (1 - v) * 0.012;
+            return waistPt(a, vn, out);
+          };
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(scaleFlap, { uSegs: 36, vSegs: 5, thickness: 0.005, refCenter: new THREE.Vector3(0, 0, 0) }), scaleMat));
+        }
+
+        const cStart = waistPt(0, 0.40, 0.030);
+        [-1, 1].forEach(sd => {
+          const cMid = waistPt(sd * 0.42, 0.18, 0.040);
+          const cEnd = waistPt(sd * 0.88, 0.48, 0.028);
+          addHangingChain([cStart, cMid, cEnd], 0.0028 * bScale, goldMat, true);
+
+          const tasselAnchor = waistPt(sd * 0.24, 0.28, 0.036);
+          addHangingChain([waistPt(sd * 0.20, 0.44, 0.028), tasselAnchor], 0.0020 * bScale, goldMat, false);
+          addTassel(tasselAnchor, 0.088 * bScale, 0.011 * bScale, goldMat, blackSilkMat);
+        });
+
+        // Estandarte central estrecho puntiagudo carmesí flameado
+        const fTop = waistPt(0, 0.34, 0.018);
+        const tabW = Math.max(0.058, pSize.x * 0.195) * bScale;
+        const centerFlameSurf = (u, v) => {
+          const s = u * 2 - 1;
+          const x = s * tabW * 0.5 * (1.0 - v * 0.12);
+          const vTip = (v > 0.72) ? (1 - Math.abs(s)) * ((v - 0.72) / 0.28) * 0.075 : 0;
+          const y = fTop.y - (v * bannerLen * 0.82 + vTip);
+          const z = fTop.z + v * 0.022;
+          return new THREE.Vector3(x, y, z);
+        };
+        const cfGeo = createArmorPlatePatch(centerFlameSurf, { uSegs: 10, vSegs: 18, thickness: 0.0038, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
+        beltGroup.add(new THREE.Mesh(cfGeo, flameMat));
+        const cfRim = createRolledRimAlongRow(cfGeo, cfGeo.userData.rows - 1, 0.0028 * bScale);
+        if (cfRim) beltGroup.add(new THREE.Mesh(cfRim, goldMat));
+
+        [-1, 1].forEach(sd => {
+          const wingFlameSurf = (u, v) => {
+            const a = sd * (0.35 + u * 0.90);
+            const drop = bannerLen * (0.58 + u * 0.44);
+            const pt = waistPt(a, 0.36, 0.014 + v * 0.028);
+            pt.y -= v * drop;
+            return pt;
+          };
+          const wfGeo = createArmorPlatePatch(wingFlameSurf, { uSegs: 12, vSegs: 18, thickness: 0.0038, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
+          beltGroup.add(new THREE.Mesh(wfGeo, flameMat));
+          addTassel(wingFlameSurf(0.88, 1.0), 0.060 * bScale, 0.008 * bScale, goldMat, goldMat);
+        });
+      }
+
+      _rbTag(beltGroup, 'belt');
+      attachOrnamentWorld(armorSockets.belt, beltGroup, pCenter, new THREE.Quaternion(), 'belt');
+    }
+
     function buildArticulatedBelt() {
       const beltType = STATE.equipment.belt;
-      if (beltType === 0 || STATE.fit.mageRobe) return;
+      if (beltType === 0 || (STATE.fit.mageRobe && beltType < 10)) return;
       if (beltType === 9) { buildRavenboneBeltDuster(); return; }
 
       currentBuildingSlot = 'belt';
@@ -6786,12 +7446,17 @@
       const clothMat = getPBRMaterial('cloth');
       const glowMat = getGlowMaterial();
 
+      const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
+      if (beltType >= 10 && beltType <= 16) {
+        buildSovereignOrnateBelt(beltType, pelvisMeshes, { mainMat, trimMat, clothMat, glowMat });
+        return;
+      }
+
       const bScale = STATE.fit.beltScale;
       const bOffY = STATE.fit.beltOffsetY;
       const bOffZ = STATE.fit.beltOffsetZ;
       const cLen = STATE.fit.beltCrotchLength;
 
-      const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
       let shellsCreated = 0;
       // Todas las bandas del cinturón llevan ribete dorado en los cantos
       const beltShells = [];
@@ -7219,11 +7884,6 @@
           crystalDrop.position.set(0, tabardTopY - tabardLen - tabardW * 0.22, frontSurfaceZ + 0.007);
           beltGroup.add(crystalDrop);
         }
-      }
-
-      // Faldones y colas de alta costura para Sets 18, 19 y 20 (beltType 10, 11, 12)
-      if (beltType >= 10 && beltType <= 12) {
-        buildArchetypeBeltExtras(beltType, beltGroup, new THREE.Vector3(0, 0, 0), pSize, waistW * 2.0, buckleY, frontSurfaceZ, bScale);
       }
 
       // Hebilla ornamentada (L2) con gema y adornos según el modelo
@@ -11826,50 +12486,52 @@
           clothMat
         ));
 
-        // B) CINTURONES CRUZADOS ESTRECHOS EN LA CINTURA Y CADERA (Doble correa estrecha en X + hebillas finas + lengüeta colgante)
-        const rWaistX = pSize.x * 0.575;
-        const rWaistZ = pSize.z * 0.575;
-        const beltConfigs = [
-          { tiltY: 0.0,   yOff: skirtTopY - 0.01, w: 0.022 }, // Cinturón horizontal estrecho
-          { tiltY: 0.052, yOff: skirtTopY - 0.04, w: 0.020 }, // Cinturón inclinado 1 (cruce en X)
-          { tiltY: -0.052,yOff: skirtTopY - 0.04, w: 0.020 }  // Cinturón inclinado 2 (cruce en X)
-        ];
-        beltConfigs.forEach((bc, bIdx) => {
-          const pts = [];
-          const segs = 32;
-          for (let i = 0; i <= segs; i++) {
-            const a = (i / segs) * Math.PI * 2;
-            const x = Math.sin(a) * (rWaistX + bIdx * 0.002);
-            const z = Math.cos(a) * (rWaistZ + bIdx * 0.002);
-            const y = bc.yOff + Math.sin(a) * bc.tiltY - Math.cos(a) * 0.012;
-            pts.push(new THREE.Vector3(x, y, z));
-          }
-          const beltCurve = new THREE.CatmullRomCurve3(pts, true);
-          robeGrp.add(new THREE.Mesh(new THREE.TubeGeometry(beltCurve, 48, bc.w * 0.48, 8, true), narrowBeltMat));
+        // B) CINTURONES CRUZADOS ESTRECHOS EN LA CINTURA Y CADERA (solo D..A; los niveles S/SR >= 10 usan buildSovereignOrnateBelt)
+        if (STATE.equipment.belt < 10) {
+          const rWaistX = pSize.x * 0.575;
+          const rWaistZ = pSize.z * 0.575;
+          const beltConfigs = [
+            { tiltY: 0.0,   yOff: skirtTopY - 0.01, w: 0.022 }, // Cinturón horizontal estrecho
+            { tiltY: 0.052, yOff: skirtTopY - 0.04, w: 0.020 }, // Cinturón inclinado 1 (cruce en X)
+            { tiltY: -0.052,yOff: skirtTopY - 0.04, w: 0.020 }  // Cinturón inclinado 2 (cruce en X)
+          ];
+          beltConfigs.forEach((bc, bIdx) => {
+            const pts = [];
+            const segs = 32;
+            for (let i = 0; i <= segs; i++) {
+              const a = (i / segs) * Math.PI * 2;
+              const x = Math.sin(a) * (rWaistX + bIdx * 0.002);
+              const z = Math.cos(a) * (rWaistZ + bIdx * 0.002);
+              const y = bc.yOff + Math.sin(a) * bc.tiltY - Math.cos(a) * 0.012;
+              pts.push(new THREE.Vector3(x, y, z));
+            }
+            const beltCurve = new THREE.CatmullRomCurve3(pts, true);
+            robeGrp.add(new THREE.Mesh(new THREE.TubeGeometry(beltCurve, 48, bc.w * 0.48, 8, true), narrowBeltMat));
 
-          // Hebilla fina delantera en cada cinturón estrecho
-          const frontBuckle = new THREE.Mesh(new THREE.BoxGeometry(bc.w * 1.6, bc.w * 1.25, 0.012), buckleMat);
-          frontBuckle.position.set((bIdx - 1) * 0.022, bc.yOff - 0.012, rWaistZ + 0.008);
-          frontBuckle.rotation.z = bc.tiltY * 4.5;
-          robeGrp.add(frontBuckle);
-        });
+            // Hebilla fina delantera en cada cinturón estrecho
+            const frontBuckle = new THREE.Mesh(new THREE.BoxGeometry(bc.w * 1.6, bc.w * 1.25, 0.012), buckleMat);
+            frontBuckle.position.set((bIdx - 1) * 0.022, bc.yOff - 0.012, rWaistZ + 0.008);
+            frontBuckle.rotation.z = bc.tiltY * 4.5;
+            robeGrp.add(frontBuckle);
+          });
 
-        // Lengüeta estrecha de cuero colgando de la hebilla lateral junto con grimorio/bolsa de componentes
-        const tonguePts = [
-          new THREE.Vector3(0.03, skirtTopY - 0.03, rWaistZ + 0.010),
-          new THREE.Vector3(0.055, skirtTopY - 0.16, rWaistZ + 0.018),
-          new THREE.Vector3(0.065, skirtTopY - 0.30, rWaistZ + 0.014)
-        ];
-        robeGrp.add(new THREE.Mesh(buildStrapRibbon(new THREE.CatmullRomCurve3(tonguePts), 0.018, 0.004, 18), narrowBeltMat));
+          // Lengüeta estrecha de cuero colgando de la hebilla lateral junto con grimorio/bolsa de componentes
+          const tonguePts = [
+            new THREE.Vector3(0.03, skirtTopY - 0.03, rWaistZ + 0.010),
+            new THREE.Vector3(0.055, skirtTopY - 0.16, rWaistZ + 0.018),
+            new THREE.Vector3(0.065, skirtTopY - 0.30, rWaistZ + 0.014)
+          ];
+          robeGrp.add(new THREE.Mesh(buildStrapRibbon(new THREE.CatmullRomCurve3(tonguePts), 0.018, 0.004, 18), narrowBeltMat));
 
-        // Escarcela/bolsa de hechicero o grimorio sujeto al cinturón cruzado en la cadera izquierda
-        const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.032), narrowBeltMat);
-        pouch.position.set(-rWaistX * 0.96, skirtTopY - 0.10, 0.04);
-        pouch.rotation.z = 0.15;
-        robeGrp.add(pouch);
-        const pouchClasp = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.036), buckleMat);
-        pouchClasp.position.copy(pouch.position).add(new THREE.Vector3(-0.004, 0.012, 0));
-        robeGrp.add(pouchClasp);
+          // Escarcela/bolsa de hechicero o grimorio sujeto al cinturón cruzado en la cadera izquierda
+          const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.032), narrowBeltMat);
+          pouch.position.set(-rWaistX * 0.96, skirtTopY - 0.10, 0.04);
+          pouch.rotation.z = 0.15;
+          robeGrp.add(pouch);
+          const pouchClasp = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.036), buckleMat);
+          pouchClasp.position.copy(pouch.position).add(new THREE.Vector3(-0.004, 0.012, 0));
+          robeGrp.add(pouchClasp);
+        }
 
         attachOrnamentWorld(armorSockets.belt || armorSockets.pelvis, robeGrp, pc, new THREE.Quaternion(), 'belt');
       }
