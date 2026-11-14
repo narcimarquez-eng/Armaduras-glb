@@ -1298,24 +1298,31 @@
       },
       {
         name: '18. Soberano Dracónico Carmesí & Plata Negra (Pesada Real)',
-        desc: 'Armadura pesada imperial de acero damasquinado negro-plata, filigrana barroca en oro bruñido y rubíes facetados: corona-visera dracónica, 6 alas dorsales cortantes, manto real carmesí, guanteletes de garras, mandoble y escudo dracónico alado',
+        desc: 'Armadura pesada imperial de acero damasquinado negro-plata, filigrana barroca en oro bruñido y rubíes facetados: corona-visera dracónica, 6 alas dorsales cortantes, media capa heráldica carmesí, guanteletes de garras, mandoble y escudo dracónico alado',
         gear: { underlayer: 18, helmet: 11, shoulders: 14, torso: 22, gloves: 8, belt: 10, tassets: 11, cuisses: 10, knees: 10, boots: 15, weapon: 83, shield: 13 },
         texturePreset: 'basalt_forge',
-        glow: '#ff2a4b'
+        glow: '#ff2a4b',
+        cape: 'asymmetric_half'
       },
       {
         name: '19. Cazador Élfico de Esmeralda & Luz Lunar (Ligera Silvana)',
-        desc: 'Armadura ligera élfica de mithril estelar, damasco verde esmeralda y filigrana de hojas en oro: tiara alada lunar, coraza foliada entallada, manto silvano asimétrico, faldón partido con dagas, cimitarra élfica y broquel estrella',
+        desc: 'Armadura ligera élfica de mithril estelar, damasco verde esmeralda y tirantes de cuero con hebillas de oro: tiara alada lunar, coraza foliada corta con tirantes, manto foliar silvano, faldón partido con dagas, cimitarra élfica y broquel estrella',
         gear: { underlayer: 19, helmet: 12, shoulders: 15, torso: 23, gloves: 9, belt: 11, tassets: 12, cuisses: 11, knees: 11, boots: 16, weapon: 84, shield: 14 },
         texturePreset: 'dune_nomad',
-        glow: '#10b981'
+        glow: '#10b981',
+        lightHarness: true,
+        strapStyle: 'crossed_x',
+        cape: 'sylvan_leaf'
       },
       {
         name: '20. Archimago Serafín del Eclipse & Terciopelo Astral (Mago Real)',
-        desc: 'Vestimenta real de archimago en terciopelo amatista profundo, seda nácar y oro rosa con constelaciones: corona serafín con halo solar, gola alta en abanico, 6 alas serafín y planetario giratorio dorsal, faldón catedralicio, gran báculo y grimorio astral',
-        gear: { underlayer: 20, helmet: 13, shoulders: 16, torso: 24, gloves: 10, belt: 12, tassets: 13, cuisses: 12, knees: 12, boots: 17, weapon: 85, shield: 15 },
+        desc: 'Túnica catedralicia de archimago en terciopelo amatista profundo, protecciones ligeras de seda nácar y cinturones cruzados estrechos con astrolabio: corona serafín, esclavina con doble estola astral, planetario dorsal, gran báculo y grimorio',
+        gear: { underlayer: 20, helmet: 13, shoulders: 16, torso: 0, gloves: 0, belt: 12, tassets: 0, cuisses: 0, knees: 0, boots: 17, weapon: 85, shield: 15 },
         texturePreset: 'astrolabe_mage',
-        glow: '#c084fc'
+        glow: '#c084fc',
+        mageRobe: true,
+        rankTier: 'S',
+        cape: 'scholar_stole'
       }
     ];
 
@@ -1323,33 +1330,49 @@
        1b. CLASES Y RANGOS: 30 armaduras = Pesada · Ligera · Mago × D · C · B · A · S · SR
        - Pesada: el ajuste base de siempre.
        - Ligera: hombreras, rodilleras y musleras más pequeñas; escarcelas más separadas;
-         botas y peto más cortos. Usa los mismos parámetros del panel de ajuste.
-       - Mago: sin placas (solo tela, tiara y cetro).
-       - Rango: a más rango, más florituras (ventanas, espaldar, aletas, acanalado, bordes).
+         botas y peto más cortos con tirantes de cuero visibles sobre clavícula y hombros.
+       - Mago: orientado a túnicas largas por nivel, protecciones ligeras en hombros/antebrazos
+         y cinturones cruzados estrechos con bandolera.
+       - Rango D y C: cuero curtido, ante, gambesón y dibujos geométricos simples sin joyas recargadas.
+       - Rango S y SR: diferentes tipos de capas arquitectónicas (imperial, asimétrica, cola de golondrina, foliar, fénix, estola).
        ========================================================================= */
     const FIT_DEFAULTS = JSON.parse(JSON.stringify(STATE.fit));
 
     const ARMOR_CLASSES = {
-      pesada: { name: 'Pesada', fit: {}, chest: {}, boot: {} },
+      pesada: { name: 'Pesada', fit: { mageRobe: false, lightHarness: false }, chest: {}, boot: {} },
       ligera: {
         name: 'Ligera',
         fit: {
-          shoulderSize: 0.50,
-          kneeScale: 0.90, kneeWingSize: 0.55,
-          cuissesScale: 0.90, cuissesLength: 0.72,
-          cuissesSpan: { top: 0.98, bot: 0.46 },   // muslera desde el glúteo, con hueco sobre la rodilla
-          tassetScale: 0.92, tassetLength: 0.80, tassetWidth: 0.78,
-          clothSides: true,                        // faldones de tela en los lados, como el tabardo
-          lightHarness: true,                      // peto de pecho con tirantes
+          mageRobe: false,
+          shoulderSize: 0.44,
+          kneeScale: 0.88, kneeWingSize: 0.52,
+          cuissesScale: 0.88, cuissesLength: 0.70,
+          cuissesSpan: { top: 0.96, bot: 0.48 },   // muslera ligera con hueco amplio sobre la rodilla
+          tassetScale: 0.90, tassetLength: 0.78, tassetWidth: 0.76,
+          clothSides: true,                        // faldones de tela en los lados
+          lightHarness: true,                      // peto de pecho con tirantes visibles de cuero y hebillas
           bootCollarMin: 0.020,                    // caña mínima: apenas cubre el tobillo
           shinTop: 0.08,                           // grebas que no pasan del tobillo
-          chestThick: 0.45,                        // pechera fina, casi sin volumen
-          tabardWidthMult: 2.00                    // tabardo delantero al doble de ancho
+          chestThick: 0.42,                        // pechera fina y ceñida
+          tabardWidthMult: 1.75
         },
-        chest: { yMinFront: 0.58, chestContour: 'anatomical', ridgeCenterZ: 0.05, flareTop: 0.0, flareBottom: 0.0 },   // solo el pecho, ceñido
+        chest: { yMinFront: 0.46, yMaxFront: 0.79, chestContour: 'anatomical', ridgeCenterZ: 0.05, flareTop: 0.0, flareBottom: 0.0, hasClavicleScapulaYoke: false },
         boot: { collarFactor: 0.38 }
       },
-      mago: { name: 'Mago', fit: {}, chest: {}, boot: { collarFactor: 0.90 } }
+      mago: {
+        name: 'Mago',
+        fit: {
+          mageRobe: true,
+          lightHarness: false,
+          shoulderSize: 0.38,
+          chestThick: 0.34,
+          beltScale: 0.84,
+          bootCollarMin: 0.024,
+          shinTop: 0.10
+        },
+        chest: {},
+        boot: { collarFactor: 0.55 }
+      }
     };
 
     // Cortes de culera: uno por tipo de cinturón, para que el faldón trasero acompañe al cinto
@@ -1370,78 +1393,78 @@
 
     const ARMOR_RANKS = {
       D: {
-        name: 'D', hint: 'Sin florituras: placa lisa y biseles simples', badge: 'bg-slate-700 text-slate-200',
-        fluting: 0.05, rolled: 0.85,
-        shoulder: { scaleMult: 0.96, stridentTilt: 0.0, sharpness: 1.0, extraStridentFin: false, finLength: 1.0, finCurve: 0.0, armFoldStyle: 'ogee_conopial' },
-        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: false, hasClavicleScapulaYoke: false, foldDepth: 0.10 }
+        name: 'D', hint: 'Cuero curtido, gambesón y dibujos geométricos simples', badge: 'bg-slate-700 text-slate-200',
+        fluting: 0.0, rolled: 0.78, simpleLeather: true,
+        shoulder: { scaleMult: 0.88, stridentTilt: 0.0, sharpness: 0.95, extraStridentFin: false, finLength: 0.9, finCurve: 0.0, armFoldStyle: 'scalloped' },
+        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: false, hasClavicleScapulaYoke: false, foldDepth: 0.08 }
       },
       C: {
-        name: 'C', hint: 'Pocas florituras: nervio central y cenefa', badge: 'bg-emerald-900 text-emerald-200',
-        fluting: 0.25, rolled: 0.95,
-        shoulder: { scaleMult: 1.00, stridentTilt: 0.0, sharpness: 1.1, extraStridentFin: false, finLength: 1.1, finCurve: 0.0, armFoldStyle: 'ogee_conopial' },
-        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: false, hasClavicleScapulaYoke: false, foldDepth: 0.13 }
+        name: 'C', hint: 'Cuero grabado, ante y costuras geométricas sencillas', badge: 'bg-emerald-900 text-emerald-200',
+        fluting: 0.10, rolled: 0.88, simpleLeather: true,
+        shoulder: { scaleMult: 0.94, stridentTilt: 0.0, sharpness: 1.05, extraStridentFin: false, finLength: 1.0, finCurve: 0.0, armFoldStyle: 'ogee_conopial' },
+        chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: false, hasClavicleScapulaYoke: false, foldDepth: 0.11 }
       },
       B: {
-        name: 'B', hint: 'Acanalado y cenefas de borde', badge: 'bg-sky-900 text-sky-200',
-        fluting: 0.50, rolled: 1.05,
+        name: 'B', hint: 'Acanalado, brigantina noble y cenefas de borde', badge: 'bg-sky-900 text-sky-200',
+        fluting: 0.50, rolled: 1.05, simpleLeather: false,
         shoulder: { scaleMult: 1.00, stridentTilt: 0.10, sharpness: 1.25, extraStridentFin: false, finLength: 1.3, finCurve: 0.05, armFoldStyle: 'swallow_tail' },
         chest: { windowCutout: 'none', backStyle: 'smooth', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.16 }
       },
       A: {
-        name: 'A', hint: 'Ventanas de costilla y espaldar laminado', badge: 'bg-violet-900 text-violet-200',
-        fluting: 0.80, rolled: 1.12,
+        name: 'A', hint: 'Ventanas de costilla, runas y espaldar laminado', badge: 'bg-violet-900 text-violet-200',
+        fluting: 0.80, rolled: 1.12, simpleLeather: false,
         shoulder: { scaleMult: 1.02, stridentTilt: 0.15, sharpness: 1.45, extraStridentFin: false, finLength: 1.6, finCurve: 0.10, armFoldStyle: 'triple_v' },
         chest: { windowCutout: 'rib_slots', backStyle: 'laminated', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.18 }
       },
       S: {
-        name: 'S', hint: 'Aletas estridentes, gema central y espaldar alado', badge: 'bg-amber-900 text-amber-200',
-        fluting: 1.10, rolled: 1.20,
+        name: 'S', hint: 'Capas nobles por arquetipo, aletas estridentes y gema central', badge: 'bg-amber-900 text-amber-200',
+        fluting: 1.10, rolled: 1.20, simpleLeather: false,
         shoulder: { scaleMult: 1.05, stridentTilt: 0.20, sharpness: 1.70, extraStridentFin: true, finLength: 1.9, finCurve: 0.15, armFoldStyle: 'swallow_tail' },
         chest: { windowCutout: 'diamond_sternum', backStyle: 'winged_shell', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.19 }
       },
       SR: {
-        name: 'SR', hint: 'Máxima ornamentación: escudos dorsales y ventana de sternón', badge: 'bg-rose-900 text-rose-200',
-        fluting: 1.35, rolled: 1.30,
+        name: 'SR', hint: 'Capas imperiales y astrales, escudos dorsales y máxima gala', badge: 'bg-rose-900 text-rose-200',
+        fluting: 1.35, rolled: 1.30, simpleLeather: false,
         shoulder: { scaleMult: 1.08, stridentTilt: 0.25, sharpness: 2.00, extraStridentFin: true, finLength: 2.2, finCurve: 0.20, armFoldStyle: 'upward_arch' },
         chest: { windowCutout: 'keyhole_sternum', backStyle: 'wide_dorsal_shields_3d', hasPlackartTrim: true, hasClavicleScapulaYoke: false, foldDepth: 0.21, dorsalWingScale: 1.15, dorsalFinSpread: 1.10 }
       }
     };
 
-    // Orden de la lista: por rango y, dentro de cada rango, 2 Pesadas · 2 Ligeras · 1 Mago
+    // Orden de la lista: por rango y, dentro de cada rango, Pesadas · Ligeras · Mago
     const ARMOR_LOOKS = [
-      // ---- D ----
-      { rank: 'D', cls: 'pesada', name: 'Soldado de Hierro Bruñido', tex: 'forged_commander_steel',
-        gear: { underlayer: 2, helmet: 0, torso: 2, gloves: 2, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 3 } },
-      { rank: 'D', cls: 'pesada', name: 'Guardia de Torneo Biselado', tex: 'hammered_smooth',
-        gear: { underlayer: 1, helmet: 0, torso: 3, gloves: 2, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 2 } },
-      { rank: 'D', cls: 'ligera', name: 'Explorador de Cuero Endurecido', tex: 'leather_cuirass',
+      // ---- D (Cuero curtido, gambesón y dibujos geométricos simples) ----
+      { rank: 'D', cls: 'pesada', name: 'Soldado de Cuero Curtido & Hierro', tex: 'leather_cuirass',
+        gear: { underlayer: 3, helmet: 0, torso: 1, gloves: 1, belt: 3, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 3 } },
+      { rank: 'D', cls: 'pesada', name: 'Guardia de Brigantina & Costura Simple', tex: 'studded_brigandine',
+        gear: { underlayer: 1, helmet: 0, torso: 6, gloves: 1, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 2 } },
+      { rank: 'D', cls: 'ligera', name: 'Explorador de Cuero Endurecido', tex: 'leather_cuirass', strapStyle: 'parallel_buckled',
         gear: { underlayer: 3, helmet: 0, torso: 2, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 2, boots: 5, weapon: 4 } },
-      { rank: 'D', cls: 'ligera', name: 'Escudero de Gambesón', tex: 'padded_gambeson',
-        gear: { underlayer: 1, helmet: 0, torso: 2, gloves: 1, belt: 3, tassets: 2, cuisses: 1, knees: 1, boots: 1, weapon: 1 } },
-      { rank: 'D', cls: 'mago', name: 'Aprendiz de Tela Sencilla', tex: 'ranger_forest_suede',
-        gear: { underlayer: 15, helmet: 0, torso: 0, gloves: 0, belt: 3, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
-      // ---- C ----
-      { rank: 'C', cls: 'pesada', name: 'Caballero de Malla Anillada', tex: 'interlocked_chainmail',
-        gear: { underlayer: 6, helmet: 1, torso: 2, gloves: 2, belt: 2, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 3 } },
-      { rank: 'C', cls: 'pesada', name: 'Templario de Acero Damasco', tex: 'damascus',
-        gear: { underlayer: 2, helmet: 1, torso: 2, gloves: 3, belt: 2, tassets: 5, cuisses: 5, knees: 4, boots: 3, weapon: 2 } },
-      { rank: 'C', cls: 'ligera', name: 'Veloz de Cuero Verde', tex: 'ranger_forest_suede',
+      { rank: 'D', cls: 'ligera', name: 'Escudero de Gambesón & Tirantes', tex: 'padded_gambeson', strapStyle: 'crossed_x',
+        gear: { underlayer: 1, helmet: 0, torso: 6, gloves: 1, belt: 3, tassets: 2, cuisses: 1, knees: 1, boots: 1, weapon: 1 } },
+      { rank: 'D', cls: 'mago', name: 'Aprendiz de Túnica y Cuero', tex: 'ranger_forest_suede',
+        gear: { underlayer: 14, helmet: 0, torso: 1, gloves: 1, belt: 3, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- C (Cuero grabado con dibujos geométricos sencillos y ante) ----
+      { rank: 'C', cls: 'pesada', name: 'Veterano de Cuero Tachonado & Malla', tex: 'studded_brigandine',
+        gear: { underlayer: 6, helmet: 1, torso: 2, gloves: 1, belt: 2, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 3 } },
+      { rank: 'C', cls: 'pesada', name: 'Lancero de Cuir Bouilli Grabado', tex: 'leather_cuirass',
+        gear: { underlayer: 3, helmet: 1, torso: 9, gloves: 2, belt: 5, tassets: 5, cuisses: 3, knees: 4, boots: 3, weapon: 2 } },
+      { rank: 'C', cls: 'ligera', name: 'Veloz de Ante Verde & Tirantes', tex: 'ranger_forest_suede', strapStyle: 'parallel_buckled',
         gear: { underlayer: 3, helmet: 1, torso: 4, gloves: 1, belt: 4, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 4 } },
-      { rank: 'C', cls: 'ligera', name: 'Cazador de Escamas Finas', tex: 'weathered_veteran_iron',
-        gear: { underlayer: 10, helmet: 1, torso: 9, gloves: 1, belt: 3, tassets: 2, cuisses: 3, knees: 3, boots: 6, weapon: 4 } },
-      { rank: 'C', cls: 'mago', name: 'Acólito de Brocado Azul', tex: 'royal_brocade_velvet',
-        gear: { underlayer: 4, helmet: 1, torso: 0, gloves: 0, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      { rank: 'C', cls: 'ligera', name: 'Cazador de Cuero Laminado', tex: 'assassin_shadow_leather', strapStyle: 'crossed_x',
+        gear: { underlayer: 5, helmet: 1, torso: 9, gloves: 1, belt: 3, tassets: 2, cuisses: 3, knees: 3, boots: 6, weapon: 4 } },
+      { rank: 'C', cls: 'mago', name: 'Acólito de Túnica Grabada & Correas', tex: 'padded_gambeson',
+        gear: { underlayer: 1, helmet: 1, torso: 6, gloves: 1, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
       // ---- B ----
       { rank: 'B', cls: 'pesada', name: 'Campeón de la Alianza', tex: 'royal_alliance_plate',
         gear: { underlayer: 6, helmet: 1, torso: 2, gloves: 3, belt: 2, tassets: 5, cuisses: 5, knees: 2, boots: 3, weapon: 3 } },
       { rank: 'B', cls: 'pesada', name: 'Jinete Gótico de Maximiliano', tex: 'gothic_fluted_maximilian',
         gear: { underlayer: 13, helmet: 0, torso: 3, gloves: 2, belt: 4, tassets: 2, cuisses: 2, knees: 3, boots: 2, weapon: 2 } },
-      { rank: 'B', cls: 'ligera', name: 'Ballestero de Brigantina', tex: 'assassin_shadow_leather',
+      { rank: 'B', cls: 'ligera', name: 'Ballestero de Brigantina', tex: 'assassin_shadow_leather', strapStyle: 'crossed_x',
         gear: { underlayer: 5, helmet: 0, torso: 9, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 2, boots: 5, weapon: 4 } },
-      { rank: 'B', cls: 'ligera', name: 'Monje de Lamelar Oriental', tex: 'samurai_kozane_lacquer',
+      { rank: 'B', cls: 'ligera', name: 'Monje de Lamelar Oriental', tex: 'samurai_kozane_lacquer', strapStyle: 'parallel_buckled',
         gear: { underlayer: 12, helmet: 0, torso: 2, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 5, boots: 1, weapon: 4 } },
       { rank: 'B', cls: 'mago', name: 'Hechicero de Amatista', tex: 'arcane_crystal_amethyst',
-        gear: { underlayer: 15, helmet: 3, torso: 0, gloves: 0, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+        gear: { underlayer: 15, helmet: 3, torso: 4, gloves: 3, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
       // ---- A ----
       { rank: 'A', cls: 'pesada', name: 'Dark Crystal Heavy (Lineage II)', tex: 'dark_crystal_l2',
         gear: { underlayer: 16, helmet: 9, torso: 20, gloves: 6, belt: 8, tassets: 9, cuisses: 8, knees: 8, boots: 13, weapon: 81, shield: 11 } },
@@ -1449,42 +1472,42 @@
         gear: { underlayer: 8, helmet: 1, torso: 2, gloves: 2, belt: 5, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 6 } },
       { rank: 'A', cls: 'pesada', name: 'Dragón de Escamas Dentadas', tex: 'wyvern_serrated_plate',
         gear: { underlayer: 11, helmet: 4, torso: 8, gloves: 5, belt: 7, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 9 } },
-      { rank: 'A', cls: 'ligera', name: 'Asesino de Cuero Sombrío', tex: 'boiled_wyrmhide_armor',
+      { rank: 'A', cls: 'ligera', name: 'Asesino de Cuero Sombrío', tex: 'boiled_wyrmhide_armor', strapStyle: 'crossed_x',
         gear: { underlayer: 3, helmet: 0, torso: 9, gloves: 1, belt: 3, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 8 } },
-      { rank: 'A', cls: 'ligera', name: 'Paladín Ágil de Laurel', tex: 'laurel_leaf_plate',
+      { rank: 'A', cls: 'ligera', name: 'Paladín Ágil de Laurel', tex: 'laurel_leaf_plate', strapStyle: 'parallel_buckled',
         gear: { underlayer: 12, helmet: 1, torso: 6, gloves: 1, belt: 2, tassets: 5, cuisses: 5, knees: 2, boots: 1, weapon: 5 } },
       { rank: 'A', cls: 'mago', name: 'Invocador de Obsidiana', tex: 'black_gold_marble',
-        gear: { underlayer: 15, helmet: 3, torso: 0, gloves: 0, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 6, weapon: 10 } },
-      // ---- S ----
-      { rank: 'S', cls: 'pesada', name: 'Soberano Dracónico Carmesí & Plata Negra', tex: 'basalt_forge',
+        gear: { underlayer: 15, helmet: 3, torso: 10, gloves: 3, belt: 2, tassets: 0, cuisses: 0, knees: 0, boots: 6, weapon: 10 } },
+      // ---- S (Distintos tipos de capas nobles + tirantes en ligeras + túnicas y cinturones cruzados en magos) ----
+      { rank: 'S', cls: 'pesada', name: 'Soberano Dracónico Carmesí & Plata Negra', tex: 'basalt_forge', cape: 'asymmetric_half',
         gear: { underlayer: 18, helmet: 11, shoulders: 14, torso: 22, gloves: 8, belt: 10, tassets: 11, cuisses: 10, knees: 10, boots: 15, weapon: 83, shield: 13 } },
-      { rank: 'S', cls: 'ligera', name: 'Cazador Élfico de Esmeralda & Luz Lunar', tex: 'dune_nomad',
+      { rank: 'S', cls: 'ligera', name: 'Cazador Élfico de Esmeralda & Luz Lunar', tex: 'dune_nomad', cape: 'sylvan_leaf', strapStyle: 'crossed_x',
         gear: { underlayer: 19, helmet: 12, shoulders: 15, torso: 23, gloves: 9, belt: 11, tassets: 12, cuisses: 11, knees: 11, boots: 16, weapon: 84, shield: 14 } },
-      { rank: 'S', cls: 'mago', name: 'Archimago Serafín del Eclipse & Terciopelo', tex: 'astrolabe_mage',
-        gear: { underlayer: 20, helmet: 13, shoulders: 16, torso: 24, gloves: 10, belt: 12, tassets: 13, cuisses: 12, knees: 12, boots: 17, weapon: 85, shield: 15 } },
-      { rank: 'S', cls: 'ligera', name: 'Segador de Cuervo & Hueso (Asimétrico)', tex: 'ravenbone_reaper',
+      { rank: 'S', cls: 'mago', name: 'Archimago Serafín del Eclipse & Terciopelo', tex: 'astrolabe_mage', cape: 'scholar_stole',
+        gear: { underlayer: 20, helmet: 13, shoulders: 16, torso: 24, gloves: 10, belt: 12, tassets: 0, cuisses: 0, knees: 0, boots: 17, weapon: 85, shield: 15 } },
+      { rank: 'S', cls: 'ligera', name: 'Segador de Cuervo & Hueso (Asimétrico)', tex: 'ravenbone_reaper', cape: 'phoenix_wings',
         gear: { underlayer: 17, helmet: 10, shoulders: 13, torso: 21, gloves: 7, belt: 9, tassets: 10, cuisses: 9, knees: 9, boots: 14, weapon: 82, shield: 12 } },
-      { rank: 'S', cls: 'pesada', name: 'Estrella del Norte Mjölnir', tex: 'mjolnir_thunder_plate',
+      { rank: 'S', cls: 'pesada', name: 'Estrella del Norte Mjölnir', tex: 'mjolnir_thunder_plate', cape: 'imperial_drape',
         gear: { underlayer: 6, helmet: 5, torso: 10, gloves: 3, belt: 2, tassets: 3, cuisses: 3, knees: 4, boots: 3, weapon: 5 } },
-      { rank: 'S', cls: 'pesada', name: 'Dragón Imperial de Rubí', tex: 'dragon_scale_ruby',
+      { rank: 'S', cls: 'pesada', name: 'Dragón Imperial de Rubí', tex: 'dragon_scale_ruby', cape: 'asymmetric_half',
         gear: { underlayer: 11, helmet: 4, torso: 15, gloves: 5, belt: 6, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
-      { rank: 'S', cls: 'ligera', name: 'Danzarina Élfica de Filigrana', tex: 'emerald_elven_filigree',
+      { rank: 'S', cls: 'ligera', name: 'Danzarina Élfica de Filigrana', tex: 'emerald_elven_filigree', cape: 'sylvan_leaf', strapStyle: 'parallel_buckled',
         gear: { underlayer: 7, helmet: 3, torso: 14, gloves: 1, belt: 4, tassets: 4, cuisses: 4, knees: 5, boots: 5, weapon: 8 } },
-      { rank: 'S', cls: 'ligera', name: 'Lancero Solar Ligero', tex: 'paladin_sun_gold',
+      { rank: 'S', cls: 'ligera', name: 'Lancero Solar Ligero', tex: 'paladin_sun_gold', cape: 'split_swallowtail', strapStyle: 'crossed_x',
         gear: { underlayer: 8, helmet: 6, torso: 1, gloves: 1, belt: 1, tassets: 1, cuisses: 1, knees: 1, boots: 1, weapon: 5 } },
-      { rank: 'S', cls: 'mago', name: 'Oráculo Astral', tex: 'ornate',
-        gear: { underlayer: 15, helmet: 5, torso: 0, gloves: 0, belt: 1, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
-      // ---- SR ----
-      { rank: 'SR', cls: 'pesada', name: 'Dinastía Celestial', tex: 'dynasty_celestial_rose',
+      { rank: 'S', cls: 'mago', name: 'Oráculo Astral', tex: 'ornate', cape: 'scholar_stole',
+        gear: { underlayer: 15, helmet: 5, torso: 17, gloves: 4, belt: 1, tassets: 0, cuisses: 0, knees: 0, boots: 5, weapon: 10 } },
+      // ---- SR (Capas imperiales, colas de golondrina, fénix, silvanas y estolas cósmicas) ----
+      { rank: 'SR', cls: 'pesada', name: 'Dinastía Celestial', tex: 'dynasty_celestial_rose', cape: 'imperial_drape',
         gear: { underlayer: 4, helmet: 2, torso: 5, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
-      { rank: 'SR', cls: 'pesada', name: 'Soberano de Vacío', tex: 'void_corrupted_adamant',
+      { rank: 'SR', cls: 'pesada', name: 'Soberano de Vacío', tex: 'void_corrupted_adamant', cape: 'split_swallowtail',
         gear: { underlayer: 12, helmet: 5, torso: 19, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 9 } },
-      { rank: 'SR', cls: 'ligera', name: 'Serafín Ligero de Mithril', tex: 'mithril_starlight_weave',
+      { rank: 'SR', cls: 'ligera', name: 'Serafín Ligero de Mithril', tex: 'mithril_starlight_weave', cape: 'sylvan_leaf', strapStyle: 'parallel_buckled',
         gear: { underlayer: 7, helmet: 5, torso: 17, gloves: 4, belt: 6, tassets: 6, cuisses: 6, knees: 6, boots: 4, weapon: 5 } },
-      { rank: 'SR', cls: 'ligera', name: 'Fénix Ígneo Ligero', tex: 'phoenix_flame_plumage',
+      { rank: 'SR', cls: 'ligera', name: 'Fénix Ígneo Ligero', tex: 'phoenix_flame_plumage', cape: 'phoenix_wings', strapStyle: 'crossed_x',
         gear: { underlayer: 11, helmet: 4, torso: 16, gloves: 4, belt: 7, tassets: 7, cuisses: 7, knees: 7, boots: 6, weapon: 2 } },
-      { rank: 'SR', cls: 'mago', name: 'Archimago Cósmico', tex: 'celestial_astral_constellation',
-        gear: { underlayer: 15, helmet: 5, torso: 0, gloves: 0, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 4, weapon: 10 } }
+      { rank: 'SR', cls: 'mago', name: 'Archimago Cósmico', tex: 'celestial_astral_constellation', cape: 'scholar_stole',
+        gear: { underlayer: 15, helmet: 5, torso: 19, gloves: 4, belt: 6, tassets: 0, cuisses: 0, knees: 0, boots: 4, weapon: 10 } }
     ];
 
     // Aplica una armadura por clase y rango: equipo, ajuste, overrides de forma y material
@@ -1493,21 +1516,28 @@
       const rank = ARMOR_RANKS[look.rank];
       const tp = TEXTURE_PRESETS.find(t => t.id === look.tex) || TEXTURE_PRESETS[0];
 
-      // Las hombreras van integradas en el peto
-      STATE.equipment = { shield: (look.cls === 'mago' ? 0 : 1), ...look.gear, shoulders: 0 };
+      // Las hombreras van integradas en el peto (salvo hombreras especiales 13..16 cuando no hay peto)
+      STATE.equipment = { shield: (look.cls === 'mago' ? 0 : 1), ...look.gear, shoulders: (look.gear && look.gear.shoulders && !look.gear.torso) ? look.gear.shoulders : 0 };
 
       // Ajuste limpio + modificadores de la clase
       Object.assign(STATE.fit, FIT_DEFAULTS, cls.fit);
       STATE.fit.flutingIntensity = rank.fluting;
       STATE.fit.rolledEdgeFlange = rank.rolled;
+      STATE.fit.rankTier = look.rank;
+      STATE.fit.simpleLeatherMode = Boolean(rank.simpleLeather || look.simpleLeather);
+      STATE.fit.mageRobe = (look.cls === 'mago');
+      STATE.fit.strapStyle = look.strapStyle || 'parallel_buckled';
+      STATE.fit.capeStyle = look.cape || ((look.rank === 'S' || look.rank === 'SR') ? (look.cls === 'mago' ? 'scholar_stole' : (look.cls === 'ligera' ? 'sylvan_leaf' : 'imperial_drape')) : 'none');
       STATE.fit.shoulderShapeOverride = { ...rank.shoulder };
       STATE.fit.chestCutoutOverride = { ...rank.chest, ...cls.chest };
       STATE.fit.bootShapeOverride = { ...cls.boot };
 
-      // Material
+      // Material: en rangos D y C reducimos el brillo metálico para priorizar aspecto de cuero curtido y dibujos simples
       Object.keys(STATE.slotTextures).forEach(k => { STATE.slotTextures[k] = null; });
       STATE.materialType = tp.id; STATE.primaryColor = tp.primary; STATE.secondaryColor = tp.secondary;
-      STATE.clothColor = tp.cloth; STATE.metalness = tp.metalness; STATE.roughness = tp.roughness;
+      STATE.clothColor = tp.cloth;
+      STATE.metalness = STATE.fit.simpleLeatherMode ? Math.min(tp.metalness, 0.28) : tp.metalness;
+      STATE.roughness = STATE.fit.simpleLeatherMode ? Math.max(tp.roughness, 0.58) : tp.roughness;
       STATE.surfaceTexture = tp.texture; STATE.bumpDepth = tp.bump; STATE.textureTiling = tp.tiling;
       STATE.glowColor = tp.glow || '#fbbf24';
 
@@ -1519,13 +1549,20 @@
     }
 
     // Armadura aleatoria dentro de una clase: rango, equipo y textura al azar,
-    // manteniendo lo que define a la clase (la ligera sigue siendo ligera, el mago sin placas)
+    // manteniendo lo que define a la clase (la ligera con tirantes, el mago con túnica y cinturones cruzados)
     function randomizeArmorByClass(clsKey) {
       if (!ARMOR_CLASSES[clsKey]) return;
       const rankKeys = Object.keys(ARMOR_RANKS);
       const rank = rankKeys[Math.floor(Math.random() * rankKeys.length)];
-      const tp = TEXTURE_PRESETS[Math.floor(Math.random() * TEXTURE_PRESETS.length)];
+      const isSimple = (rank === 'D' || rank === 'C');
+      const pool = isSimple
+        ? TEXTURE_PRESETS.filter(t => t.category === 'cuero')
+        : TEXTURE_PRESETS;
+      const tp = pool[Math.floor(Math.random() * pool.length)] || TEXTURE_PRESETS[0];
       const pick = arr => 1 + Math.floor(Math.random() * (arr.length - 1));
+      const capeChoices = ['imperial_drape', 'asymmetric_half', 'split_swallowtail', 'sylvan_leaf', 'phoenix_wings', 'scholar_stole'];
+      const cape = (rank === 'S' || rank === 'SR') ? capeChoices[Math.floor(Math.random() * capeChoices.length)] : 'none';
+      const strapStyle = Math.random() < 0.5 ? 'parallel_buckled' : 'crossed_x';
 
       const gear = (clsKey === 'mago')
         ? {
@@ -1535,8 +1572,8 @@
             belt: pick(ITEMS_DB.belt),
             tassets: 0, cuisses: 0, knees: 0,
             boots: pick(ITEMS_DB.boots),
-            weapon: ITEMS_DB.weapon.length - 1,  // cetro
-            shield: 0                            // el mago no lleva escudo
+            weapon: 10,
+            shield: 0
           }
         : {
             underlayer: pick(ITEMS_DB.underlayer),
@@ -1552,7 +1589,7 @@
             shield: Math.floor(Math.random() * ITEMS_DB.shield.length)
           };
 
-      applyArmorLook({ rank, cls: clsKey, name: tp.name, tex: tp.id, gear });
+      applyArmorLook({ rank, cls: clsKey, name: tp.name, tex: tp.id, gear, cape, strapStyle });
     }
 
     /* =========================================================================
@@ -2176,18 +2213,59 @@
         }
 
       } else if (type === 'padded_gambeson' || type === 'leather_cuirass') {
-        ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 0, size, size);
-        bCtx.fillStyle = '#808080'; bCtx.fillRect(0, 0, size, size);
-        ctx.strokeStyle = 'rgba(15, 23, 42, 0.18)';
-        ctx.lineWidth = 3;
-        bCtx.strokeStyle = '#686868';
-        bCtx.lineWidth = 4;
+        const isLeather = type === 'leather_cuirass';
+        ctx.fillStyle = isLeather ? '#b87a4b' : '#e2d9c8';
+        ctx.fillRect(0, 0, size, size);
+        bCtx.fillStyle = '#808080';
+        bCtx.fillRect(0, 0, size, size);
+
+        // Grano orgánico suave de cuero curtido o lino acolchado
+        for (let y = 0; y < size; y += 8) {
+          ctx.fillStyle = (y % 16 === 0) ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.025)';
+          ctx.fillRect(0, y, size, 4);
+        }
+
         const step = 128;
+        // Costuras simples en rombo (pespunte doble para gambesón / grabado lineal para cuero)
+        ctx.save(); bCtx.save();
+        ctx.strokeStyle = isLeather ? '#4a2511' : 'rgba(30, 41, 59, 0.38)';
+        ctx.lineWidth = isLeather ? 4.5 : 3.5;
+        if (!isLeather) ctx.setLineDash([10, 6]);
+        bCtx.strokeStyle = '#525252';
+        bCtx.lineWidth = 6;
         for (let i = -size; i < size * 2; i += step) {
           ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + size, size); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(i + size, 0); ctx.lineTo(i, size); ctx.stroke();
           bCtx.beginPath(); bCtx.moveTo(i, 0); bCtx.lineTo(i + size, size); bCtx.stroke();
           bCtx.beginPath(); bCtx.moveTo(i + size, 0); bCtx.lineTo(i, size); bCtx.stroke();
+        }
+        ctx.restore(); bCtx.restore();
+
+        // Dibujos geométricos simples (rombos concéntricos, círculos sencillos y bandas de cuero cosidas)
+        ctx.strokeStyle = isLeather ? '#65350f' : 'rgba(51, 65, 85, 0.32)';
+        ctx.lineWidth = 3.5;
+        bCtx.strokeStyle = '#a8a8a8';
+        bCtx.lineWidth = 5;
+        for (let y = step * 0.5; y < size; y += step) {
+          // Banda horizontal simple con pespunte
+          if ((Math.round((y - step * 0.5) / step) % 2) === 0) {
+            ctx.fillStyle = isLeather ? 'rgba(74, 37, 17, 0.22)' : 'rgba(30, 41, 59, 0.10)';
+            ctx.fillRect(0, y - 14, size, 28);
+            ctx.strokeRect(0, y - 14, size, 28);
+            bCtx.strokeRect(0, y - 14, size, 28);
+          }
+          for (let x = step * 0.5; x < size; x += step) {
+            // Dibujo geométrico simple en el centro de cada panel: rombo + círculo sencillo
+            ctx.beginPath();
+            ctx.moveTo(x, y - 26); ctx.lineTo(x + 26, y); ctx.lineTo(x, y + 26); ctx.lineTo(x - 26, y);
+            ctx.closePath(); ctx.stroke();
+            bCtx.beginPath();
+            bCtx.moveTo(x, y - 26); bCtx.lineTo(x + 26, y); bCtx.lineTo(x, y + 26); bCtx.lineTo(x - 26, y);
+            bCtx.closePath(); bCtx.stroke();
+
+            ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke();
+            bCtx.beginPath(); bCtx.arc(x, y, 10, 0, Math.PI * 2); bCtx.stroke();
+          }
         }
       } else {
         // Motor Paramétrico para las 56 Texturas Precargadas según su familia de relieve (pattern, baseHex, accentHex, detailHex)
@@ -2373,22 +2451,40 @@
             }
           }
         } else if (pat === 'quilted_brigandine') {
-          // Rombos Acolchados Nobles con Tachuelas en las Intersecciones y Costuras Dobles
+          // Cuero Curtido / Ante / Brigantina con Costuras Pespunteadas y Dibujos Geométricos Simples
           ctx.fillStyle = baseHex; ctx.fillRect(0, 0, size, size);
           bCtx.fillStyle = '#848484'; bCtx.fillRect(0, 0, size, size);
           const step = 128;
-          ctx.strokeStyle = detHex; ctx.lineWidth = 5;
-          bCtx.strokeStyle = '#505050'; bCtx.lineWidth = 8;
+          ctx.save(); bCtx.save();
+          ctx.strokeStyle = detHex; ctx.lineWidth = 4.5;
+          ctx.setLineDash([12, 6]);
+          bCtx.strokeStyle = '#505050'; bCtx.lineWidth = 7;
           for (let i = -size; i < size * 2; i += step) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + size, size); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(i + size, 0); ctx.lineTo(i, size); ctx.stroke();
             bCtx.beginPath(); bCtx.moveTo(i, 0); bCtx.lineTo(i + size, size); bCtx.stroke();
             bCtx.beginPath(); bCtx.moveTo(i + size, 0); bCtx.lineTo(i, size); bCtx.stroke();
           }
+          ctx.restore(); bCtx.restore();
+          // Dibujos geométricos simples (chevrones y rombos grabados en el cuero) + remaches planos
+          ctx.strokeStyle = accHex; ctx.lineWidth = 3;
+          bCtx.strokeStyle = '#aeaeae'; bCtx.lineWidth = 4.5;
           for (let y = 0; y <= size; y += step * 0.5) {
             const row = Math.round(y / (step * 0.5));
             for (let x = (row % 2) * (step * 0.5); x <= size; x += step) {
-              drawRivet3D(ctx, bCtx, x, y, 7.5, accHex);
+              drawRivet3D(ctx, bCtx, x, y, 6.5, accHex);
+              // Pequeño dibujo geométrico simple entre costuras
+              const cx = x + step * 0.5, cy = y;
+              if (cx < size && cy < size) {
+                ctx.beginPath();
+                ctx.moveTo(cx - 18, cy - 8); ctx.lineTo(cx, cy - 22); ctx.lineTo(cx + 18, cy - 8);
+                ctx.moveTo(cx - 14, cy + 6); ctx.lineTo(cx, cy + 18); ctx.lineTo(cx + 14, cy + 6);
+                ctx.stroke();
+                bCtx.beginPath();
+                bCtx.moveTo(cx - 18, cy - 8); bCtx.lineTo(cx, cy - 22); bCtx.lineTo(cx + 18, cy - 8);
+                bCtx.moveTo(cx - 14, cy + 6); bCtx.lineTo(cx, cy + 18); bCtx.lineTo(cx + 14, cy + 6);
+                bCtx.stroke();
+              }
             }
           }
         } else if (pat === 'maximilian_fluted') {
@@ -6331,38 +6427,40 @@
       const m = getBasaltMats('shoulders');
       const grp = new THREE.Group();
 
-      // Media capa imperial carmesí asimétrica con cenefa de oro real cayendo desde el hombro izquierdo
-      const capePts = [
-        new THREE.Vector3(-0.18, 0.16, -0.13),
-        new THREE.Vector3(-0.22, -0.05, -0.17),
-        new THREE.Vector3(-0.25, -0.28, -0.20),
-        new THREE.Vector3(-0.22, -0.52, -0.22)
-      ];
-      const capeRightPts = [
-        new THREE.Vector3(0.06, 0.15, -0.14),
-        new THREE.Vector3(0.04, -0.06, -0.17),
-        new THREE.Vector3(0.00, -0.26, -0.19),
-        new THREE.Vector3(-0.04, -0.48, -0.20)
-      ];
-      const capeCurveL = new THREE.CatmullRomCurve3(capePts);
-      const capeCurveR = new THREE.CatmullRomCurve3(capeRightPts);
-      const capeSurf = (u, v) => {
-        const pL = capeCurveL.getPointAt(v);
-        const pR = capeCurveR.getPointAt(v);
-        const pt = new THREE.Vector3().lerpVectors(pL, pR, u);
-        pt.z -= Math.sin(u * Math.PI) * (0.025 + v * 0.035) + Math.sin(u * Math.PI * 3) * 0.008 * v;
-        return pt;
-      };
-      grp.add(new THREE.Mesh(
-        createArmorPlatePatch(capeSurf, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, 0, 0) }),
-        m.copperMat
-      ));
-      // Cenefa dorada inferior de la media capa
-      const hemSurf = (u, v) => capeSurf(u, 0.90 + v * 0.10);
-      grp.add(new THREE.Mesh(
-        createArmorPlatePatch(hemSurf, { uSegs: 16, vSegs: 4, thickness: 0.006, refCenter: new THREE.Vector3(0, 0, 0) }),
-        m.brassMat
-      ));
+      // Media capa imperial carmesí asimétrica con cenefa de oro real cayendo desde el hombro izquierdo (si no la construye ya buildArmorCape)
+      if (!STATE.fit.capeStyle || STATE.fit.capeStyle === 'none') {
+        const capePts = [
+          new THREE.Vector3(-0.18, 0.16, -0.13),
+          new THREE.Vector3(-0.22, -0.05, -0.17),
+          new THREE.Vector3(-0.25, -0.28, -0.20),
+          new THREE.Vector3(-0.22, -0.52, -0.22)
+        ];
+        const capeRightPts = [
+          new THREE.Vector3(0.06, 0.15, -0.14),
+          new THREE.Vector3(0.04, -0.06, -0.17),
+          new THREE.Vector3(0.00, -0.26, -0.19),
+          new THREE.Vector3(-0.04, -0.48, -0.20)
+        ];
+        const capeCurveL = new THREE.CatmullRomCurve3(capePts);
+        const capeCurveR = new THREE.CatmullRomCurve3(capeRightPts);
+        const capeSurf = (u, v) => {
+          const pL = capeCurveL.getPointAt(v);
+          const pR = capeCurveR.getPointAt(v);
+          const pt = new THREE.Vector3().lerpVectors(pL, pR, u);
+          pt.z -= Math.sin(u * Math.PI) * (0.025 + v * 0.035) + Math.sin(u * Math.PI * 3) * 0.008 * v;
+          return pt;
+        };
+        grp.add(new THREE.Mesh(
+          createArmorPlatePatch(capeSurf, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, 0, 0) }),
+          m.copperMat
+        ));
+        // Cenefa dorada inferior de la media capa
+        const hemSurf = (u, v) => capeSurf(u, 0.90 + v * 0.10);
+        grp.add(new THREE.Mesh(
+          createArmorPlatePatch(hemSurf, { uSegs: 16, vSegs: 4, thickness: 0.006, refCenter: new THREE.Vector3(0, 0, 0) }),
+          m.brassMat
+        ));
+      }
 
       // Escudo vertebral dracónico en la espalda alta con rubí imperial
       const crestGeo = new THREE.OctahedronGeometry(0.045, 0);
@@ -6415,25 +6513,27 @@
       const m = getDuneMats('shoulders');
       const grp = new THREE.Group();
 
-      // Esclavina-manto foliar élfico sobre la espalda alta con recorte en hoja
-      [-1, 1].forEach(sd => {
-        const leafCapeSurf = (u, v) => {
-          const x = sd * (0.02 + u * 0.21 * (1 - v * 0.35));
-          const y = 0.17 - v * 0.52 - Math.sin(u * Math.PI) * 0.06 * v;
-          const z = -0.135 - Math.sin(u * Math.PI) * 0.045 - v * 0.065;
-          return new THREE.Vector3(x, y, z);
-        };
-        grp.add(new THREE.Mesh(
-          createArmorPlatePatch(leafCapeSurf, { uSegs: 14, vSegs: 18, thickness: 0.004, refCenter: new THREE.Vector3(0, 0, 0) }),
-          m.vermilionMat
-        ));
-        // Filigrana de oro foliar en el borde exterior del manto
-        const borderPts = [];
-        for (let i = 0; i <= 14; i++) {
-          borderPts.push(leafCapeSurf(0.96, i / 14));
-        }
-        grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(borderPts), 20, 0.004, 6, false), m.brassMat));
-      });
+      // Esclavina-manto foliar élfico sobre la espalda alta con recorte en hoja (si no la construye ya buildArmorCape)
+      if (!STATE.fit.capeStyle || STATE.fit.capeStyle === 'none') {
+        [-1, 1].forEach(sd => {
+          const leafCapeSurf = (u, v) => {
+            const x = sd * (0.02 + u * 0.21 * (1 - v * 0.35));
+            const y = 0.17 - v * 0.52 - Math.sin(u * Math.PI) * 0.06 * v;
+            const z = -0.135 - Math.sin(u * Math.PI) * 0.045 - v * 0.065;
+            return new THREE.Vector3(x, y, z);
+          };
+          grp.add(new THREE.Mesh(
+            createArmorPlatePatch(leafCapeSurf, { uSegs: 14, vSegs: 18, thickness: 0.004, refCenter: new THREE.Vector3(0, 0, 0) }),
+            m.vermilionMat
+          ));
+          // Filigrana de oro foliar en el borde exterior del manto
+          const borderPts = [];
+          for (let i = 0; i <= 14; i++) {
+            borderPts.push(leafCapeSurf(0.96, i / 14));
+          }
+          grp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(borderPts), 20, 0.004, 6, false), m.brassMat));
+        });
+      }
 
       // Dos hojas aladas de mithril estelar emergiendo sobre los omóplatos
       [-1, 1].forEach(sd => {
@@ -6677,7 +6777,7 @@
 
     function buildArticulatedBelt() {
       const beltType = STATE.equipment.belt;
-      if (beltType === 0) return;
+      if (beltType === 0 || STATE.fit.mageRobe) return;
       if (beltType === 9) { buildRavenboneBeltDuster(); return; }
 
       currentBuildingSlot = 'belt';
@@ -7924,7 +8024,7 @@
     /* === 5. EMBLEMA PECTORAL 3D DE PALADÍN (CURVADO CILÍNDRICAMENTE SOBRE EL PETO) === */
     function buildPaladinChestOrnament() {
       const torsoType = STATE.equipment.torso;
-      if (torsoType === 0 || torsoType === 21 || !armorSockets.torso) return;
+      if (torsoType === 0 || torsoType === 21 || STATE.fit.mageRobe || !armorSockets.torso) return;
 
       const tBox = getWorldBoxOfParts(['torso']);
       if (!tBox) return;
@@ -7979,6 +8079,31 @@
         mesh.position.set(xNorm * scaleRef, yNorm * scaleRef, zDrop + zExtra + 0.002);
         mesh.rotation.set(rotX, yawY, rotZ);
       };
+
+      // En Grados D y C (simpleLeatherMode): correas de cuero simples con hebilla central y dibujo geométrico sencillo
+      if (STATE.fit.simpleLeatherMode) {
+        const leatherStrapMat = new THREE.MeshStandardMaterial({ color: 0x3e2415, roughness: 0.72, metalness: 0.12 });
+        const ironBuckleMat = new THREE.MeshStandardMaterial({ color: 0x8c7355, roughness: 0.48, metalness: 0.55 });
+        [-1, 1].forEach(sgn => {
+          const strap = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.92, scaleRef * 0.14, 0.007), leatherStrapMat);
+          curveOnTorso(strap, sgn * 0.48, 0.02, 0.001, sgn * 0.08);
+          emblemGroup.add(strap);
+          // Costura simple en relieve sobre la correa
+          const stitch = new THREE.Mesh(new THREE.BoxGeometry(scaleRef * 0.86, scaleRef * 0.025, 0.0085), trimMat);
+          curveOnTorso(stitch, sgn * 0.48, 0.02, 0.002, sgn * 0.08);
+          emblemGroup.add(stitch);
+        });
+        // Anilla o hebilla geométrica simple en el centro del pecho
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(scaleRef * 0.16, scaleRef * 0.032, 8, 20), ironBuckleMat);
+        ring.position.set(0, 0.02 * scaleRef, 0.005);
+        emblemGroup.add(ring);
+        const innerBoss = new THREE.Mesh(new THREE.CylinderGeometry(scaleRef * 0.09, scaleRef * 0.11, 0.008, 8), leatherStrapMat);
+        innerBoss.rotation.x = Math.PI / 2;
+        innerBoss.position.set(0, 0.02 * scaleRef, 0.003);
+        emblemGroup.add(innerBoss);
+        attachOrnamentWorld(armorSockets.torso, emblemGroup, chestPos, new THREE.Quaternion(), 'torso');
+        return;
+      }
 
       /* === ELEMENTOS ESTRUCTURALES DEL PETO: STOP-RIBS Y BISAGRAS DE FLANCO === */
       // 1. Stop-ribs (Nervios deflectores de lanza solo en corazas cerradas: tipos 1, 3 y 6)
@@ -9266,13 +9391,15 @@
 
       buildPaladinChestOrnament();
       buildArticulatedBelt();
-      if (STATE.fit.clothSides && STATE.equipment.tassets < 10) {
-        buildClothSideFlaps({ mainMat: getPBRMaterial('primary', 'tassets'), trimMat: getPBRMaterial('trim', 'tassets'), clothMat: getPBRMaterial('cloth', 'tassets') });
-      } else {
-        buildArticulatedTassets();
+      if (!STATE.fit.mageRobe) {
+        if (STATE.fit.clothSides && STATE.equipment.tassets < 10) {
+          buildClothSideFlaps({ mainMat: getPBRMaterial('primary', 'tassets'), trimMat: getPBRMaterial('trim', 'tassets'), clothMat: getPBRMaterial('cloth', 'tassets') });
+        } else {
+          buildArticulatedTassets();
+        }
+        buildArticulatedCuisses();
+        buildArticulatedKnees();
       }
-      buildArticulatedCuisses();
-      buildArticulatedKnees();
       buildArticulatedBoots();
     }
 
@@ -10033,6 +10160,21 @@
       else if (torsoType === 24) buildAstrolabeBackHaloAndShawl();
       const { mainMat, trimMat, glowMat } = mats;
       const st = Object.assign({ lames: 3, flare: 0.28, scale: 1.0 }, PETO_SPAULDER_DESIGNS[torsoType] || PETO_SPAULDER_DESIGNS[1]);
+      if (STATE.fit.mageRobe) {
+        // Protecciones de hombro muy ligeras para túnicas de mago
+        st.lames = 1;
+        st.flare = 0.14;
+        st.accent = 0;
+        st.spikes = false;
+        st.haute = 'none';
+      } else if (STATE.fit.simpleLeatherMode) {
+        // Hombreras sencillas de cuero curtido en Grados D y C (sin cuchillas ni púas barrocas)
+        st.lames = Math.min(st.lames, 2);
+        st.accent = 0;
+        st.spikes = false;
+        st.haute = 'none';
+        st.halo = false;
+      }
       const shOvr = STATE.fit.shoulderShapeOverride || null; // variación aleatoria de "Armadura Random"
       const tBulk = STATE.fit.torsoScale;
       const lBulk = STATE.fit.limbScale;
@@ -10365,6 +10507,15 @@
 
     function addFacetedJewel(group, pos, normal, size, gemMat, bezelMat, diamondMat, ring = 6) {
       const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.clone().normalize());
+      if (STATE.fit.simpleLeatherMode) {
+        // En Grado D y C: rosetón plano de cuero/hierro remachado en lugar de gema brillante
+        const boss = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.85, size * 0.95, size * 0.28, 8), bezelMat);
+        boss.quaternion.copy(q);
+        boss.rotateX(Math.PI / 2);
+        boss.position.copy(pos).addScaledVector(normal, size * 0.14);
+        group.add(boss);
+        return;
+      }
       const gem = new THREE.Mesh(new THREE.OctahedronGeometry(size, 0), gemMat);
       gem.quaternion.copy(q); gem.scale.set(0.9, 1.3, 0.55);
       gem.position.copy(pos).addScaledVector(normal, size * 0.35);
@@ -11109,7 +11260,7 @@
       return geo;
     }
 
-    /* === LIGERA: tirantes planos que nacen del borde del peto, cruzan el trapecio y llegan al espaldar === */
+    /* === LIGERA: tirantes de cuero con hebillas, pasadores y opción en X que nacen del peto y cruzan hombros y clavículas === */
     function buildLightStraps(mats, frontShell) {
       const { mainMat, trimMat } = mats;
       const tb = getWorldBoxOfParts(['torso']);
@@ -11117,50 +11268,611 @@
       const tc = tb.getCenter(new THREE.Vector3());
       const tSize = tb.getSize(new THREE.Vector3());
 
-      // Anclaje delantero: sobre la superficie real de la pechera, no sobre la caja del cuerpo
+      // Material de cuero curtido auténtico para los tirantes, contrastando con las hebillas metálicas (trimMat)
+      const strapPack = generateAdvancedTexturePack('leather_cuirass');
+      const strapLeatherMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#3b2314'),
+        map: strapPack.colorTex,
+        bumpMap: strapPack.bumpTex,
+        bumpScale: 0.018,
+        roughness: 0.62,
+        metalness: 0.14
+      });
+      const buckleMat = STATE.fit.simpleLeatherMode
+        ? new THREE.MeshStandardMaterial({ color: 0xa17c48, roughness: 0.42, metalness: 0.68 })
+        : trimMat;
+
+      // Anclaje delantero sobre el borde superior del peto corto (dejando clavículas y parte alta del pecho al descubierto)
       const anchors = [];
       if (frontShell) {
         frontShell.updateWorldMatrix(true, false);
-        [0.5 - 0.17, 0.5 + 0.17].forEach(u => {
-          const hit = shellPointAt(frontShell, u, 0.97, 0.004);
+        [0.5 - 0.18, 0.5 + 0.18].forEach(u => {
+          const hit = shellPointAt(frontShell, u, 0.96, 0.005);
           if (hit) anchors.push(frontShell.localToWorld(hit.p.clone()).sub(tc));
         });
       }
       if (anchors.length < 2) {
-        // Reserva: borde superior de la caja del torso
-        const yA = (tb.min.y - tc.y) + tSize.y * 0.92;
-        const zA = (tb.max.z - tc.z) + 0.012;
+        const yA = (tb.min.y - tc.y) + tSize.y * 0.76;
+        const zA = (tb.max.z - tc.z) + 0.014;
         anchors.length = 0;
-        [-1, 1].forEach(s => anchors.push(new THREE.Vector3(s * tSize.x * 0.20, yA, zA)));
+        [-1, 1].forEach(s => anchors.push(new THREE.Vector3(s * tSize.x * 0.21, yA, zA)));
       }
 
-      // Mismo grosor que la placa del pecho
-      const thickness = Math.max(0.004, tSize.x * 0.5 * 0.027 * STATE.fit.chestThick * 2.2);
-      const width = Math.max(0.022, tSize.x * 0.075);
-      const yTrap = (tb.max.y - tc.y) + thickness * 0.5 + 0.004;  // justo sobre el trapecio
-      const zBack = (tb.min.z - tc.z) - 0.014;                     // sobre el espaldar
+      const thickness = Math.max(0.0055, tSize.x * 0.016);
+      const width = Math.max(0.028, tSize.x * 0.092);
+      const yTrap = (tb.max.y - tc.y) + thickness + 0.008;
+      const zBack = (tb.min.z - tc.z) - 0.016;
+      const strapStyle = STATE.fit.strapStyle || 'parallel_buckled';
 
       const group = new THREE.Group();
       group.name = 'Light_Chest_Straps';
-      anchors.forEach(a => {
-        const xS = Math.sign(a.x) || 1;
-        const xTrap = xS * Math.max(Math.abs(a.x), tSize.x * 0.17);
-        const curve = new THREE.CatmullRomCurve3([
-          a.clone(),
-          new THREE.Vector3(xTrap, (a.y + yTrap) * 0.5, a.z * 0.55),
-          new THREE.Vector3(xTrap, yTrap, 0),
-          new THREE.Vector3(xTrap, (a.y + yTrap) * 0.5, zBack * 0.55),
-          new THREE.Vector3(xTrap * 0.92, a.y, zBack)
-        ]);
-        group.add(new THREE.Mesh(buildStrapRibbon(curve, width, thickness, 56), mainMat));
 
-        // Hebilla de ajuste donde el tirante se une al peto
-        const buckle = new THREE.Mesh(new THREE.BoxGeometry(width * 1.25, width * 0.55, thickness * 1.6), trimMat);
-        buckle.position.set(a.x, a.y, a.z + thickness * 0.4);
-        group.add(buckle);
+      anchors.forEach((a, idx) => {
+        const xS = Math.sign(a.x) || (idx === 0 ? -1 : 1);
+        const xTrap = xS * Math.max(Math.abs(a.x), tSize.x * 0.19);
+        // En modo 'crossed_x', los tirantes se cruzan en X por la espalda hacia el lado opuesto
+        const xBackEnd = (strapStyle === 'crossed_x') ? (-xTrap * 0.88) : (xTrap * 0.92);
+        const zMidBack = (strapStyle === 'crossed_x') ? (zBack - 0.006 * idx) : (zBack * 0.58);
+
+        const curve = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(a.x, a.y - 0.025, a.z + 0.003),
+          new THREE.Vector3(a.x, a.y + 0.015, a.z + 0.004),
+          new THREE.Vector3(xTrap, (a.y + yTrap) * 0.54, a.z * 0.58),
+          new THREE.Vector3(xTrap, yTrap, 0.005),
+          new THREE.Vector3((xTrap + xBackEnd) * 0.5, (a.y + yTrap) * 0.52, zMidBack),
+          new THREE.Vector3(xBackEnd, a.y - 0.02, zBack)
+        ]);
+        group.add(new THREE.Mesh(buildStrapRibbon(curve, width, thickness, 60), strapLeatherMat));
+
+        // Borde pespunteado fino a cada lado del tirante
+        [-1, 1].forEach(ed => {
+          const stitchCurve = new THREE.CatmullRomCurve3(curve.getPoints(24).map(p => p.clone().add(new THREE.Vector3(ed * width * 0.38, 0.001, 0.001))));
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(stitchCurve, 28, 0.0016, 5, false), buckleMat));
+        });
+
+        // Hebilla de marco 3D con clavillo sobre el pecho/clavícula
+        const bPos = curve.getPoint(0.22);
+        const buckleFrame = new THREE.Mesh(new THREE.BoxGeometry(width * 1.32, width * 0.72, thickness * 1.85), buckleMat);
+        buckleFrame.position.copy(bPos);
+        buckleFrame.rotation.x = -0.25;
+        group.add(buckleFrame);
+
+        const buckleInner = new THREE.Mesh(new THREE.BoxGeometry(width * 0.82, width * 0.36, thickness * 2.0), strapLeatherMat);
+        buckleInner.position.copy(bPos);
+        buckleInner.rotation.x = -0.25;
+        group.add(buckleInner);
+
+        // Pasador de cuero y dos remaches metálicos bajo la hebilla
+        const keeper = new THREE.Mesh(new THREE.BoxGeometry(width * 1.18, width * 0.24, thickness * 1.65), buckleMat);
+        keeper.position.copy(a).add(new THREE.Vector3(0, 0.006, 0.003));
+        group.add(keeper);
+
+        [-0.26, 0.26].forEach(rx => {
+          const riv = new THREE.Mesh(new THREE.SphereGeometry(0.0042, 8, 6), buckleMat);
+          riv.position.set(a.x + rx * width, a.y - 0.012, a.z + thickness * 0.65);
+          group.add(riv);
+        });
       });
 
+      // Arnés pectoral entre ambos tirantes: correa transversal con hebilla o cruce en X con anilla central
+      if (anchors.length >= 2) {
+        const aL = anchors[0], aR = anchors[1];
+        const yChestBand = (aL.y + aR.y) * 0.5 + 0.032;
+        const zChestBand = Math.max(aL.z, aR.z) + 0.004;
+        if (strapStyle === 'crossed_x') {
+          // Cruce en X sobre el pecho alto unido por una anilla forjada central
+          const ringPos = new THREE.Vector3(0, yChestBand + 0.010, zChestBand + 0.004);
+          const oRing = new THREE.Mesh(new THREE.TorusGeometry(width * 0.68, 0.0048, 10, 24), buckleMat);
+          oRing.position.copy(ringPos);
+          group.add(oRing);
+
+          [-1, 1].forEach(s => {
+            const diagCurve = new THREE.CatmullRomCurve3([
+              new THREE.Vector3(s * Math.abs(aL.x), aL.y, zChestBand - 0.002),
+              ringPos.clone(),
+              new THREE.Vector3(-s * Math.abs(aL.x) * 0.95, yTrap - 0.018, zChestBand * 0.45)
+            ]);
+            group.add(new THREE.Mesh(buildStrapRibbon(diagCurve, width * 0.72, thickness * 0.9, 28), strapLeatherMat));
+          });
+        } else {
+          // Correa horizontal pectoral con hebilla central que sujeta ambos tirantes
+          const crossCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(aL.x, yChestBand, zChestBand - 0.003),
+            new THREE.Vector3(0, yChestBand, zChestBand + 0.005),
+            new THREE.Vector3(aR.x, yChestBand, zChestBand - 0.003)
+          ]);
+          group.add(new THREE.Mesh(buildStrapRibbon(crossCurve, width * 0.74, thickness * 0.92, 28), strapLeatherMat));
+          const centerBuckle = new THREE.Mesh(new THREE.BoxGeometry(width * 0.95, width * 0.88, thickness * 1.8), buckleMat);
+          centerBuckle.position.set(0, yChestBand, zChestBand + 0.006);
+          group.add(centerBuckle);
+        }
+      }
+
       attachOrnamentWorld(armorSockets.torso, group, tc, new THREE.Quaternion(), 'torso');
+    }
+
+    /* === GENERADOR DE 6 TIPOS DE CAPAS ARQUITECTÓNICAS (ESPECIALMENTE RANGOS S Y SR) === */
+    function buildArmorCape(capeStyle, mats) {
+      if (!capeStyle || capeStyle === 'none' || !armorSockets.torso) return;
+      const tb = getWorldBoxOfParts(['torso']);
+      if (!tb) return;
+      const tc = tb.getCenter(new THREE.Vector3());
+      const tSize = tb.getSize(new THREE.Vector3());
+      const { mainMat, trimMat, clothMat, glowMat } = mats;
+
+      const group = new THREE.Group();
+      group.name = `Armor_Cape_${capeStyle}`;
+
+      // Coordenadas relativas al centro del torso (tc)
+      const yShoulder = (tb.max.y - tc.y) - 0.015;
+      const zBack = (tb.min.z - tc.z) - 0.022;
+      const zFront = (tb.max.z - tc.z) + 0.016;
+      const halfW = Math.max(0.16, tSize.x * 0.44);
+
+      // Broches/agrafes de hombro y cadena pectoral de sujeción
+      const addShoulderClasps = (sides = [-1, 1], withChain = true) => {
+        sides.forEach(sd => {
+          const claspPos = new THREE.Vector3(sd * halfW * 0.82, yShoulder + 0.01, zBack * 0.35);
+          const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.030, 0.012, 16), trimMat);
+          disc.rotation.x = Math.PI * 0.35;
+          disc.position.copy(claspPos);
+          group.add(disc);
+          if (!STATE.fit.simpleLeatherMode) {
+            const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.013, 0), glowMat || trimMat);
+            gem.position.copy(claspPos).add(new THREE.Vector3(0, 0.006, 0.006));
+            group.add(gem);
+          }
+        });
+        if (withChain) {
+          const chainCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-halfW * 0.78, yShoulder, zFront * 0.65),
+            new THREE.Vector3(0, yShoulder - 0.055, zFront + 0.018),
+            new THREE.Vector3(halfW * 0.78, yShoulder, zFront * 0.65)
+          ]);
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(chainCurve, 24, 0.0045, 8, false), trimMat));
+        }
+      };
+
+      if (capeStyle === 'imperial_drape') {
+        // 1. Gran Capa Imperial Larga con pliegues profundos, cuello real y cenefa dorada
+        addShoulderClasps([-1, 1], true);
+        const len = tSize.y * 1.95;
+        const surf = (u, v) => {
+          const s = u * 2 - 1;
+          const flare = 1.0 + Math.pow(v, 1.15) * 0.55;
+          const pleat = Math.sin(u * Math.PI * 7) * (0.006 + 0.018 * v);
+          const x = s * halfW * 0.92 * flare;
+          const y = yShoulder - v * len - Math.cos(s * Math.PI * 0.5) * 0.03 * v;
+          const z = zBack - 0.012 - Math.pow(v, 0.85) * 0.095 - Math.cos(s * Math.PI * 0.5) * 0.028 + pleat;
+          return new THREE.Vector3(x, y, z);
+        };
+        group.add(new THREE.Mesh(createArmorPlatePatch(surf, { uSegs: 28, vSegs: 24, thickness: 0.005, refCenter: new THREE.Vector3(0, 0, 0) }), clothMat));
+        // Cenefa inferior y bordes laterales dorados
+        const hemSurf = (u, v) => surf(u, 0.91 + v * 0.09);
+        group.add(new THREE.Mesh(createArmorPlatePatch(hemSurf, { uSegs: 28, vSegs: 4, thickness: 0.007, refCenter: new THREE.Vector3(0, 0, 0) }), trimMat));
+        [0, 0.94].forEach(u0 => {
+          const edgeSurf = (u, v) => surf(u0 + u * 0.06, v);
+          group.add(new THREE.Mesh(createArmorPlatePatch(edgeSurf, { uSegs: 3, vSegs: 22, thickness: 0.0068, refCenter: new THREE.Vector3(0, 0, 0) }), trimMat));
+        });
+        // Cuello alto imperial tras la nuca
+        const collarSurf = (u, v) => {
+          const a = Math.PI + (u - 0.5) * 1.85;
+          const r = halfW * (0.48 + v * 0.14);
+          return new THREE.Vector3(Math.sin(a) * r, yShoulder + v * 0.075, Math.cos(a) * r * 0.65 - 0.02);
+        };
+        group.add(new THREE.Mesh(createArmorPlatePatch(collarSurf, { uSegs: 16, vSegs: 6, thickness: 0.0055, refCenter: new THREE.Vector3(0, yShoulder, 0) }), trimMat));
+
+      } else if (capeStyle === 'asymmetric_half') {
+        // 2. Media Capa Heráldica Asimétrica sobre el hombro izquierdo con caída diagonal y cordón real
+        addShoulderClasps([-1, 1], true);
+        const len = tSize.y * 1.82;
+        const surf = (u, v) => {
+          const xL = -halfW * (1.05 + v * 0.35);
+          const xR = halfW * (0.28 - v * 0.42);
+          const x = THREE.MathUtils.lerp(xL, xR, u);
+          const diagDrop = (1 - u) * 0.14 * v;
+          const pleat = Math.sin(u * Math.PI * 5) * 0.014 * v;
+          const y = yShoulder - v * len - diagDrop;
+          const z = zBack - 0.016 - v * 0.085 - Math.sin(u * Math.PI) * 0.032 + pleat;
+          return new THREE.Vector3(x, y, z);
+        };
+        group.add(new THREE.Mesh(createArmorPlatePatch(surf, { uSegs: 20, vSegs: 22, thickness: 0.005, refCenter: new THREE.Vector3(0, 0, 0) }), clothMat));
+        const hemSurf = (u, v) => surf(u, 0.90 + v * 0.10);
+        group.add(new THREE.Mesh(createArmorPlatePatch(hemSurf, { uSegs: 20, vSegs: 4, thickness: 0.0068, refCenter: new THREE.Vector3(0, 0, 0) }), trimMat));
+        // Hombrera de terciopelo acolchado sobre el hombro izquierdo
+        const drapePad = (u, v) => {
+          const x = -halfW * (0.45 + u * 0.62);
+          const y = yShoulder + 0.022 - Math.pow(v - 0.5, 2) * 0.08;
+          const z = (v - 0.5) * (zFront - zBack) * 0.85;
+          return new THREE.Vector3(x, y, z);
+        };
+        group.add(new THREE.Mesh(createArmorPlatePatch(drapePad, { uSegs: 10, vSegs: 10, thickness: 0.006, refCenter: new THREE.Vector3(0, yShoulder, 0) }), trimMat));
+
+      } else if (capeStyle === 'split_swallowtail') {
+        // 3. Capa Bífida en Cola de Golondrina (dos largos paneles divididos que dejan ver el espaldar central)
+        addShoulderClasps([-1, 1], false);
+        const len = tSize.y * 1.92;
+        [-1, 1].forEach(sd => {
+          const tailSurf = (u, v) => {
+            const innerX = sd * (0.035 + v * 0.085);
+            const outerX = sd * (halfW * 0.92 + v * 0.16);
+            const x = THREE.MathUtils.lerp(innerX, outerX, u);
+            const vNotch = Math.sin(u * Math.PI) * 0.09 * Math.pow(v, 1.5);
+            const pleat = Math.sin(u * Math.PI * 3) * 0.012 * v;
+            const y = yShoulder - v * len - vNotch;
+            const z = zBack - 0.018 - v * 0.090 - Math.sin(u * Math.PI) * 0.025 + pleat;
+            return new THREE.Vector3(x, y, z);
+          };
+          group.add(new THREE.Mesh(createArmorPlatePatch(tailSurf, { uSegs: 14, vSegs: 22, thickness: 0.0048, refCenter: new THREE.Vector3(0, 0, 0) }), clothMat));
+          const hemSurf = (u, v) => tailSurf(u, 0.90 + v * 0.10);
+          group.add(new THREE.Mesh(createArmorPlatePatch(hemSurf, { uSegs: 14, vSegs: 4, thickness: 0.0066, refCenter: new THREE.Vector3(0, 0, 0) }), trimMat));
+        });
+        // Puente heráldico dorsal que une ambas colas en la espalda alta
+        const bridge = new THREE.Mesh(new THREE.BoxGeometry(halfW * 1.1, 0.032, 0.014), trimMat);
+        bridge.position.set(0, yShoulder - 0.02, zBack - 0.015);
+        group.add(bridge);
+
+      } else if (capeStyle === 'sylvan_leaf') {
+        // 4. Manto Foliar Élfico en Pico con nervadura central dorada y esclavina silvana
+        addShoulderClasps([-1, 1], true);
+        const len = tSize.y * 1.78;
+        const leafSurf = (u, v) => {
+          const s = u * 2 - 1;
+          const leafWidth = Math.sin(Math.min(1, v * 0.92 + 0.12) * Math.PI) * 1.18 * (1 - 0.45 * Math.pow(v, 2.2));
+          const scallop = 1.0 + 0.06 * Math.sin(Math.abs(s) * Math.PI * 5) * v;
+          const x = s * halfW * leafWidth * scallop;
+          const tipDrop = (1 - Math.abs(s)) * 0.14 * Math.pow(v, 1.4);
+          const y = yShoulder - v * len - tipDrop;
+          const z = zBack - 0.015 - v * 0.082 - (1 - Math.abs(s)) * 0.028 * Math.sin(v * Math.PI);
+          return new THREE.Vector3(x, y, z);
+        };
+        group.add(new THREE.Mesh(createArmorPlatePatch(leafSurf, { uSegs: 24, vSegs: 22, thickness: 0.0046, refCenter: new THREE.Vector3(0, 0, 0) }), clothMat));
+        // Nervio central y venas laterales de hoja en oro (trimMat)
+        const midribPts = [];
+        for (let i = 0; i <= 18; i++) midribPts.push(leafSurf(0.5, i / 18).add(new THREE.Vector3(0, 0, -0.004)));
+        group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(midribPts), 24, 0.0042, 6, false), trimMat));
+        [0.25, 0.48, 0.70].forEach(v0 => {
+          [-1, 1].forEach(sd => {
+            const vPts = [];
+            for (let k = 0; k <= 8; k++) {
+              const t = k / 8;
+              vPts.push(leafSurf(0.5 + sd * t * 0.44, v0 + t * 0.14).add(new THREE.Vector3(0, 0, -0.0035)));
+            }
+            group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(vPts), 12, 0.0028, 5, false), trimMat));
+          });
+        });
+
+      } else if (capeStyle === 'phoenix_wings') {
+        // 5. Manto de Plumas / Girones Ígneos Escalonados (5 largos penachos lanceolados en abanico)
+        addShoulderClasps([-1, 1], false);
+        const plumeCount = 5;
+        for (let p = 0; p < plumeCount; p++) {
+          const norm = (p / (plumeCount - 1)) * 2 - 1; // -1 a 1
+          const plumeLen = tSize.y * (1.88 - Math.abs(norm) * 0.28);
+          const pSurf = (u, v) => {
+            const s = u * 2 - 1;
+            const wEnv = Math.sin(Math.min(1, v * 0.95 + 0.08) * Math.PI) * (1 - 0.65 * Math.pow(v, 2.4));
+            const cx = norm * (halfW * 0.68 + v * 0.16);
+            const x = cx + s * halfW * 0.28 * wEnv;
+            const y = yShoulder - v * plumeLen;
+            const z = zBack - 0.014 - Math.abs(norm) * 0.006 - v * 0.095 - (1 - Math.abs(s)) * 0.012;
+            return new THREE.Vector3(x, y, z);
+          };
+          group.add(new THREE.Mesh(
+            createArmorPlatePatch(pSurf, { uSegs: 10, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, 0, 0) }),
+            p % 2 === 0 ? clothMat : mainMat
+          ));
+          // Raquis central dorado/ígneo en cada pluma
+          const qPts = [];
+          for (let i = 0; i <= 14; i++) qPts.push(pSurf(0.5, i / 14).add(new THREE.Vector3(0, 0, -0.0035)));
+          group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(qPts), 18, 0.0032, 5, false), trimMat));
+        }
+
+      } else if (capeStyle === 'scholar_stole') {
+        // 6. Esclavina Catedralicia + Doble Estola Larga Ceremonial (Delantera y Trasera) para Magos y Oráculos
+        const mozettaSurf = (u, v) => {
+          const ang = (u * 2 - 1) * Math.PI * 0.82 + Math.PI; // envuelve espalda y hombros
+          const rX = halfW * (0.72 + v * 0.34);
+          const rZ = Math.abs(zBack) * (0.95 + v * 0.42);
+          const scallop = Math.sin(u * Math.PI * 9) * 0.012 * v;
+          const y = yShoulder + 0.02 - v * tSize.y * 0.42 + scallop;
+          return new THREE.Vector3(Math.sin(ang) * rX, y, Math.cos(ang) * rZ);
+        };
+        group.add(new THREE.Mesh(createArmorPlatePatch(mozettaSurf, { uSegs: 24, vSegs: 10, thickness: 0.0048, refCenter: new THREE.Vector3(0, yShoulder, 0) }), clothMat));
+        const mozHem = (u, v) => mozettaSurf(u, 0.86 + v * 0.14);
+        group.add(new THREE.Mesh(createArmorPlatePatch(mozHem, { uSegs: 24, vSegs: 3, thickness: 0.0064, refCenter: new THREE.Vector3(0, yShoulder, 0) }), trimMat));
+
+        // Dos estolas largas traseras + dos estolas delanteras con medallones astrales en las puntas
+        [-1, 1].forEach(sd => {
+          const backStole = (u, v) => {
+            const x = sd * (halfW * 0.42 + v * 0.06) + (u - 0.5) * 0.075 * (1 + v * 0.45);
+            const y = yShoulder - 0.04 - v * tSize.y * 1.82;
+            const z = zBack - 0.022 - Math.sin(v * Math.PI) * 0.045 - v * 0.05;
+            return new THREE.Vector3(x, y, z);
+          };
+          group.add(new THREE.Mesh(createArmorPlatePatch(backStole, { uSegs: 8, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, 0, 0) }), clothMat));
+          const backTip = (u, v) => backStole(u, 0.90 + v * 0.10);
+          group.add(new THREE.Mesh(createArmorPlatePatch(backTip, { uSegs: 8, vSegs: 4, thickness: 0.006, refCenter: new THREE.Vector3(0, 0, 0) }), trimMat));
+
+          const frontStole = (u, v) => {
+            const x = sd * (halfW * 0.36 - v * 0.04) + (u - 0.5) * 0.052 * (1 + v * 0.30);
+            const y = yShoulder - 0.02 - v * tSize.y * 1.25;
+            const z = zFront + 0.014 + Math.sin(v * Math.PI) * 0.018;
+            return new THREE.Vector3(x, y, z);
+          };
+          group.add(new THREE.Mesh(createArmorPlatePatch(frontStole, { uSegs: 6, vSegs: 16, thickness: 0.0040, refCenter: new THREE.Vector3(0, 0, 0) }), trimMat));
+          const ringEnd = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.004, 8, 20), trimMat);
+          ringEnd.position.copy(frontStole(0.5, 1.0));
+          group.add(ringEnd);
+        });
+      }
+
+      attachOrnamentWorld(armorSockets.torso, group, tc, new THREE.Quaternion(), 'torso');
+    }
+
+    /* === MAGOS POR NIVEL (D..SR): TÚNICAS FLUIDAS, PROTECCIONES LIGERAS Y CINTURONES CRUZADOS ESTRECHOS === */
+    function buildMageRobeAndCrossBelts(mats) {
+      const { mainMat, trimMat, clothMat, glowMat } = mats;
+      const rankTier = STATE.fit.rankTier || 'S';
+      const isLow = (rankTier === 'D' || rankTier === 'C');
+      const isMid = (rankTier === 'B' || rankTier === 'A');
+      const isHigh = (rankTier === 'S' || rankTier === 'SR');
+      const tBulk = STATE.fit.torsoScale || 1.0;
+      const lBulk = STATE.fit.limbScale || 1.0;
+
+      // Material de cuero oscuro estrecho para los cinturones cruzados y correas del mago
+      const beltLeatherPack = generateAdvancedTexturePack('leather_cuirass');
+      const narrowBeltMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(isLow ? '#3e2415' : (isMid ? '#291b14' : '#1e132a')),
+        map: beltLeatherPack.colorTex,
+        bumpMap: beltLeatherPack.bumpTex,
+        bumpScale: 0.016,
+        roughness: isLow ? 0.65 : 0.45,
+        metalness: isLow ? 0.12 : 0.28
+      });
+      const buckleMat = isLow
+        ? new THREE.MeshStandardMaterial({ color: 0x9c7a44, roughness: 0.45, metalness: 0.65 })
+        : trimMat;
+      const robeBodyMat = isLow ? clothMat : mainMat;
+      const robeAccentMat = isLow ? narrowBeltMat : trimMat;
+
+      // 1. TÚNICA SUPERIOR (Jubón cruzado de tela/terciopelo con solapas en V, sin placas metálicas pesadas)
+      const torsoMeshes = getMeshesByAnatomy(['torso']);
+      torsoMeshes.forEach(tMesh => {
+        createFormFittedShell(tMesh, robeBodyMat, {
+          targetPart: 'torso', slotName: 'torso',
+          thicknessRatio: 0.019 * tBulk,
+          yMin: 0.01, yMax: 0.95,
+          chestContour: 'smooth_cuirass',
+          neckCutout: 'v_deep', neckDepth: 0.18,
+          foldStyle: isLow ? 'scalloped' : 'ogee_conopial',
+          foldDepth: 0.06,
+          bevelRadius: 0.006,
+          edgeRim: 0.0024 * tBulk,
+          frameMaterial: robeAccentMat
+        });
+        // Chaleco / solapa de túnica abierta en los costados
+        createFormFittedShell(tMesh, clothMat, {
+          targetPart: 'torso', slotName: 'torso',
+          thicknessRatio: 0.023 * tBulk,
+          yMin: 0.02, yMax: 0.92,
+          angleMin: -Math.PI * 0.44, angleMax: Math.PI * 0.44,
+          neckCutout: 'halter_v', neckDepth: 0.22,
+          sideCutout: 'hourglass', sideDepth: 0.85,
+          foldStyle: 'swallow_tail', foldDepth: 0.10,
+          bevelRadius: 0.006,
+          edgeRim: 0.0026 * tBulk,
+          frameMaterial: robeAccentMat
+        });
+      });
+
+      // 2. PROTECCIONES LIGERAS DE MAGO (Hombreras ligeras acolchadas + mangas acampanadas y brazales finos)
+      ['upperarm_l', 'upperarm_r'].forEach(partName => {
+        getMeshesByAnatomy([partName]).forEach(aMesh => {
+          // Manga de túnica amplia y acampanada hacia el codo
+          createFormFittedShell(aMesh, robeBodyMat, {
+            targetPart: partName, slotName: 'torso',
+            thicknessRatio: 0.022 * lBulk,
+            yMin: 0.10, yMax: 0.88,
+            flareBottom: isLow ? 0.10 : 0.16,
+            foldStyle: isLow ? 'scalloped' : 'foliate',
+            foldDepth: 0.08,
+            bevelRadius: 0.006,
+            edgeRim: 0.0022 * lBulk,
+            frameMaterial: robeAccentMat
+          });
+          // Guardahombro ligero superior (pequeña hombrera de cuero/seda en el deltoides alto)
+          createFormFittedShell(aMesh, robeAccentMat, {
+            targetPart: partName, slotName: 'torso',
+            thicknessRatio: 0.027 * lBulk,
+            yMin: 0.62, yMax: 0.94,
+            flareBottom: 0.05,
+            vPointBottom: 0.08,
+            foldStyle: 'ogee_conopial',
+            foldDepth: 0.07,
+            bevelRadius: 0.006
+          });
+        });
+      });
+
+      ['forearm_l', 'forearm_r'].forEach(partName => {
+        getMeshesByAnatomy([partName]).forEach(fMesh => {
+          // Brazal ligero de cuero o seda en el antebrazo (sin guanteletes pesados en las manos)
+          createFormFittedShell(fMesh, narrowBeltMat, {
+            targetPart: partName, slotName: 'gloves',
+            thicknessRatio: 0.021 * lBulk,
+            yMin: 0.18, yMax: 0.72,
+            flareTop: 0.06,
+            foldStyle: 'ogee_conopial',
+            foldDepth: 0.05,
+            bevelRadius: 0.005,
+            edgeRim: 0.0020 * lBulk,
+            frameMaterial: buckleMat
+          });
+        });
+      });
+
+      // 3. CINTURONES CRUZADOS ESTRECHOS (Torso + Cintura/Cadera) Y FALDÓN LARGO DE TÚNICA
+      const tb = getWorldBoxOfParts(['torso']);
+      const pb = getWorldBoxOfParts(['pelvis']);
+      if (tb && armorSockets.torso) {
+        const tc = tb.getCenter(new THREE.Vector3());
+        const tSize = tb.getSize(new THREE.Vector3());
+        const chestHarnessGrp = new THREE.Group();
+        chestHarnessGrp.name = 'Mage_Crossed_Chest_Belts';
+
+        const wStrap = 0.020; // Cinturón estrecho
+        const tStrap = 0.006;
+        const yTop = (tb.max.y - tc.y) - 0.006;
+        const yBot = (tb.min.y - tc.y) + 0.015;
+        const zF = (tb.max.z - tc.z) + 0.024;
+        const zB = (tb.min.z - tc.z) - 0.022;
+        const xW = tSize.x * 0.44;
+
+        // Doble bandolera estrecha cruzada en X sobre la túnica (hombros a caderas opuestas)
+        [-1, 1].forEach((sd, idx) => {
+          const zOff = idx * 0.005;
+          const bandCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(sd * xW * 0.56, yTop, 0.01),
+            new THREE.Vector3(sd * xW * 0.36, yTop * 0.62 + yBot * 0.38, zF * 0.96 + zOff),
+            new THREE.Vector3(0, (yTop + yBot) * 0.50, zF + 0.008 + zOff),
+            new THREE.Vector3(-sd * xW * 0.42, yTop * 0.25 + yBot * 0.75, zF * 0.92 + zOff),
+            new THREE.Vector3(-sd * xW * 0.74, yBot, 0.02),
+            new THREE.Vector3(-sd * xW * 0.42, yTop * 0.28 + yBot * 0.72, zB * 0.92 - zOff),
+            new THREE.Vector3(0, (yTop + yBot) * 0.52, zB - 0.006 - zOff),
+            new THREE.Vector3(sd * xW * 0.36, yTop * 0.65 + yBot * 0.35, zB * 0.95 - zOff),
+            new THREE.Vector3(sd * xW * 0.56, yTop, 0.01)
+          ]);
+          chestHarnessGrp.add(new THREE.Mesh(buildStrapRibbon(bandCurve, wStrap, tStrap, 72), narrowBeltMat));
+
+          // Hebilla estrecha en el pecho alto y anilla central en el cruce en X
+          const bPt = bandCurve.getPoint(0.14);
+          const buckle = new THREE.Mesh(new THREE.BoxGeometry(wStrap * 1.45, wStrap * 1.15, tStrap * 2.1), buckleMat);
+          buckle.position.copy(bPt);
+          buckle.rotation.z = sd * 0.68;
+          chestHarnessGrp.add(buckle);
+        });
+
+        // Anilla/broche central en el cruce en X de los cinturones estrechos del pecho
+        const centerRing = new THREE.Mesh(new THREE.TorusGeometry(0.017, 0.0038, 10, 24), buckleMat);
+        centerRing.position.set(0, (yTop + yBot) * 0.50, zF + 0.014);
+        chestHarnessGrp.add(centerRing);
+
+        // Viales alquímicos / estuche de pergamino sujetos a la bandolera estrecha
+        [-0.032, 0.0, 0.032].forEach((off, vIdx) => {
+          const vialHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.009, 0.040, 10), isLow ? narrowBeltMat : glowMat);
+          vialHolder.position.set(-xW * 0.28 + off, (yTop + yBot) * 0.36 - vIdx * 0.016, zF + 0.008);
+          vialHolder.rotation.z = 0.28;
+          chestHarnessGrp.add(vialHolder);
+          const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.010, 10), buckleMat);
+          cap.position.copy(vialHolder.position).add(new THREE.Vector3(-0.005, 0.019, 0));
+          cap.rotation.z = 0.28;
+          chestHarnessGrp.add(cap);
+        });
+
+        attachOrnamentWorld(armorSockets.torso, chestHarnessGrp, tc, new THREE.Quaternion(), 'torso');
+      }
+
+      if (pb && armorSockets.belt) {
+        const pc = pb.getCenter(new THREE.Vector3());
+        const pSize = pb.getSize(new THREE.Vector3());
+        const robeGrp = new THREE.Group();
+        robeGrp.name = 'Mage_Robe_Skirt_And_CrossBelts';
+
+        // A) FALDÓN DE TÚNICA LARGA FLUIDA POR NIVEL (con pliegues profundos de tela y abertura frontal hasta media pantorrilla / tobillos)
+        const skirtLen = Math.max(0.46, pSize.y * (isLow ? 3.10 : (isMid ? 3.75 : 4.35)));
+        const skirtTopY = pSize.y * 0.30;
+        [-1, 1].forEach(sd => {
+          const robeSkirtSurf = (u, v) => {
+            // Envuelve desde el borde frontal (con abertura en A) hasta el centro trasero
+            const angStart = isLow ? 0.10 : (isMid ? 0.15 : 0.18);
+            const ang = (angStart + u * (0.99 - angStart)) * Math.PI * sd;
+            const flare = 1.0 + Math.pow(v, 1.08) * (isLow ? 0.58 : (isMid ? 0.76 : 0.96));
+            const pleat = Math.sin(u * Math.PI * 7) * (0.006 + 0.018 * v);
+            const rX = (pSize.x * 0.56 * flare) + pleat;
+            const rZ = (pSize.z * 0.56 * flare) + pleat;
+            const y = skirtTopY - v * skirtLen;
+            return new THREE.Vector3(Math.sin(ang) * rX, y, Math.cos(ang) * rZ);
+          };
+          robeGrp.add(new THREE.Mesh(
+            createArmorPlatePatch(robeSkirtSurf, { uSegs: 24, vSegs: 28, thickness: 0.0050, refCenter: new THREE.Vector3(0, -skirtLen * 0.4, 0) }),
+            robeBodyMat
+          ));
+          // Cenefa inferior y ribete vertical delantero de la túnica
+          const hemSurf = (u, v) => robeSkirtSurf(u, 0.93 + v * 0.07);
+          robeGrp.add(new THREE.Mesh(
+            createArmorPlatePatch(hemSurf, { uSegs: 24, vSegs: 3, thickness: 0.0068, refCenter: new THREE.Vector3(0, -skirtLen * 0.9, 0) }),
+            robeAccentMat
+          ));
+          const frontBorder = (u, v) => robeSkirtSurf(u * 0.08, v);
+          robeGrp.add(new THREE.Mesh(
+            createArmorPlatePatch(frontBorder, { uSegs: 3, vSegs: 24, thickness: 0.0068, refCenter: new THREE.Vector3(0, -skirtLen * 0.4, 0) }),
+            robeAccentMat
+          ));
+        });
+
+        // Faldón interior / estola central larga bajo la abertura delantera de la túnica
+        const underPanelW = pSize.x * 0.34;
+        const underPanelLen = skirtLen * 0.94;
+        const underSurf = (u, v) => {
+          const s = u * 2 - 1;
+          const x = s * underPanelW * 0.5 * (1 + v * 0.38);
+          const y = skirtTopY - 0.02 - v * underPanelLen;
+          const z = pSize.z * 0.55 * (1 + v * 0.30) + Math.sin(u * Math.PI * 3) * 0.007 * v;
+          return new THREE.Vector3(x, y, z);
+        };
+        robeGrp.add(new THREE.Mesh(
+          createArmorPlatePatch(underSurf, { uSegs: 12, vSegs: 22, thickness: 0.0042, refCenter: new THREE.Vector3(0, -underPanelLen * 0.4, 0) }),
+          clothMat
+        ));
+
+        // B) CINTURONES CRUZADOS ESTRECHOS EN LA CINTURA Y CADERA (Doble correa estrecha en X + hebillas finas + lengüeta colgante)
+        const rWaistX = pSize.x * 0.575;
+        const rWaistZ = pSize.z * 0.575;
+        const beltConfigs = [
+          { tiltY: 0.0,   yOff: skirtTopY - 0.01, w: 0.022 }, // Cinturón horizontal estrecho
+          { tiltY: 0.052, yOff: skirtTopY - 0.04, w: 0.020 }, // Cinturón inclinado 1 (cruce en X)
+          { tiltY: -0.052,yOff: skirtTopY - 0.04, w: 0.020 }  // Cinturón inclinado 2 (cruce en X)
+        ];
+        beltConfigs.forEach((bc, bIdx) => {
+          const pts = [];
+          const segs = 32;
+          for (let i = 0; i <= segs; i++) {
+            const a = (i / segs) * Math.PI * 2;
+            const x = Math.sin(a) * (rWaistX + bIdx * 0.002);
+            const z = Math.cos(a) * (rWaistZ + bIdx * 0.002);
+            const y = bc.yOff + Math.sin(a) * bc.tiltY - Math.cos(a) * 0.012;
+            pts.push(new THREE.Vector3(x, y, z));
+          }
+          const beltCurve = new THREE.CatmullRomCurve3(pts, true);
+          robeGrp.add(new THREE.Mesh(new THREE.TubeGeometry(beltCurve, 48, bc.w * 0.48, 8, true), narrowBeltMat));
+
+          // Hebilla fina delantera en cada cinturón estrecho
+          const frontBuckle = new THREE.Mesh(new THREE.BoxGeometry(bc.w * 1.6, bc.w * 1.25, 0.012), buckleMat);
+          frontBuckle.position.set((bIdx - 1) * 0.022, bc.yOff - 0.012, rWaistZ + 0.008);
+          frontBuckle.rotation.z = bc.tiltY * 4.5;
+          robeGrp.add(frontBuckle);
+        });
+
+        // Lengüeta estrecha de cuero colgando de la hebilla lateral junto con grimorio/bolsa de componentes
+        const tonguePts = [
+          new THREE.Vector3(0.03, skirtTopY - 0.03, rWaistZ + 0.010),
+          new THREE.Vector3(0.055, skirtTopY - 0.16, rWaistZ + 0.018),
+          new THREE.Vector3(0.065, skirtTopY - 0.30, rWaistZ + 0.014)
+        ];
+        robeGrp.add(new THREE.Mesh(buildStrapRibbon(new THREE.CatmullRomCurve3(tonguePts), 0.018, 0.004, 18), narrowBeltMat));
+
+        // Escarcela/bolsa de hechicero o grimorio sujeto al cinturón cruzado en la cadera izquierda
+        const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.032), narrowBeltMat);
+        pouch.position.set(-rWaistX * 0.96, skirtTopY - 0.10, 0.04);
+        pouch.rotation.z = 0.15;
+        robeGrp.add(pouch);
+        const pouchClasp = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.036), buckleMat);
+        pouchClasp.position.copy(pouch.position).add(new THREE.Vector3(-0.004, 0.012, 0));
+        robeGrp.add(pouchClasp);
+
+        attachOrnamentWorld(armorSockets.belt || armorSockets.pelvis, robeGrp, pc, new THREE.Quaternion(), 'belt');
+      }
     }
 
     /* === LIGERA: faldones de tela a los lados, colgando del cinturón igual que el tabardo === */
@@ -11636,7 +12348,7 @@
         const baseCfg = TORSO_ARCHITECTURES[torsoType] || TORSO_ARCHITECTURES[1];
         const ovr = STATE.fit.chestCutoutOverride || null;
         const cfg = ovr ? { ...baseCfg, ...ovr } : baseCfg;
-        const isWideClavicleWrap = Boolean(
+        const isWideClavicleWrap = !STATE.fit.lightHarness && !STATE.fit.mageRobe && !STATE.fit.simpleLeatherMode && Boolean(
           cfg.hasClavicleScapulaYoke ||
           cfg.sideCutout === 'scapula_shoulder_wrap' ||
           cfg.sideCutout === 'lineage_high_bolero' ||
@@ -11653,212 +12365,228 @@
         const backStyle = cfg.backStyle || 'smooth';
         let frontPlateShell = null;
 
-        torsoMeshes.forEach(tMesh => {
-          // Jubón interior muy ceñido cuando el peto tiene calados
-          if (cfg.hasUnderGambeson) {
-            createFormFittedShell(tMesh, clothMat, {
-              targetPart: 'torso', thicknessRatio: 0.015 * tBulk,
-              yMin: 0.01, yMax: 0.94,
-              chestContour: 'smooth_cuirass',
-              bevelRadius: 0.005,
-              offsetY: STATE.fit.torsoOffsetY
-            });
+        if (STATE.fit.mageRobe) {
+          // 1M. ARMADURA DE MAGO ORIENTADA A TÚNICA POR NIVEL + PROTECCIONES LIGERAS + CINTURONES CRUZADOS ESTRECHOS
+          buildMageRobeAndCrossBelts({ mainMat, trimMat, clothMat, glowMat });
+          if (torsoMeshes[0] && !STATE.fit.simpleLeatherMode) {
+            buildPetoCollar(torsoMeshes[0], torsoType, { mainMat, trimMat, glowMat });
           }
+          buildPetoDeltoidSpaulders(torsoType, cfg, false, { mainMat, trimMat, glowMat });
+        } else {
+          torsoMeshes.forEach(tMesh => {
+            // Jubón interior muy ceñido cuando el peto tiene calados
+            if (cfg.hasUnderGambeson) {
+              createFormFittedShell(tMesh, clothMat, {
+                targetPart: 'torso', thicknessRatio: 0.015 * tBulk,
+                yMin: 0.01, yMax: 0.94,
+                chestContour: 'smooth_cuirass',
+                bevelRadius: 0.005,
+                offsetY: STATE.fit.torsoOffsetY
+              });
+            }
 
-          // 1. PLACA PECTORAL FRONTAL CONTINUA CON VOLUMEN NATURAL DE CORAZA (Cero pliegues horizontales en el pecho)
-          frontPlateShell = createFormFittedShell(tMesh, mainMat, {
-            targetPart: 'torso',
-            thicknessRatio: 0.027 * tBulk * STATE.fit.chestThick,
-            yMin: cfg.yMinFront,
-            yMax: cfg.yMaxFront,
-            angleMin: -frontAngleLimit,
-            angleMax: frontAngleLimit,
-            chestContour: cfg.chestContour,
-            neckCutout: cfg.neckCutout,
-            neckDepth: cfg.neckDepth,
-            sideCutout: cfg.sideCutout,
-            sideDepth: cfg.sideDepth,
-            windowCutout: cfg.windowCutout,
-            foldStyle: cfg.foldStyle,
-            foldWaves: cfg.foldWaves || 3.0,
-            foldDepth: cfg.foldDepth,
-            vPointBottom: cfg.vPointBottom || 0.10,
-            ridgeCenterZ: cfg.ridgeCenterZ || 0.16,
-            flareBottom: cfg.flareBottom || 0.025,
-            flareTop: cfg.flareTop || 0.032,
-            fluteCount: cfg.fluteCount || 0,
-            fluteDepth: cfg.fluteDepth || 0.010,
-            bevelRadius: 0.011,
-            offsetY: STATE.fit.torsoOffsetY,
-            windowFrame: true,
-            edgeRim: 0.0032 * tBulk,
-            frameMaterial: trimMat,
-            frameGemMaterial: petoDiamondMat,
-            accentGemMaterial: petoGemMat
-          });
-
-          // 2. ESPALDAR (BACKPLATE) CON ARQUITECTURAS REALMENTE VARIADAS (Liso, Láminas Articuladas, Dorsales Anchas, Concha Alada, Escudos Dorsales)
-          if (backStyle === 'smooth' || backStyle === 'wide_dorsal_shields_3d' || backStyle === 'valkyrie_wings_3d' || backStyle === 'draconic_fins_3d') {
-            // 2A. ESPALDAR LISO FORJADO (Superficie limpia, continua y anatómica en la espalda)
-            createFormFittedShell(tMesh, mainMat, {
+            // 1. PLACA PECTORAL FRONTAL CONTINUA CON VOLUMEN NATURAL DE CORAZA (Cero pliegues horizontales en el pecho)
+            frontPlateShell = createFormFittedShell(tMesh, mainMat, {
               targetPart: 'torso',
-              thicknessRatio: 0.026 * tBulk * STATE.fit.chestThick,
-              yMin: 0.02,
-              yMax: isWideClavicleWrap ? 0.99 : 0.95,
-              angleMin: Math.PI * 0.48,
-              angleMax: Math.PI * 1.52,
-              chestContour: 'smooth_cuirass',
-              sideCutout: 'hourglass',
-              sideDepth: 0.72,
-              foldStyle: 'ogee_conopial',
-              foldDepth: 0.08,
-              vPointBottom: 0.08,
-              fluteCount: 0,
+              thicknessRatio: 0.027 * tBulk * STATE.fit.chestThick,
+              yMin: cfg.yMinFront,
+              yMax: cfg.yMaxFront,
+              angleMin: -frontAngleLimit,
+              angleMax: frontAngleLimit,
+              chestContour: cfg.chestContour,
+              neckCutout: cfg.neckCutout,
+              neckDepth: cfg.neckDepth,
+              sideCutout: cfg.sideCutout,
+              sideDepth: cfg.sideDepth,
+              windowCutout: STATE.fit.simpleLeatherMode ? 'none' : cfg.windowCutout,
+              foldStyle: STATE.fit.simpleLeatherMode ? 'ogee_conopial' : cfg.foldStyle,
+              foldWaves: cfg.foldWaves || 3.0,
+              foldDepth: STATE.fit.simpleLeatherMode ? 0.10 : cfg.foldDepth,
+              vPointBottom: cfg.vPointBottom || 0.10,
+              ridgeCenterZ: STATE.fit.simpleLeatherMode ? 0.11 : (cfg.ridgeCenterZ || 0.16),
+              flareBottom: cfg.flareBottom || 0.025,
+              flareTop: cfg.flareTop || 0.032,
+              fluteCount: STATE.fit.simpleLeatherMode ? 0 : (cfg.fluteCount || 0),
+              fluteDepth: cfg.fluteDepth || 0.010,
               bevelRadius: 0.011,
               offsetY: STATE.fit.torsoOffsetY,
-              edgeRim: 0.0030 * tBulk,
-              frameMaterial: trimMat
+              windowFrame: !STATE.fit.simpleLeatherMode,
+              edgeRim: 0.0032 * tBulk,
+              frameMaterial: trimMat,
+              frameGemMaterial: petoDiamondMat,
+              accentGemMaterial: petoGemMat
             });
-          } else if (backStyle === 'laminated') {
-            // 2B. ESPALDAR DE LÁMINAS ARTICULADAS (4 láminas horizontales superpuestas en chevron con biseles de 45°)
-            const lameBands = [
-              { yMin: 0.01, yMax: 0.29, thick: 0.024, span: 0.50 },
-              { yMin: 0.24, yMax: 0.53, thick: 0.027, span: 0.52 },
-              { yMin: 0.48, yMax: 0.77, thick: 0.030, span: 0.55 },
-              { yMin: 0.72, yMax: 0.99, thick: 0.033, span: 0.58 }
-            ];
-            lameBands.forEach((b, idx) => {
-              createFormFittedShell(tMesh, idx % 2 === 1 ? trimMat : mainMat, {
+
+            // 2. ESPALDAR (BACKPLATE) CON ARQUITECTURAS REALMENTE VARIADAS (Liso, Láminas Articuladas, Dorsales Anchas, Concha Alada, Escudos Dorsales)
+            if (STATE.fit.simpleLeatherMode || backStyle === 'smooth' || backStyle === 'wide_dorsal_shields_3d' || backStyle === 'valkyrie_wings_3d' || backStyle === 'draconic_fins_3d') {
+              // 2A. ESPALDAR LISO FORJADO (Superficie limpia, continua y anatómica en la espalda)
+              createFormFittedShell(tMesh, mainMat, {
                 targetPart: 'torso',
-                thicknessRatio: b.thick * tBulk,
-                yMin: b.yMin,
-                yMax: b.yMax,
-                angleMin: Math.PI * (1.0 - b.span),
-                angleMax: Math.PI * (1.0 + b.span),
-                chestContour: 'flat_cone',
+                thicknessRatio: 0.026 * tBulk * STATE.fit.chestThick,
+                yMin: STATE.fit.lightHarness ? 0.42 : 0.02,
+                yMax: STATE.fit.lightHarness ? 0.80 : (isWideClavicleWrap ? 0.99 : 0.95),
+                angleMin: Math.PI * 0.48,
+                angleMax: Math.PI * 1.52,
+                chestContour: 'smooth_cuirass',
+                sideCutout: 'hourglass',
+                sideDepth: 0.72,
                 foldStyle: 'ogee_conopial',
-                foldDepth: 0.09,
+                foldDepth: 0.08,
                 vPointBottom: 0.08,
-                flareBottom: 0.018,
+                fluteCount: 0,
+                bevelRadius: 0.011,
+                offsetY: STATE.fit.torsoOffsetY,
+                edgeRim: 0.0030 * tBulk,
+                frameMaterial: trimMat
+              });
+            } else if (backStyle === 'laminated') {
+              // 2B. ESPALDAR DE LÁMINAS ARTICULADAS (4 láminas horizontales superpuestas en chevron con biseles de 45°)
+              const lameBands = [
+                { yMin: 0.01, yMax: 0.29, thick: 0.024, span: 0.50 },
+                { yMin: 0.24, yMax: 0.53, thick: 0.027, span: 0.52 },
+                { yMin: 0.48, yMax: 0.77, thick: 0.030, span: 0.55 },
+                { yMin: 0.72, yMax: 0.99, thick: 0.033, span: 0.58 }
+              ];
+              lameBands.forEach((b, idx) => {
+                createFormFittedShell(tMesh, idx % 2 === 1 ? trimMat : mainMat, {
+                  targetPart: 'torso',
+                  thicknessRatio: b.thick * tBulk,
+                  yMin: b.yMin,
+                  yMax: b.yMax,
+                  angleMin: Math.PI * (1.0 - b.span),
+                  angleMax: Math.PI * (1.0 + b.span),
+                  chestContour: 'flat_cone',
+                  foldStyle: 'ogee_conopial',
+                  foldDepth: 0.09,
+                  vPointBottom: 0.08,
+                  flareBottom: 0.018,
+                  bevelRadius: 0.010,
+                  offsetY: STATE.fit.torsoOffsetY
+                });
+              });
+            } else if (backStyle === 'broad_dorsals') {
+              // 2C. ESPALDAR DE PLACAS DORSALES ANCHAS (Placa espinal base + dos anchas placas dorsales/latissimus que envuelven la espalda)
+              createFormFittedShell(tMesh, mainMat, {
+                targetPart: 'torso',
+                thicknessRatio: 0.025 * tBulk,
+                yMin: 0.01,
+                yMax: 0.97,
+                angleMin: Math.PI * 0.46,
+                angleMax: Math.PI * 1.54,
+                chestContour: 'smooth_cuirass',
+                sideCutout: 'v_shield',
+                sideDepth: 0.75,
+                foldStyle: 'upward_arch',
+                foldDepth: 0.08,
                 bevelRadius: 0.010,
                 offsetY: STATE.fit.torsoOffsetY
               });
-            });
-          } else if (backStyle === 'broad_dorsals') {
-            // 2C. ESPALDAR DE PLACAS DORSALES ANCHAS (Placa espinal base + dos anchas placas dorsales/latissimus que envuelven la espalda)
-            createFormFittedShell(tMesh, mainMat, {
-              targetPart: 'torso',
-              thicknessRatio: 0.025 * tBulk,
-              yMin: 0.01,
-              yMax: 0.97,
-              angleMin: Math.PI * 0.46,
-              angleMax: Math.PI * 1.54,
-              chestContour: 'smooth_cuirass',
-              sideCutout: 'v_shield',
-              sideDepth: 0.75,
-              foldStyle: 'upward_arch',
-              foldDepth: 0.08,
-              bevelRadius: 0.010,
-              offsetY: STATE.fit.torsoOffsetY
-            });
-            // Dos placas dorsales anchas (izquierda y derecha) desde la zona lumbar hasta el trapecio y hombro posterior
-            [-1, 1].forEach(sgn => {
-              const dorsalCenterAng = Math.PI + sgn * 0.40;
-              createFormFittedShell(tMesh, trimMat, {
+              // Dos placas dorsales anchas (izquierda y derecha) desde la zona lumbar hasta el trapecio y hombro posterior
+              [-1, 1].forEach(sgn => {
+                const dorsalCenterAng = Math.PI + sgn * 0.40;
+                createFormFittedShell(tMesh, trimMat, {
+                  targetPart: 'torso',
+                  thicknessRatio: 0.031 * tBulk,
+                  yMin: 0.16,
+                  yMax: 0.99,
+                  angleMin: dorsalCenterAng - 0.44,
+                  angleMax: dorsalCenterAng + 0.44,
+                  chestContour: 'globose',
+                  foldStyle: 'ogee_conopial',
+                  foldDepth: 0.10,
+                  flareTop: 0.028,
+                  flareBottom: 0.020,
+                  bevelRadius: 0.011,
+                  offsetY: STATE.fit.torsoOffsetY
+                });
+              });
+            } else if (backStyle === 'winged_shell') {
+              // 2D. ESPALDAR DE CONCHA ALADA ESCULPIDA (Sin cuchillas 3D, con expansión escapular suave en forma de alas moldeadas)
+              createFormFittedShell(tMesh, mainMat, {
                 targetPart: 'torso',
-                thicknessRatio: 0.031 * tBulk,
-                yMin: 0.16,
+                thicknessRatio: 0.027 * tBulk,
+                yMin: 0.02,
                 yMax: 0.99,
-                angleMin: dorsalCenterAng - 0.44,
-                angleMax: dorsalCenterAng + 0.44,
-                chestContour: 'globose',
-                foldStyle: 'ogee_conopial',
-                foldDepth: 0.10,
-                flareTop: 0.028,
-                flareBottom: 0.020,
+                angleMin: Math.PI * 0.44,
+                angleMax: Math.PI * 1.56,
+                chestContour: 'winged_valkyrie_cuirass',
+                sideCutout: 'bolero_wings',
+                sideDepth: 0.88,
+                foldStyle: 'foliate',
+                foldWaves: 4.0,
+                foldDepth: 0.14,
+                vPointBottom: 0.10,
+                fluteCount: 4,
+                fluteDepth: 0.010,
                 bevelRadius: 0.011,
                 offsetY: STATE.fit.torsoOffsetY
               });
-            });
-          } else if (backStyle === 'winged_shell') {
-            // 2D. ESPALDAR DE CONCHA ALADA ESCULPIDA (Sin cuchillas 3D, con expansión escapular suave en forma de alas moldeadas)
-            createFormFittedShell(tMesh, mainMat, {
-              targetPart: 'torso',
-              thicknessRatio: 0.027 * tBulk,
-              yMin: 0.02,
-              yMax: 0.99,
-              angleMin: Math.PI * 0.44,
-              angleMax: Math.PI * 1.56,
-              chestContour: 'winged_valkyrie_cuirass',
-              sideCutout: 'bolero_wings',
-              sideDepth: 0.88,
-              foldStyle: 'foliate',
-              foldWaves: 4.0,
-              foldDepth: 0.14,
-              vPointBottom: 0.10,
-              fluteCount: 4,
-              fluteDepth: 0.010,
-              bevelRadius: 0.011,
-              offsetY: STATE.fit.torsoOffsetY
-            });
-          }
+            }
 
-          // 2b. YUGO SUPRA-CLAVICULAR ALTO (Solo en la zona superior de hombros/clavícula yMin 0.78..1.00 para no tocar el pecho)
-          if (isWideClavicleWrap) {
-            [-1, 1].forEach(sgn => {
-              const centerAng = sgn * (Math.PI * 0.48);
+            // 2b. YUGO SUPRA-CLAVICULAR ALTO (Solo en la zona superior de hombros/clavícula yMin 0.78..1.00 para no tocar el pecho)
+            if (isWideClavicleWrap) {
+              [-1, 1].forEach(sgn => {
+                const centerAng = sgn * (Math.PI * 0.48);
+                createFormFittedShell(tMesh, trimMat, {
+                  targetPart: 'torso',
+                  thicknessRatio: 0.032 * tBulk,
+                  yMin: 0.78,
+                  yMax: 1.00,
+                  angleMin: centerAng - 0.48,
+                  angleMax: centerAng + 0.52,
+                  chestContour: cfg.chestContour,
+                  foldStyle: 'ogee_conopial',
+                  foldDepth: 0.07,
+                  vPointBottom: 0.06,
+                  flareTop: 0.028,
+                  bevelRadius: 0.010,
+                  offsetY: STATE.fit.torsoOffsetY
+                });
+              });
+            }
+
+            // 3. CENEFA INFERIOR BISELADA DEL PETO Y SOBREBARRIGA (Waist & Abdominal Bevel Trim)
+            if (cfg.hasPlackartTrim) {
               createFormFittedShell(tMesh, trimMat, {
                 targetPart: 'torso',
                 thicknessRatio: 0.032 * tBulk,
-                yMin: 0.78,
-                yMax: 1.00,
-                angleMin: centerAng - 0.48,
-                angleMax: centerAng + 0.52,
+                yMin: Math.max(0.0, cfg.yMinFront - 0.02),
+                yMax: cfg.yMinFront + 0.11,
+                angleMin: -Math.PI * 0.54,
+                angleMax: Math.PI * 0.54,
                 chestContour: cfg.chestContour,
-                foldStyle: 'ogee_conopial',
-                foldDepth: 0.07,
-                vPointBottom: 0.06,
-                flareTop: 0.028,
-                bevelRadius: 0.010,
+                sideCutout: cfg.sideCutout,
+                sideDepth: cfg.sideDepth,
+                foldStyle: STATE.fit.simpleLeatherMode ? 'ogee_conopial' : cfg.foldStyle,
+                foldWaves: cfg.foldWaves || 3.0,
+                foldDepth: STATE.fit.simpleLeatherMode ? 0.08 : cfg.foldDepth,
+                vPointBottom: cfg.vPointBottom || 0.10,
+                ridgeCenterZ: (cfg.ridgeCenterZ || 0.16) + 0.015,
+                bevelRadius: 0.008,
                 offsetY: STATE.fit.torsoOffsetY
               });
-            });
+            }
+
+            // 4. (El escote lo cubre ahora el gorjal con solapas: sin cenefa superior)
+          });
+
+          // 5. GORJAL + CUELLO DE SOLAPAS (sustituye al aro alrededor del cuello)
+          // La ligera y las armaduras simples D/C van sin gorjal de placas altas: deja el cuello y los trapecios despejados para los tirantes/cuero
+          if (torsoMeshes[0] && !STATE.fit.lightHarness && !STATE.fit.simpleLeatherMode) {
+            buildPetoCollar(torsoMeshes[0], torsoType, { mainMat, trimMat, glowMat });
           }
 
-          // 3. CENEFA INFERIOR BISELADA DEL PETO Y SOBREBARRIGA (Waist & Abdominal Bevel Trim)
-          if (cfg.hasPlackartTrim) {
-            createFormFittedShell(tMesh, trimMat, {
-              targetPart: 'torso',
-              thicknessRatio: 0.032 * tBulk,
-              yMin: Math.max(0.0, cfg.yMinFront - 0.02),
-              yMax: cfg.yMinFront + 0.11,
-              angleMin: -Math.PI * 0.54,
-              angleMax: Math.PI * 0.54,
-              chestContour: cfg.chestContour,
-              sideCutout: cfg.sideCutout,
-              sideDepth: cfg.sideDepth,
-              foldStyle: cfg.foldStyle,
-              foldWaves: cfg.foldWaves || 3.0,
-              foldDepth: cfg.foldDepth,
-              vPointBottom: cfg.vPointBottom || 0.10,
-              ridgeCenterZ: (cfg.ridgeCenterZ || 0.16) + 0.015,
-              bevelRadius: 0.008,
-              offsetY: STATE.fit.torsoOffsetY
-            });
-          }
+          // 6. ESPALDARONES INTEGRADOS DEL PETO: cúpula + láminas que cubren el deltoides (todos los petos)
+          buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
 
-          // 4. (El escote lo cubre ahora el gorjal con solapas: sin cenefa superior)
-        });
+          // 7. PECHERA LIGERA: tirantes de cuero con hebillas y opción en X que cruzan el hombro hasta la espalda
+          if (STATE.fit.lightHarness) buildLightStraps({ mainMat, trimMat }, frontPlateShell);
+        }
 
-        // 5. GORJAL + CUELLO DE SOLAPAS (sustituye al aro alrededor del cuello)
-        // La ligera va sin gorjal: deja el cuello y los trapecios despejados para los tirantes
-        if (torsoMeshes[0] && !STATE.fit.lightHarness) buildPetoCollar(torsoMeshes[0], torsoType, { mainMat, trimMat, glowMat });
-
-        // 6. ESPALDARONES INTEGRADOS DEL PETO: cúpula + láminas que cubren el deltoides (todos los petos)
-        buildPetoDeltoidSpaulders(torsoType, cfg, isWideClavicleWrap, { mainMat, trimMat, glowMat });
-
-        // 7. PECHERA LIGERA: tirantes flexibles que cruzan el hombro hasta la espalda
-        if (STATE.fit.lightHarness) buildLightStraps({ mainMat, trimMat }, frontPlateShell);
+        // 8. ARQUITECTURAS DE CAPAS DIFERENCIADAS (Especialmente en S y SR: Imperial, Media Capa Asimétrica, Cola de Golondrina, Manto Silvano, Alas de Fénix, Estola de Sabio)
+        if (STATE.fit.capeStyle && STATE.fit.capeStyle !== 'none') {
+          buildArmorCape(STATE.fit.capeStyle, { mainMat, trimMat, clothMat, glowMat });
+        }
       }
 
       /* === BRAZALES Y GUANTELETES ESCULPIDOS CON BISEL === */
@@ -17141,10 +17869,27 @@
             <span class="w-3 h-3 rounded-full bg-indigo-500 shadow"></span>
           </div>`;
         card.addEventListener('click', () => {
+          Object.assign(STATE.fit, FIT_DEFAULTS);
+          if (cp.lightHarness) {
+            Object.assign(STATE.fit, ARMOR_CLASSES.ligera.fit);
+            STATE.fit.chestCutoutOverride = { ...ARMOR_CLASSES.ligera.chest };
+            STATE.fit.bootShapeOverride = { ...ARMOR_CLASSES.ligera.boot };
+          } else if (cp.mageRobe) {
+            Object.assign(STATE.fit, ARMOR_CLASSES.mago.fit);
+            STATE.fit.chestCutoutOverride = null;
+            STATE.fit.bootShapeOverride = { ...ARMOR_CLASSES.mago.boot };
+          } else {
+            STATE.fit.chestCutoutOverride = null;
+            STATE.fit.bootShapeOverride = null;
+          }
           STATE.equipment = { ...cp.gear };
           STATE.fit.shoulderShapeOverride = null;
-          STATE.fit.chestCutoutOverride = null;
-          STATE.fit.bootShapeOverride = null;
+          STATE.fit.lightHarness = Boolean(cp.lightHarness);
+          STATE.fit.strapStyle = cp.strapStyle || 'parallel_buckled';
+          STATE.fit.mageRobe = Boolean(cp.mageRobe);
+          STATE.fit.rankTier = cp.rankTier || 'S';
+          STATE.fit.simpleLeatherMode = Boolean(cp.simpleLeather);
+          STATE.fit.capeStyle = cp.cape || 'none';
           Object.keys(STATE.slotTextures).forEach(k => { STATE.slotTextures[k] = null; });
           const tp = TEXTURE_PRESETS.find(t => t.id === cp.texturePreset) || TEXTURE_PRESETS[0];
           STATE.materialType = tp.id; STATE.primaryColor = tp.primary; STATE.secondaryColor = tp.secondary;
@@ -17153,6 +17898,7 @@
           STATE.glowColor = cp.glow;
           updateSlotTextureBadgesUI();
           syncMaterialUI();
+          syncFitSlidersUI();
           renderTexturePresetsGrid();
           updateWardrobePieces();
           showToast(`Equipado: ${cp.name}`);
@@ -24266,6 +25012,7 @@ function resetCharacter() {
     // Acceso de inspección/QA al estudio (encajar armas en el puño, revisar el tiro con arco)
     window.__studio = {
       STATE, ITEMS_DB, WEAPON_LOADOUT, bonesMap, armorSockets,
+      ARMOR_LOOKS, CHARACTER_PRESETS, applyArmorLook,
       get mannequinRoot() { return mannequinRoot; },
       get archeryRig() { return archeryRig; },
       get camera() { return camera; },
