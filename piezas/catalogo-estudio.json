@@ -67,6 +67,10 @@
     {
       "idx": 16,
       "name": "Cota Lamellar Dark Crystal (L2)"
+    },
+    {
+      "idx": 17,
+      "name": "Lino Oscuro & Vendas de Cuervo (Asimétrico)"
     }
   ],
   "helmet": [
@@ -109,6 +113,10 @@
     {
       "idx": 9,
       "name": "Diadema Dark Crystal con Crestón Cian (L2)"
+    },
+    {
+      "idx": 10,
+      "name": "Capucha Profunda & Máscara Ósea Cornuda (Segador)"
     }
   ],
   "shoulders": [
@@ -163,6 +171,10 @@
     {
       "idx": 12,
       "name": "Hombreras Dark Crystal con Aletas Cian (L2)"
+    },
+    {
+      "idx": 13,
+      "name": "Cráneo Cornudo Izquierdo & Manto de Cuervo (Asimétrico)"
     }
   ],
   "torso": [
@@ -249,6 +261,10 @@
     {
       "idx": 20,
       "name": "Coraza Pesada Dark Crystal (L2)"
+    },
+    {
+      "idx": 21,
+      "name": "Abrigo Abierto Carmesí, Bandolera y Costillas Óseas (Segador)"
     }
   ],
   "gloves": [
@@ -279,6 +295,10 @@
     {
       "idx": 6,
       "name": "Guanteletes Dark Crystal (L2)"
+    },
+    {
+      "idx": 7,
+      "name": "Garras Forjadas Derechas & Vendas/Hueso Izq. (Asimétrico)"
     }
   ],
   "belt": [
@@ -317,6 +337,10 @@
     {
       "idx": 8,
       "name": "Cinturón & Tabardo Dark Crystal (L2)"
+    },
+    {
+      "idx": 9,
+      "name": "Fajín Triple Carmesí & Gabardina Partida (Segador)"
     }
   ],
   "tassets": [
@@ -359,6 +383,10 @@
     {
       "idx": 9,
       "name": "Escarcelas Dark Crystal (L2)"
+    },
+    {
+      "idx": 10,
+      "name": "Colgantes Óseos con Cadenas y Plumas (Segador)"
     }
   ],
   "cuisses": [
@@ -397,6 +425,10 @@
     {
       "idx": 8,
       "name": "Musleras Dark Crystal (L2)"
+    },
+    {
+      "idx": 9,
+      "name": "Vendas de Muslo, Alquimia Der. y Tablillas Izq. (Asimétrico)"
     }
   ],
   "knees": [
@@ -435,6 +467,10 @@
     {
       "idx": 8,
       "name": "Rodilleras Dark Crystal con Aletas de Cristal (L2)"
+    },
+    {
+      "idx": 9,
+      "name": "Cráneo Cornudo Izquierdo & Garfio de Hierro Der. (Asimétrico)"
     }
   ],
   "boots": [
@@ -469,6 +505,10 @@
     {
       "idx": 13,
       "name": "Botas & Escarpes Dark Crystal (L2)"
+    },
+    {
+      "idx": 14,
+      "name": "Botas Altas de Cazador con Vuelta Carmesí y Espolón Óseo"
     }
   ],
   "weapon": [
@@ -882,6 +922,12 @@
       "name": "Espada Dark Crystal (L2)",
       "familia": "espada",
       "nivel": 40
+    },
+    {
+      "idx": 82,
+      "name": "Guadaña Segadora de Cuervo y Hueso",
+      "familia": "hacha",
+      "nivel": 40
     }
   ],
   "shield": [
@@ -892,6 +938,11 @@
     {
       "idx": 11,
       "name": "Escudo Dark Crystal (L2)",
+      "nivel": 40
+    },
+    {
+      "idx": 12,
+      "name": "Farol Abisal & Garra Ósea (Mano Izquierda)",
       "nivel": 40
     }
   ]
