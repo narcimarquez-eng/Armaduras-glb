@@ -110,19 +110,19 @@
       },
       {
         "idx": 18,
-        "nombre": "Hulla & Remaches de Fragua (Basalto)",
+        "nombre": "Escamas Carmesí & Brocado de Oro Imperial (Soberano Dracónico)",
         "nivel": 36,
         "archivo": null
       },
       {
         "idx": 19,
-        "nombre": "Lino Arena & Faja Índigo de Nómada (Dunas)",
+        "nombre": "Seda Esmeralda Silvana & Filigrana Lunar (Cazador Élfico)",
         "nivel": 38,
         "archivo": null
       },
       {
         "idx": 20,
-        "nombre": "Túnica Terciopelo Astral & Hilo Plateado (Astrolabio)",
+        "nombre": "Terciopelo Amatista Real & Seda Perlada (Archimago Serafín)",
         "nivel": 40,
         "archivo": null
       }
@@ -190,19 +190,19 @@
       },
       {
         "idx": 11,
-        "nombre": "Yelmo Rejilla de Caldera & Cresta Yunque (Basalto)",
+        "nombre": "Corona-Visor Imperial de Dragón Carmesí & Plata Negra (Soberano)",
         "nivel": 34,
         "archivo": "piezas/helmet/11.glb"
       },
       {
         "idx": 12,
-        "nombre": "Turbante del Desierto & Gafas de Aviador de Latón (Dunas)",
+        "nombre": "Tiara Alada de Mithril Lunar & Esmeralda (Cazador Élfico)",
         "nivel": 37,
         "archivo": "piezas/helmet/12.glb"
       },
       {
         "idx": 13,
-        "nombre": "Diadema Orbital de Eclipse & Sextante Astral (Astrolabio)",
+        "nombre": "Corona Serafín del Eclipse & Halo Radiante (Archimago)",
         "nivel": 40,
         "archivo": "piezas/helmet/13.glb"
       }
@@ -288,19 +288,19 @@
       },
       {
         "idx": 14,
-        "nombre": "Hombrera Chimenea Fumante & Yunque Asimétrico (Basalto)",
+        "nombre": "Hombreras Aladas de Dragón & Media Capa Imperial (Soberano)",
         "nivel": 35,
         "archivo": "piezas/shoulders/14.glb"
       },
       {
         "idx": 15,
-        "nombre": "Poncho Asimétrico de Arena & Bufanda Bermellón (Dunas)",
+        "nombre": "Guardahombros Foliares de Mithril & Manto Élfico (Cazador)",
         "nivel": 37,
         "archivo": "piezas/shoulders/15.glb"
       },
       {
         "idx": 16,
-        "nombre": "Astrolabio Cósmico Giratorio & Estola Dorsal (Astrolabio)",
+        "nombre": "6 Alas de Serafín en Oro Rosa & Planetario Dorsal (Archimago)",
         "nivel": 40,
         "archivo": "piezas/shoulders/16.glb"
       }
@@ -434,19 +434,19 @@
       },
       {
         "idx": 22,
-        "nombre": "Coraza Horno de Basalto con Rejilla de Magma (Pesada)",
+        "nombre": "Coraza Real de Escamas de Dragón & Filigrana de Oro (Pesada)",
         "nivel": 37,
         "archivo": "piezas/torso/22.glb"
       },
       {
         "idx": 23,
-        "nombre": "Túnica Cruzada de Nómada, Bandolera & Poncho (Ligera)",
+        "nombre": "Corselete-Peto Élfico de Mithril & Damasco Esmeralda (Ligera)",
         "nivel": 38,
         "archivo": "piezas/torso/23.glb"
       },
       {
         "idx": 24,
-        "nombre": "Túnica Ceremonial de Seda, Cuello Plisado & Estola (Mago)",
+        "nombre": "Vestidura Real de Terciopelo Amatista & Cuello Serafín (Mago)",
         "nivel": 40,
         "archivo": "piezas/torso/24.glb"
       }
@@ -496,19 +496,19 @@
       },
       {
         "idx": 8,
-        "nombre": "Guantelete Pistón Hidráulico & Cadena (Basalto)",
+        "nombre": "Guanteletes de Garras Dracónicas en Plata Negra & Rubí (Soberano)",
         "nivel": 31,
         "archivo": "piezas/gloves/8.glb"
       },
       {
         "idx": 9,
-        "nombre": "Vendas de Cuero, Brújula & Guardamano (Dunas)",
+        "nombre": "Brazales Foliares de Mithril & Filigrana de Oro (Cazador Élfico)",
         "nivel": 36,
         "archivo": "piezas/gloves/9.glb"
       },
       {
         "idx": 10,
-        "nombre": "Mangas Acampanadas Ceremoniales & Mitones Rúnicos (Astrolabio)",
+        "nombre": "Brazales de Oro Rosa & Mangas Catedralicias de Seda (Archimago)",
         "nivel": 40,
         "archivo": "piezas/gloves/10.glb"
       }
@@ -570,19 +570,19 @@
       },
       {
         "idx": 10,
-        "nombre": "Cinturón de Cadenas de Forja & Delantal de Basalto (Basalto)",
+        "nombre": "Fajín Real Dracónico & Faldón Heráldico Carmesí (Soberano)",
         "nivel": 33,
         "archivo": "piezas/belt/10.glb"
       },
       {
         "idx": 11,
-        "nombre": "Faja Multicapa de Tela del Desierto & Cantimplora (Dunas)",
+        "nombre": "Ceñidor Élfico de Mithril & Faldones de Guardabosques (Cazador)",
         "nivel": 36,
         "archivo": "piezas/belt/11.glb"
       },
       {
         "idx": 12,
-        "nombre": "Cíngulo Astral & Faldón Ceremonial de 4 Paneles (Astrolabio)",
+        "nombre": "Cíngulo Serafín & Faldón Catedralicio de Terciopelo (Archimago)",
         "nivel": 40,
         "archivo": "piezas/belt/12.glb"
       }
@@ -650,19 +650,19 @@
       },
       {
         "idx": 11,
-        "nombre": "Lozas Hexagonales de Basalto & Escoria Ígnea (Basalto)",
+        "nombre": "Escarcelas Aladas de Dragón en Plata Negra & Oro (Soberano)",
         "nivel": 34,
         "archivo": "piezas/tassets/11.glb"
       },
       {
         "idx": 12,
-        "nombre": "Faldones Abiertos de Lino & Vainas de Caza (Dunas)",
+        "nombre": "Escarcelas Foliares de Mithril & Esmeraldas (Cazador Élfico)",
         "nivel": 37,
         "archivo": "piezas/tassets/12.glb"
       },
       {
         "idx": 13,
-        "nombre": "Láminas Colgantes de Péndulos & Relojes Estelares (Astrolabio)",
+        "nombre": "Escarcelas Astrales con Péndulos de Incensario (Archimago)",
         "nivel": 40,
         "archivo": "piezas/tassets/13.glb"
       }
@@ -724,19 +724,19 @@
       },
       {
         "idx": 10,
-        "nombre": "Musleras Pistón de Hierro Colado & Basalto (Basalto)",
+        "nombre": "Musleras Esculpidas de Plata Negra & Nervios de Oro (Soberano)",
         "nivel": 33,
         "archivo": "piezas/cuisses/10.glb"
       },
       {
         "idx": 11,
-        "nombre": "Bombachos de Lino Sujetos con Correas & Mapa (Dunas)",
+        "nombre": "Musleras Élficas de Mithril & Damasco Esmeralda (Cazador)",
         "nivel": 36,
         "archivo": "piezas/cuisses/11.glb"
       },
       {
         "idx": 12,
-        "nombre": "Calzas de Terciopelo Bordado con Borde Plateado (Astrolabio)",
+        "nombre": "Musleras de Seda Perlada & Filigrana de Oro Rosa (Archimago)",
         "nivel": 40,
         "archivo": "piezas/cuisses/12.glb"
       }
@@ -798,19 +798,19 @@
       },
       {
         "idx": 10,
-        "nombre": "Rodilleras Yunque de Hierro & Escudo Caldera (Basalto)",
+        "nombre": "Rodilleras de Garra Dracónica & Rubí de Sangre (Soberano)",
         "nivel": 33,
         "archivo": "piezas/knees/10.glb"
       },
       {
         "idx": 11,
-        "nombre": "Rodilleras Ligeras de Cuero con Hebilla de Latón (Dunas)",
+        "nombre": "Rodilleras Aladas de Mithril Lunar & Esmeralda (Cazador)",
         "nivel": 36,
         "archivo": "piezas/knees/11.glb"
       },
       {
         "idx": 12,
-        "nombre": "Rodilleras Filigrana Astral de Lunas Crecientes (Astrolabio)",
+        "nombre": "Rodilleras de Media Luna Serafín en Oro Rosa (Archimago)",
         "nivel": 40,
         "archivo": "piezas/knees/12.glb"
       }
@@ -866,19 +866,19 @@
       },
       {
         "idx": 15,
-        "nombre": "Botas Pilar de Hierro Fundido & Escoria (Basalto)",
+        "nombre": "Escarpes Imperiales de Plata Negra & Espolón de Dragón (Soberano)",
         "nivel": 32,
         "archivo": "piezas/boots/15.glb"
       },
       {
         "idx": 16,
-        "nombre": "Botas Bajas Curvas de Nómada con Polainas (Dunas)",
+        "nombre": "Botas Altas Élficas de Mithril & Filigrana de Hoja (Cazador)",
         "nivel": 36,
         "archivo": "piezas/boots/16.glb"
       },
       {
         "idx": 17,
-        "nombre": "Chapines Ceremoniales Puntiagudos de Mago (Astrolabio)",
+        "nombre": "Escarpes Reales de Terciopelo Amatista & Oro Rosa (Archimago)",
         "nivel": 40,
         "archivo": "piezas/boots/17.glb"
       }
@@ -1111,56 +1111,56 @@
       {
         "idx": 33,
         "nombre": "Martillo de Guerra",
-        "nivel": 9,
+        "nivel": 10,
         "archivo": "piezas/weapon/33.glb",
         "familia": "maza"
       },
       {
         "idx": 34,
         "nombre": "Maza de Tres Cabezas",
-        "nivel": 13,
+        "nivel": 14,
         "archivo": "piezas/weapon/34.glb",
         "familia": "maza"
       },
       {
         "idx": 35,
         "nombre": "Maza Flanjeada",
-        "nivel": 17,
+        "nivel": 18,
         "archivo": "piezas/weapon/35.glb",
         "familia": "maza"
       },
       {
         "idx": 36,
         "nombre": "Mangual de Cadena",
-        "nivel": 20,
+        "nivel": 23,
         "archivo": "piezas/weapon/36.glb",
         "familia": "maza"
       },
       {
         "idx": 37,
         "nombre": "Macuahuitl de Vidrio",
-        "nivel": 24,
+        "nivel": 27,
         "archivo": "piezas/weapon/37.glb",
         "familia": "maza"
       },
       {
         "idx": 38,
         "nombre": "Maza Hexagonal",
-        "nivel": 28,
+        "nivel": 31,
         "archivo": "piezas/weapon/38.glb",
         "familia": "maza"
       },
       {
         "idx": 39,
         "nombre": "Porra Ceremonial",
-        "nivel": 32,
+        "nivel": 36,
         "archivo": "piezas/weapon/39.glb",
         "familia": "maza"
       },
       {
         "idx": 40,
         "nombre": "Maza Cráneo Abisal",
-        "nivel": 36,
+        "nivel": 40,
         "archivo": "piezas/weapon/40.glb",
         "familia": "maza"
       },
@@ -1460,21 +1460,21 @@
       },
       {
         "idx": 83,
-        "nombre": "Martillo Yunque de Fragua & Magma (Basalto)",
+        "nombre": "Mandoble Imperial del Soberano Dracónico (Soberano)",
         "nivel": 50,
         "archivo": "piezas/weapon/83.glb",
-        "familia": "maza"
+        "familia": "mandoble"
       },
       {
         "idx": 84,
-        "nombre": "Cimitarra Creciente de Dunas (Dunas)",
+        "nombre": "Hoja Lunar Élfica de Esmeralda (Cazador Élfico)",
         "nivel": 50,
         "archivo": "piezas/weapon/84.glb",
         "familia": "espada"
       },
       {
         "idx": 85,
-        "nombre": "Báculo Orbital de Astrolabio Cósmico (Astrolabio)",
+        "nombre": "Gran Cetro Planetario del Serafín Astral (Archimago)",
         "nivel": 50,
         "archivo": "piezas/weapon/85.glb",
         "familia": "cetro"
@@ -1495,19 +1495,19 @@
       },
       {
         "idx": 13,
-        "nombre": "Escudo Puerta de Horno con Mirilla de Magma (Basalto)",
+        "nombre": "Égida Alada del Dragón Carmesí (Soberano)",
         "nivel": 50,
         "archivo": "piezas/shield/13.glb"
       },
       {
         "idx": 14,
-        "nombre": "Daga Parada & Rodela Estrella de Latón (Dunas)",
+        "nombre": "Broquel Estelar de Mithril & Daga Élfica (Cazador)",
         "nivel": 50,
         "archivo": "piezas/shield/14.glb"
       },
       {
         "idx": 15,
-        "nombre": "Grimorio Arcano Abierto & Orbe Flotante (Astrolabio)",
+        "nombre": "Grimorio Iluminado del Eclipse & Orbe Serafín (Archimago)",
         "nivel": 50,
         "archivo": "piezas/shield/15.glb"
       }

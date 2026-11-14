@@ -74,15 +74,15 @@
     },
     {
       "idx": 18,
-      "name": "Hulla & Remaches de Fragua (Basalto)"
+      "name": "Escamas Carmesí & Brocado de Oro Imperial (Soberano Dracónico)"
     },
     {
       "idx": 19,
-      "name": "Lino Arena & Faja Índigo de Nómada (Dunas)"
+      "name": "Seda Esmeralda Silvana & Filigrana Lunar (Cazador Élfico)"
     },
     {
       "idx": 20,
-      "name": "Túnica Terciopelo Astral & Hilo Plateado (Astrolabio)"
+      "name": "Terciopelo Amatista Real & Seda Perlada (Archimago Serafín)"
     }
   ],
   "helmet": [
@@ -132,15 +132,15 @@
     },
     {
       "idx": 11,
-      "name": "Yelmo Rejilla de Caldera & Cresta Yunque (Basalto)"
+      "name": "Corona-Visor Imperial de Dragón Carmesí & Plata Negra (Soberano)"
     },
     {
       "idx": 12,
-      "name": "Turbante del Desierto & Gafas de Aviador de Latón (Dunas)"
+      "name": "Tiara Alada de Mithril Lunar & Esmeralda (Cazador Élfico)"
     },
     {
       "idx": 13,
-      "name": "Diadema Orbital de Eclipse & Sextante Astral (Astrolabio)"
+      "name": "Corona Serafín del Eclipse & Halo Radiante (Archimago)"
     }
   ],
   "shoulders": [
@@ -202,15 +202,15 @@
     },
     {
       "idx": 14,
-      "name": "Hombrera Chimenea Fumante & Yunque Asimétrico (Basalto)"
+      "name": "Hombreras Aladas de Dragón & Media Capa Imperial (Soberano)"
     },
     {
       "idx": 15,
-      "name": "Poncho Asimétrico de Arena & Bufanda Bermellón (Dunas)"
+      "name": "Guardahombros Foliares de Mithril & Manto Élfico (Cazador)"
     },
     {
       "idx": 16,
-      "name": "Astrolabio Cósmico Giratorio & Estola Dorsal (Astrolabio)"
+      "name": "6 Alas de Serafín en Oro Rosa & Planetario Dorsal (Archimago)"
     }
   ],
   "torso": [
@@ -304,15 +304,15 @@
     },
     {
       "idx": 22,
-      "name": "Coraza Horno de Basalto con Rejilla de Magma (Pesada)"
+      "name": "Coraza Real de Escamas de Dragón & Filigrana de Oro (Pesada)"
     },
     {
       "idx": 23,
-      "name": "Túnica Cruzada de Nómada, Bandolera & Poncho (Ligera)"
+      "name": "Corselete-Peto Élfico de Mithril & Damasco Esmeralda (Ligera)"
     },
     {
       "idx": 24,
-      "name": "Túnica Ceremonial de Seda, Cuello Plisado & Estola (Mago)"
+      "name": "Vestidura Real de Terciopelo Amatista & Cuello Serafín (Mago)"
     }
   ],
   "gloves": [
@@ -350,15 +350,15 @@
     },
     {
       "idx": 8,
-      "name": "Guantelete Pistón Hidráulico & Cadena (Basalto)"
+      "name": "Guanteletes de Garras Dracónicas en Plata Negra & Rubí (Soberano)"
     },
     {
       "idx": 9,
-      "name": "Vendas de Cuero, Brújula & Guardamano (Dunas)"
+      "name": "Brazales Foliares de Mithril & Filigrana de Oro (Cazador Élfico)"
     },
     {
       "idx": 10,
-      "name": "Mangas Acampanadas Ceremoniales & Mitones Rúnicos (Astrolabio)"
+      "name": "Brazales de Oro Rosa & Mangas Catedralicias de Seda (Archimago)"
     }
   ],
   "belt": [
@@ -404,15 +404,15 @@
     },
     {
       "idx": 10,
-      "name": "Cinturón de Cadenas de Forja & Delantal de Basalto (Basalto)"
+      "name": "Fajín Real Dracónico & Faldón Heráldico Carmesí (Soberano)"
     },
     {
       "idx": 11,
-      "name": "Faja Multicapa de Tela del Desierto & Cantimplora (Dunas)"
+      "name": "Ceñidor Élfico de Mithril & Faldones de Guardabosques (Cazador)"
     },
     {
       "idx": 12,
-      "name": "Cíngulo Astral & Faldón Ceremonial de 4 Paneles (Astrolabio)"
+      "name": "Cíngulo Serafín & Faldón Catedralicio de Terciopelo (Archimago)"
     }
   ],
   "tassets": [
@@ -462,15 +462,15 @@
     },
     {
       "idx": 11,
-      "name": "Lozas Hexagonales de Basalto & Escoria Ígnea (Basalto)"
+      "name": "Escarcelas Aladas de Dragón en Plata Negra & Oro (Soberano)"
     },
     {
       "idx": 12,
-      "name": "Faldones Abiertos de Lino & Vainas de Caza (Dunas)"
+      "name": "Escarcelas Foliares de Mithril & Esmeraldas (Cazador Élfico)"
     },
     {
       "idx": 13,
-      "name": "Láminas Colgantes de Péndulos & Relojes Estelares (Astrolabio)"
+      "name": "Escarcelas Astrales con Péndulos de Incensario (Archimago)"
     }
   ],
   "cuisses": [
@@ -516,15 +516,15 @@
     },
     {
       "idx": 10,
-      "name": "Musleras Pistón de Hierro Colado & Basalto (Basalto)"
+      "name": "Musleras Esculpidas de Plata Negra & Nervios de Oro (Soberano)"
     },
     {
       "idx": 11,
-      "name": "Bombachos de Lino Sujetos con Correas & Mapa (Dunas)"
+      "name": "Musleras Élficas de Mithril & Damasco Esmeralda (Cazador)"
     },
     {
       "idx": 12,
-      "name": "Calzas de Terciopelo Bordado con Borde Plateado (Astrolabio)"
+      "name": "Musleras de Seda Perlada & Filigrana de Oro Rosa (Archimago)"
     }
   ],
   "knees": [
@@ -570,15 +570,15 @@
     },
     {
       "idx": 10,
-      "name": "Rodilleras Yunque de Hierro & Escudo Caldera (Basalto)"
+      "name": "Rodilleras de Garra Dracónica & Rubí de Sangre (Soberano)"
     },
     {
       "idx": 11,
-      "name": "Rodilleras Ligeras de Cuero con Hebilla de Latón (Dunas)"
+      "name": "Rodilleras Aladas de Mithril Lunar & Esmeralda (Cazador)"
     },
     {
       "idx": 12,
-      "name": "Rodilleras Filigrana Astral de Lunas Crecientes (Astrolabio)"
+      "name": "Rodilleras de Media Luna Serafín en Oro Rosa (Archimago)"
     }
   ],
   "boots": [
@@ -620,15 +620,15 @@
     },
     {
       "idx": 15,
-      "name": "Botas Pilar de Hierro Fundido & Escoria (Basalto)"
+      "name": "Escarpes Imperiales de Plata Negra & Espolón de Dragón (Soberano)"
     },
     {
       "idx": 16,
-      "name": "Botas Bajas Curvas de Nómada con Polainas (Dunas)"
+      "name": "Botas Altas Élficas de Mithril & Filigrana de Hoja (Cazador)"
     },
     {
       "idx": 17,
-      "name": "Chapines Ceremoniales Puntiagudos de Mago (Astrolabio)"
+      "name": "Escarpes Reales de Terciopelo Amatista & Oro Rosa (Archimago)"
     }
   ],
   "weapon": [
@@ -1051,19 +1051,19 @@
     },
     {
       "idx": 83,
-      "name": "Martillo Yunque de Fragua & Magma (Basalto)",
-      "familia": "maza",
+      "name": "Mandoble Imperial del Soberano Dracónico (Soberano)",
+      "familia": "mandoble",
       "nivel": 50
     },
     {
       "idx": 84,
-      "name": "Cimitarra Creciente de Dunas (Dunas)",
+      "name": "Hoja Lunar Élfica de Esmeralda (Cazador Élfico)",
       "familia": "espada",
       "nivel": 50
     },
     {
       "idx": 85,
-      "name": "Báculo Orbital de Astrolabio Cósmico (Astrolabio)",
+      "name": "Gran Cetro Planetario del Serafín Astral (Archimago)",
       "familia": "cetro",
       "nivel": 50
     }
@@ -1085,17 +1085,17 @@
     },
     {
       "idx": 13,
-      "name": "Escudo Puerta de Horno con Mirilla de Magma (Basalto)",
+      "name": "Égida Alada del Dragón Carmesí (Soberano)",
       "nivel": 50
     },
     {
       "idx": 14,
-      "name": "Daga Parada & Rodela Estrella de Latón (Dunas)",
+      "name": "Broquel Estelar de Mithril & Daga Élfica (Cazador)",
       "nivel": 50
     },
     {
       "idx": 15,
-      "name": "Grimorio Arcano Abierto & Orbe Flotante (Astrolabio)",
+      "name": "Grimorio Iluminado del Eclipse & Orbe Serafín (Archimago)",
       "nivel": 50
     }
   ]
