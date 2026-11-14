@@ -219,13 +219,13 @@ def gen_basalt_textures() -> Dict[str, bytes]:
         v = int(rng.integers(20, 48))
         idraw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(v, v + 3, v + 8))
 
-    # Cobre oxidado (patina verdosa)
-    copper = Image.new("RGB", (s, s), (54, 114, 102))
+    # Bronce forjado envejecido (acento coherente con obsidiana y magma)
+    copper = Image.new("RGB", (s, s), (92, 54, 34))
     cdraw = ImageDraw.Draw(copper)
     for _ in range(45):
         cx, cy = int(rng.integers(0, s)), int(rng.integers(0, s))
         r = int(rng.integers(4, 11))
-        cdraw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(72, 138, 122))
+        cdraw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(118, 72, 46))
 
     return {
         "basalt_albedo": _img_to_png_bytes(basalt),
@@ -235,11 +235,11 @@ def gen_basalt_textures() -> Dict[str, bytes]:
 
 
 BASALT_MAT_SPECS = [
-    ("basalt", {"name": "Basalt_Stone", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}, "metallicFactor": 0.08, "roughnessFactor": 0.86}, "doubleSided": True}),
-    ("iron", {"name": "Basalt_Iron", "pbrMetallicRoughness": {"baseColorTexture": {"index": 1}, "metallicFactor": 0.86, "roughnessFactor": 0.44}, "doubleSided": True}),
-    ("copper", {"name": "Basalt_Patina", "pbrMetallicRoughness": {"baseColorTexture": {"index": 2}, "metallicFactor": 0.58, "roughnessFactor": 0.56}, "doubleSided": True}),
-    ("brass", {"name": "Basalt_Brass", "pbrMetallicRoughness": {"baseColorFactor": [0.42, 0.27, 0.16, 1.0], "metallicFactor": 0.78, "roughnessFactor": 0.38}, "doubleSided": True}),
-    ("leather", {"name": "Basalt_Leather", "pbrMetallicRoughness": {"baseColorFactor": [0.11, 0.08, 0.07, 1.0], "metallicFactor": 0.06, "roughnessFactor": 0.82}, "doubleSided": True}),
+    ("basalt", {"name": "Basalt_Stone", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}, "metallicFactor": 0.10, "roughnessFactor": 0.86}, "doubleSided": True}),
+    ("iron", {"name": "Basalt_Iron", "pbrMetallicRoughness": {"baseColorTexture": {"index": 1}, "metallicFactor": 0.88, "roughnessFactor": 0.40}, "doubleSided": True}),
+    ("copper", {"name": "Basalt_Bronze", "pbrMetallicRoughness": {"baseColorTexture": {"index": 2}, "metallicFactor": 0.78, "roughnessFactor": 0.42}, "doubleSided": True}),
+    ("brass", {"name": "Basalt_Gunmetal", "pbrMetallicRoughness": {"baseColorFactor": [0.23, 0.26, 0.30, 1.0], "metallicFactor": 0.84, "roughnessFactor": 0.34}, "doubleSided": True}),
+    ("leather", {"name": "Basalt_CharredLeather", "pbrMetallicRoughness": {"baseColorFactor": [0.05, 0.04, 0.04, 1.0], "metallicFactor": 0.06, "roughnessFactor": 0.88}, "doubleSided": True}),
     ("magma", {"name": "Basalt_Magma", "pbrMetallicRoughness": {"baseColorFactor": [1.0, 0.34, 0.05, 1.0], "metallicFactor": 0.05, "roughnessFactor": 0.14}, "emissiveFactor": [1.0, 0.32, 0.04], "doubleSided": True}),
 ]
 BASALT_KEYS = ("basalt", "iron", "copper", "brass", "leather", "magma")
@@ -249,67 +249,155 @@ def _bp() -> Dict[str, MeshPart]:
     return _parts(*BASALT_KEYS)
 
 
+def _horn(part: MeshPart, pts: List[Tuple[float, float, float]], r0: float, segs: int = 8) -> None:
+    """Cuerno / espina orgánica cónica suave mediante make_tube_curve."""
+    n = len(pts)
+    radii = [max(0.0018, r0 * ((1.0 - i / max(1, n - 1)) ** 0.78)) for i in range(n)]
+    part.add(*make_tube_curve(pts, radii, segs=segs))
+
+
+def _boot_foot(
+    parts: Dict[str, MeshPart],
+    sole_key: str,
+    vamp_key: str,
+    toe_key: str,
+    spur_key: str,
+    foot_w: float = 0.106,
+    toe_len: float = 0.175,
+    heel_len: float = 0.068,
+    ground_y: float = -0.052,
+    pointed: float = 0.25,
+) -> None:
+    """Pie anatómico esculpido sin bloques rectangulares."""
+    sole_pts = [
+        (-foot_w * 0.45, -heel_len),
+        (foot_w * 0.45, -heel_len),
+        (foot_w * 0.50, toe_len * 0.45),
+        (foot_w * 0.28, toe_len * 0.88),
+        (0.0, toe_len * (1.02 + pointed)),
+        (-foot_w * 0.28, toe_len * 0.88),
+        (-foot_w * 0.50, toe_len * 0.45),
+    ]
+    parts[sole_key].add(*make_extruded_polygon(
+        sole_pts, 0.020, bevel=0.004,
+        center=(0, ground_y + 0.012, 0), rot=(math.pi / 2, 0, 0)
+    ))
+    parts[vamp_key].add(*make_sphere(
+        foot_w * 0.50, segs=14, rings=10,
+        center=(0, ground_y + 0.024, toe_len * 0.34),
+        scale=(0.96, 0.62, (toe_len * 0.86) / (foot_w * 0.50))
+    ))
+    # Puntera afilada curva hacia arriba
+    _horn(parts[toe_key], [
+        (0, ground_y + 0.026, toe_len * 0.72),
+        (0, ground_y + 0.032, toe_len * (0.98 + pointed * 0.55)),
+        (0, ground_y + 0.068 + pointed * 0.04, toe_len * (1.08 + pointed * 0.90)),
+    ], foot_w * 0.28, segs=8)
+    # Espolón trasero de talón
+    _horn(parts[spur_key], [
+        (0, ground_y + 0.034, -heel_len * 0.85),
+        (0, ground_y + 0.038, -heel_len - 0.035),
+        (0, ground_y + 0.056, -heel_len - 0.058),
+    ], 0.013, segs=6)
+
+
 def build_basalt_helmet() -> Dict[str, Dict[str, MeshPart]]:
+    """Yelmo sallet volcánico esculpido con visera biselada, rendija de magma y cuernos forjados."""
     out = {"Head": _bp()}
     h = out["Head"]
-    # Caldera-yelmo prismática pesada cubriendo el cráneo + rejilla frontal de horno
+    # Calota craneal anatómica esculpida + cresta dorsal
     h["basalt"].add(*make_curved_shell(
-        0.02, 0.25, 0.126, 0.138, 0.118, 0.145,
-        -math.pi * 0.96, math.pi * 0.96, thickness=0.015, flare_top=0.010
+        0.04, 0.24, 0.118, 0.128, 0.102, 0.112,
+        -math.pi * 0.95, math.pi * 0.95, thickness=0.013, ny=12, na=24, flare_top=0.012, peak_front_y=0.022
     ))
-    # Tapa superior hexagonal estilo yunque
-    h["iron"].add(*make_cylinder(0.110, 0.128, 0.055, segs=6, center=(0, 0.255, 0.0)))
-    # Cresta metálica desplazada asimétricamente a la derecha (-X) + respiradero lateral izquierdo (+X)
-    h["brass"].add(*make_box(0.028, 0.095, 0.185, center=(-0.032, 0.278, 0.0), rot=(0.08, 0, -0.14), bevel=0.004))
-    h["copper"].add(*make_cylinder(0.018, 0.022, 0.095, segs=6, center=(0.125, 0.165, -0.025), rot=(0, 0, -0.45)))
-    # Rejilla frontal de hierro con hendidura de magma incandescente
-    h["iron"].add(*make_curved_shell(-0.015, 0.125, 0.132, 0.146, 0.132, 0.146, -0.82, 0.82, thickness=0.012))
-    h["magma"].add(*make_box(0.125, 0.016, 0.020, center=(0, 0.115, 0.138), bevel=0.002))
-    for bx in (-0.048, -0.016, 0.016, 0.048):
-        h["iron"].add(*make_box(0.010, 0.110, 0.014, center=(bx, 0.055, 0.146), bevel=0.001))
+    # Visera gótica en pico frontal biselada y nuca en cola de langosta
+    h["iron"].add(*make_curved_shell(
+        0.095, 0.185, 0.126, 0.136, 0.118, 0.126,
+        -1.05, 1.05, thickness=0.012, ny=8, na=16, peak_front_y=-0.028
+    ))
+    h["basalt"].add(*make_curved_shell(
+        -0.06, 0.09, 0.128, 0.138, 0.116, 0.126,
+        math.pi * 0.58, math.pi * 1.42, thickness=0.012, ny=8, na=14, flare_bot=0.034, tatter_waves=3, tatter_amp=0.018
+    ))
+    # Rendija ocular incandescente + barba de hierro forjado
+    h["magma"].add(*make_curved_shell(
+        0.104, 0.120, 0.128, 0.140, 0.128, 0.140,
+        -0.68, 0.68, thickness=0.008, ny=4, na=12
+    ))
+    h["iron"].add(*make_curved_shell(
+        0.015, 0.102, 0.124, 0.134, 0.126, 0.136,
+        -0.78, 0.78, thickness=0.011, ny=6, na=14, peak_front_y=-0.025
+    ))
+    # Cuernos asimétricos de bronce y obsidiana curvados hacia atrás
+    _horn(h["brass"], [(0.088, 0.185, 0.02), (0.148, 0.248, -0.02), (0.135, 0.335, -0.09), (0.092, 0.385, -0.14)], 0.022)
+    _horn(h["copper"], [(-0.085, 0.185, 0.02), (-0.138, 0.238, -0.01), (-0.128, 0.305, -0.07)], 0.019)
+    # Cresta dorsal espinosa
+    for k in range(3):
+        _horn(h["iron"], [(0.0, 0.235 - k * 0.025, 0.04 - k * 0.065), (0.0, 0.285 - k * 0.02, 0.01 - k * 0.075), (0.0, 0.305 - k * 0.02, -0.03 - k * 0.08)], 0.012)
     return out
 
 
 def build_basalt_shoulders() -> Dict[str, Dict[str, MeshPart]]:
     out = {"UpperArm_L": _bp(), "Torso": _bp(), "UpperArm_R": _bp()}
-    # IZQUIERDO: Gran caldera + doble chimenea fumante inclinada
+    # IZQUIERDO: Gran hombrera esculpida en capas + 2 cuernos Juggernaut + manto de cuero rasgado
     ul = out["UpperArm_L"]
-    ul["basalt"].add(*make_cylinder(0.105, 0.122, 0.12, segs=6, center=(0.045, 0.035, 0.0), rot=(0, 0, -0.25)))
-    ul["iron"].add(*make_curved_shell(-0.055, 0.035, 0.095, 0.092, 0.112, 0.108, -0.4, 2.8, thickness=0.014))
-    for idx_st, (dx, dy, dz, ht) in enumerate(((0.035, 0.145, -0.028, 0.155), (0.075, 0.125, 0.024, 0.120))):
-        ul["iron"].add(*make_cylinder(0.024, 0.030, ht, segs=6, center=(dx, dy, dz), rot=(0.12 * idx_st, 0, -0.30)))
-        ul["brass"].add(*make_cylinder(0.032, 0.026, 0.024, segs=6, center=(dx + 0.022, dy + ht * 0.45, dz), rot=(0.12 * idx_st, 0, -0.30)))
-        ul["magma"].add(*make_cylinder(0.018, 0.018, 0.012, segs=6, center=(dx + 0.024, dy + ht * 0.49, dz), rot=(0.12 * idx_st, 0, -0.30)))
+    ul["basalt"].add(*make_curved_shell(
+        -0.03, 0.095, 0.102, 0.104, 0.084, 0.086,
+        -0.5, math.pi * 1.15, thickness=0.014, ny=10, na=16, flare_bot=0.028
+    ))
+    ul["iron"].add(*make_curved_shell(
+        0.02, 0.118, 0.114, 0.114, 0.092, 0.092,
+        -0.35, math.pi * 1.05, thickness=0.011, ny=8, na=14, peak_front_y=0.022
+    ))
+    ul["leather"].add(*make_curved_shell(
+        -0.24, 0.04, 0.112, 0.110, 0.092, 0.092,
+        0.1, math.pi * 1.15, thickness=0.008, ny=10, na=16, flare_bot=0.038, tatter_waves=4, tatter_amp=0.042
+    ))
+    _horn(ul["brass"], [(0.055, 0.085, 0.01), (0.125, 0.165, -0.01), (0.145, 0.265, -0.05)], 0.024)
+    _horn(ul["copper"], [(0.085, 0.055, -0.025), (0.155, 0.115, -0.045), (0.195, 0.185, -0.08)], 0.018)
 
-    # DERECHO: Escudo yunque prismático bajo y anguloso con remaches de cobre
+    # DERECHO: Hombrera escalonada vanguardia + costilla de bronce
     ur = out["UpperArm_R"]
-    ur["iron"].add(*make_box(0.145, 0.095, 0.155, center=(-0.048, 0.022, 0.0), rot=(0, 0, 0.35), bevel=0.008))
-    ur["copper"].add(*make_box(0.115, 0.022, 0.125, center=(-0.056, 0.068, 0.0), rot=(0, 0, 0.35), bevel=0.003))
-    ur["brass"].add(*make_cylinder(0.012, 0.012, 0.022, segs=6, center=(-0.098, 0.042, 0.045), rot=(0, 0, math.pi / 2)))
-    ur["brass"].add(*make_cylinder(0.012, 0.012, 0.022, segs=6, center=(-0.098, 0.042, -0.045), rot=(0, 0, math.pi / 2)))
+    ur["iron"].add(*make_curved_shell(
+        -0.02, 0.082, 0.098, 0.098, 0.082, 0.082,
+        -math.pi * 1.05, 0.4, thickness=0.012, ny=8, na=14, flare_bot=0.020
+    ))
+    ur["brass"].add(*make_tube_curve([(-0.02, 0.075, 0.06), (-0.095, 0.052, 0.0), (-0.03, 0.068, -0.06)], [0.012, 0.014, 0.011], segs=8))
 
-    # DORSAL EN TORSO: Caldera dorsal asimétrica desplazada a izquierda con tubo de escape y brillo de magma
+    # DORSAL EN TORSO: Aletas de obsidiana y chimeneas curvas con magma
     tr = out["Torso"]
-    tr["iron"].add(*make_cylinder(0.088, 0.098, 0.24, segs=6, center=(0.055, 0.095, -0.175), rot=(0.08, 0, -0.10)))
-    tr["basalt"].add(*make_cylinder(0.072, 0.078, 0.18, segs=6, center=(-0.052, 0.065, -0.165), rot=(0.08, 0, 0.10)))
-    tr["magma"].add(*make_box(0.082, 0.145, 0.024, center=(0.0, 0.095, -0.228), bevel=0.004))
-    tr["copper"].add(*make_tube_curve([(0.065, 0.21, -0.175), (0.12, 0.28, -0.135), (0.16, 0.32, -0.06)],
-                                      [0.018, 0.016, 0.015], segs=6))
+    _horn(tr["copper"], [(0.045, 0.12, -0.14), (0.095, 0.24, -0.18), (0.125, 0.34, -0.14)], 0.020)
+    _horn(tr["iron"], [(-0.045, 0.10, -0.14), (-0.088, 0.21, -0.17), (-0.112, 0.30, -0.13)], 0.017)
+    tr["magma"].add(*make_sphere(0.034, segs=10, rings=8, center=(0.0, 0.14, -0.175), scale=(0.8, 1.8, 0.6)))
     return out
 
 
 def build_basalt_torso() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Torso": _bp()}
     t = out["Torso"]
-    # Peto hexagonal acorazado + jaula frontal de rejilla de hierro con núcleo magma vivo
-    t["basalt"].add(*make_curved_shell(-0.16, 0.29, 0.178, 0.144, 0.228, 0.168, -math.pi, math.pi, thickness=0.018))
-    t["iron"].add(*make_box(0.185, 0.235, 0.055, center=(0, 0.085, 0.165), bevel=0.010))
-    t["magma"].add(*make_cylinder(0.054, 0.054, 0.028, segs=6, center=(0, 0.105, 0.184), rot=(math.pi / 2, 0, 0)))
-    for bx in (-0.042, 0.0, 0.042):
-        t["iron"].add(*make_box(0.012, 0.145, 0.022, center=(bx, 0.105, 0.198), bevel=0.002))
-    # Gorjal de fragua alto asimétrico (protege mandíbula izquierda)
-    t["copper"].add(*make_curved_shell(0.25, 0.35, 0.125, 0.122, 0.142, 0.135, -0.2, 2.2, thickness=0.014))
-    t["brass"].add(*make_box(0.22, 0.026, 0.20, center=(0, 0.255, 0.02), bevel=0.004))
+    # Coraza V-esculpida de basalto con faldón inferior y clavículas marcadas
+    t["basalt"].add(*make_curved_shell(
+        -0.16, 0.28, 0.176, 0.138, 0.224, 0.162,
+        -math.pi, math.pi, thickness=0.016, ny=12, na=28, peak_front_y=0.028
+    ))
+    # Peto frontal biselado en escudo gótico + núcleo de magma vivo
+    chest_pts = [(0.0, -0.04), (0.095, 0.06), (0.115, 0.22), (0.0, 0.25), (-0.115, 0.22), (-0.095, 0.06)]
+    t["iron"].add(*make_extruded_polygon(chest_pts, 0.026, bevel=0.008, center=(0, 0.04, 0.158), rot=(-0.10, 0, 0)))
+    t["magma"].add(*make_sphere(0.036, segs=10, rings=8, center=(0, 0.145, 0.175), scale=(0.85, 1.35, 0.55)))
+    # Costillas forjadas curvas en el torso + collar dentado alto
+    for side in (-1, 1):
+        for ry in (0.06, 0.13, 0.20):
+            t["brass"].add(*make_tube_curve([
+                (side * 0.032, ry, 0.172),
+                (side * 0.145, ry + 0.015, 0.115),
+                (side * 0.185, ry + 0.025, -0.02),
+            ], [0.009, 0.011, 0.007], segs=7))
+    t["iron"].add(*make_curved_shell(
+        0.24, 0.35, 0.118, 0.114, 0.146, 0.134,
+        0.48, math.tau - 0.48, thickness=0.012, ny=6, na=20, flare_top=0.024, tatter_waves=5, tatter_amp=0.016
+    ))
+    # Cadena diagonal de fragua cruzando el pecho
+    t["brass"].add(*make_tube_curve([(-0.15, 0.25, 0.14), (-0.02, 0.09, 0.185), (0.14, -0.10, 0.13)], [0.011, 0.012, 0.010], segs=8))
     return out
 
 
@@ -317,30 +405,38 @@ def build_basalt_gloves() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Forearm_R": _bp(), "Wrist_R": _bp(), "Forearm_L": _bp(), "Wrist_L": _bp()}
     for sd, sgn in (("R", -1), ("L", 1)):
         fa, wr = out["Forearm_" + sd], out["Wrist_" + sd]
-        fa["basalt"].add(*make_cylinder(0.068, 0.054, 0.23, segs=6, center=(0, -0.145, 0)))
-        # Pistón hidráulico en el lado exterior del antebrazo
-        fa["brass"].add(*make_cylinder(0.013, 0.015, 0.21, segs=8, center=(sgn * 0.065, -0.135, -0.01)))
-        fa["copper"].add(*make_cylinder(0.020, 0.020, 0.085, segs=6, center=(sgn * 0.065, -0.085, -0.01)))
-        # Nudilleras ariete hexagonales
-        wr["iron"].add(*make_box(0.042, 0.085, 0.092, center=(sgn * 0.026, -0.045, 0.0), bevel=0.006))
-        if sgn > 0:
-            # Cadena pesada envuelta en muñeca izquierda
-            wr["brass"].add(*make_torus(0.058, 0.009, 14, 6, center=(0, -0.005, 0)))
+        fa["basalt"].add(*make_curved_shell(-0.25, -0.02, 0.056, 0.056, 0.072, 0.072, -math.pi, math.pi, thickness=0.011, flare_top=0.012))
+        # Aleta codera gótica biselada
+        fin_pts = [(0.0, -0.04), (sgn * 0.065, 0.01), (sgn * 0.045, 0.085), (0.0, 0.04)]
+        fa["iron"].add(*make_extruded_polygon(fin_pts, 0.018, bevel=0.004, center=(sgn * 0.045, -0.04, -0.02), rot=(0, sgn * 0.35, 0)))
+        fa["brass"].add(*make_tube_curve([(sgn * 0.055, -0.06, 0.02), (sgn * 0.068, -0.15, 0.0), (sgn * 0.052, -0.23, 0.02)], [0.009, 0.011, 0.008], segs=7))
+        # Guantelete con garras forjadas en los nudillos
+        wr["iron"].add(*make_curved_shell(-0.075, 0.005, 0.048, 0.042, 0.052, 0.046, -math.pi, math.pi, thickness=0.008))
+        for kz in (-0.024, 0.0, 0.024):
+            _horn(wr["brass"], [(sgn * 0.040, -0.035, kz), (sgn * 0.065, -0.052, kz), (sgn * 0.078, -0.082, kz)], 0.008, segs=6)
     return out
 
 
 def build_basalt_belt() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Pelvis": _bp()}
     p = out["Pelvis"]
-    p["iron"].add(*make_curved_shell(-0.07, 0.05, 0.184, 0.148, 0.188, 0.152, -math.pi, math.pi, thickness=0.016))
-    p["brass"].add(*make_cylinder(0.048, 0.048, 0.028, segs=6, center=(0, -0.01, 0.162), rot=(math.pi / 2, 0, 0)))
-    # Delantal central de herrero + cadenas colgantes laterales
-    p["leather"].add(*make_box(0.165, 0.42, 0.022, center=(0, -0.25, 0.142), rot=(-0.08, 0, 0), bevel=0.004))
-    p["basalt"].add(*make_box(0.115, 0.145, 0.026, center=(0, -0.22, 0.155), rot=(-0.08, 0, 0), bevel=0.005))
+    p["iron"].add(*make_curved_shell(-0.07, 0.05, 0.182, 0.146, 0.188, 0.152, -math.pi, math.pi, thickness=0.015, ny=6, na=24))
+    # Hebilla gótica de bronce con ascua de magma
+    b_pts = [(0.0, -0.065), (0.055, -0.01), (0.042, 0.055), (0.0, 0.072), (-0.042, 0.055), (-0.055, -0.01)]
+    p["brass"].add(*make_extruded_polygon(b_pts, 0.022, bevel=0.006, center=(0, -0.01, 0.158)))
+    p["magma"].add(*make_sphere(0.020, segs=8, rings=6, center=(0, -0.005, 0.172), scale=(0.85, 1.35, 0.6)))
+    # Faldón de guerra rasgado en girones asimétricos + delantal central biselado
+    p["leather"].add(*make_curved_shell(
+        -0.52, -0.03, 0.228, 0.195, 0.184, 0.148,
+        0.38, math.tau - 0.38, thickness=0.009, ny=12, na=28, flare_bot=0.045, tatter_waves=5, tatter_amp=0.055
+    ))
+    apron_pts = [(0.0, -0.34), (0.072, -0.22), (0.084, 0.0), (-0.084, 0.0), (-0.072, -0.22)]
+    p["basalt"].add(*make_extruded_polygon(apron_pts, 0.016, bevel=0.005, center=(0, -0.06, 0.152), rot=(-0.08, 0, 0)))
+    # Cadenas pesadas arqueadas laterales
     for sgn in (-1, 1):
-        for r in range(3):
-            p["brass"].add(*make_torus(0.020, 0.006, 10, 6, center=(sgn * 0.175, -0.095 - r * 0.036, 0.02),
-                                       rot=(0, math.pi / 2 if r % 2 == 0 else 0, 0)))
+        p["brass"].add(*make_tube_curve([
+            (sgn * 0.12, 0.01, 0.13), (sgn * 0.195, -0.09, 0.02), (sgn * 0.12, -0.01, -0.13)
+        ], [0.008, 0.009, 0.008], segs=7))
     return out
 
 
@@ -348,12 +444,16 @@ def build_basalt_tassets() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side, sgn in (("Thigh_L", 1), ("Thigh_R", -1)):
         p = _bp()
-        # Losas hexagonales pesadas de basalto superpuestas con bordes de cobre
-        for row in range(2):
-            yc = -0.065 - row * 0.105
-            p["basalt"].add(*make_cylinder(0.068, 0.075, 0.028, segs=6,
-                                           center=(sgn * 0.118, yc, 0.012), rot=(0, 0, math.pi * 0.5 - sgn * 0.12)))
-            p["copper"].add(*make_box(0.018, 0.082, 0.095, center=(sgn * 0.106, yc, 0.012), bevel=0.003))
+        for row in range(3):
+            yc = -0.045 - row * 0.076
+            w = 0.056 - row * 0.005
+            plate_pts = [(0.0, -0.052), (w, 0.0), (w * 0.85, 0.042), (-w * 0.85, 0.042), (-w, 0.0)]
+            p["basalt" if row != 1 else "iron"].add(*make_extruded_polygon(
+                plate_pts, 0.016, bevel=0.005,
+                center=(sgn * (0.118 + row * 0.004), yc, 0.015),
+                rot=(0.0, sgn * math.pi * 0.42, sgn * -0.14)
+            ))
+            p["brass"].add(*make_tube_curve([(sgn * 0.110, yc + 0.032, -0.02), (sgn * 0.126, yc + 0.028, 0.05)], [0.005, 0.005], segs=6))
         out[side] = p
     return out
 
@@ -362,10 +462,10 @@ def build_basalt_cuisses() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side, sgn in (("Thigh_L", 1), ("Thigh_R", -1)):
         p = _bp()
-        p["iron"].add(*make_curved_shell(-0.37, -0.07, 0.096, 0.096, 0.115, 0.115, -math.pi, math.pi, thickness=0.014))
-        p["basalt"].add(*make_cylinder(0.075, 0.088, 0.22, segs=6, center=(sgn * 0.025, -0.22, 0.045)))
-        if sgn < 0:
-            p["brass"].add(*make_cylinder(0.014, 0.014, 0.24, segs=8, center=(-0.108, -0.22, 0.0)))
+        p["iron"].add(*make_curved_shell(-0.37, -0.07, 0.094, 0.094, 0.115, 0.115, -math.pi, math.pi, thickness=0.012, peak_front_y=-0.020))
+        ridge_pts = [(0.0, -0.13), (0.042, 0.0), (0.0, 0.13), (-0.042, 0.0)]
+        p["basalt"].add(*make_extruded_polygon(ridge_pts, 0.018, bevel=0.006, center=(sgn * 0.012, -0.22, 0.105)))
+        p["brass"].add(*make_tube_curve([(sgn * 0.08, -0.12, 0.06), (sgn * 0.11, -0.22, 0.0), (sgn * 0.07, -0.32, -0.05)], [0.008, 0.010, 0.008], segs=7))
         out[side] = p
     return out
 
@@ -374,23 +474,26 @@ def build_basalt_knees() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Knee_L": _bp(), "Knee_R": _bp()}
     for side, sgn in (("Knee_L", 1), ("Knee_R", -1)):
         k = out[side]
-        k["basalt"].add(*make_cylinder(0.065, 0.068, 0.042, segs=6, center=(0, 0.0, 0.082), rot=(math.pi / 2, 0, 0)))
-        k["iron"].add(*make_box(0.110, 0.095, 0.036, center=(sgn * 0.018, 0.01, 0.086), rot=(0, sgn * 0.2, 0), bevel=0.006))
+        k["iron"].add(*make_curved_shell(-0.048, 0.048, 0.086, 0.086, 0.086, 0.086, -1.6, 1.6, thickness=0.011))
+        wing_pts = [(0.0, -0.068), (0.055, -0.015), (0.068, 0.035), (0.0, 0.072), (-0.048, 0.025), (-0.045, -0.025)]
+        k["basalt"].add(*make_extruded_polygon(wing_pts, 0.022, bevel=0.007, center=(sgn * 0.012, 0.0, 0.088), rot=(0, sgn * 0.18, 0)))
+        _horn(k["brass"], [(sgn * 0.055, 0.02, 0.065), (sgn * 0.095, 0.055, 0.04), (sgn * 0.115, 0.105, 0.005)], 0.012, segs=6)
         if sgn > 0:
-            k["magma"].add(*make_cylinder(0.026, 0.026, 0.022, segs=6, center=(0, 0, 0.104), rot=(math.pi / 2, 0, 0)))
+            k["magma"].add(*make_sphere(0.020, segs=8, rings=6, center=(0, 0.0, 0.104), scale=(0.8, 1.3, 0.6)))
     return out
 
 
 def build_basalt_boots() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
-    for side in ("L", "R"):
+    for side, sgn in (("L", 1), ("R", -1)):
         sh, ak = _bp(), _bp()
-        sh["iron"].add(*make_cylinder(0.095, 0.082, 0.38, segs=6, center=(0, -0.24, 0.008)))
-        sh["basalt"].add(*make_box(0.085, 0.30, 0.042, center=(0, -0.24, 0.075), bevel=0.006))
-        sh["copper"].add(*make_curved_shell(-0.12, -0.05, 0.100, 0.104, 0.108, 0.112, -math.pi, math.pi, thickness=0.012))
-        ak["basalt"].add(*make_box(0.118, 0.078, 0.245, center=(0, -0.022, 0.055), bevel=0.010))
-        ak["iron"].add(*make_box(0.128, 0.028, 0.258, center=(0, -0.056, 0.055), bevel=0.005))
-        ak["brass"].add(*make_box(0.122, 0.056, 0.065, center=(0, -0.022, 0.145), bevel=0.008))
+        sh["iron"].add(*make_curved_shell(-0.44, -0.05, 0.068, 0.072, 0.094, 0.098, -math.pi, math.pi, thickness=0.013, peak_front_y=0.024))
+        shin_pts = [(0.0, -0.17), (0.046, 0.04), (0.0, 0.18), (-0.046, 0.04)]
+        sh["basalt"].add(*make_extruded_polygon(shin_pts, 0.022, bevel=0.007, center=(0, -0.23, 0.088)))
+        sh["copper"].add(*make_curved_shell(-0.14, -0.04, 0.096, 0.102, 0.108, 0.112, -math.pi, math.pi, thickness=0.010, flare_top=0.012))
+        _horn(sh["brass"], [(sgn * 0.075, -0.10, 0.02), (sgn * 0.105, -0.05, -0.01), (sgn * 0.118, 0.01, -0.03)], 0.011, segs=6)
+        _boot_foot({"basalt": ak["basalt"], "iron": ak["iron"], "brass": ak["brass"], "copper": ak["copper"]},
+                   "iron", "basalt", "brass", "copper", foot_w=0.114, toe_len=0.182, pointed=0.22)
         out["Shin_" + side] = sh
         out["Ankle_" + side] = ak
     return out
@@ -400,15 +503,25 @@ def build_basalt_weapon() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Wrist_R": _bp()}
     w = out["Wrist_R"]
     gy = -0.035
-    w["iron"].add(*make_cylinder(0.018, 0.019, 1.38, segs=10, center=(0, gy, 0.28), rot=(math.pi / 2, 0, 0)))
-    w["leather"].add(*make_cylinder(0.023, 0.023, 0.26, segs=10, center=(0, gy, 0.0), rot=(math.pi / 2, 0, 0)))
-    w["brass"].add(*make_cylinder(0.026, 0.014, 0.09, segs=6, center=(0, gy, -0.44), rot=(math.pi / 2, 0, 0)))
-    # Gran cabeza hexagonal de yunque transversal en eje X/Y + anillo magma
-    w["basalt"].add(*make_cylinder(0.092, 0.082, 0.34, segs=6, center=(0, gy, 0.90), rot=(0, 0, math.pi / 2)))
-    w["magma"].add(*make_cylinder(0.095, 0.095, 0.048, segs=6, center=(0, gy, 0.90), rot=(0, 0, math.pi / 2)))
-    w["iron"].add(*make_cylinder(0.104, 0.098, 0.036, segs=6, center=(-0.14, gy, 0.90), rot=(0, 0, math.pi / 2)))
-    w["iron"].add(*make_cylinder(0.104, 0.098, 0.036, segs=6, center=(0.14, gy, 0.90), rot=(0, 0, math.pi / 2)))
-    w["iron"].add(*make_cylinder(0.002, 0.036, 0.16, segs=6, center=(0, gy, 1.04), rot=(math.pi / 2, 0, 0)))
+    # Asta de hierro forjado orgánicamente curvada
+    w["iron"].add(*make_tube_curve([
+        (0, gy, -0.44), (0.010, gy - 0.008, -0.02), (-0.012, gy + 0.006, 0.42), (0.006, gy - 0.006, 0.80), (0, gy, 1.02)
+    ], [0.016, 0.016, 0.016, 0.016, 0.016], segs=10))
+    w["leather"].add(*make_cylinder(0.021, 0.021, 0.28, segs=12, center=(0, gy, 0.01), rot=(math.pi / 2, 0, 0)))
+    _horn(w["basalt"], [(0, gy, -0.44), (0.008, gy, -0.51), (0, gy, -0.58)], 0.022)
+    # Cabeza hacha-martillo volcánica esculpida biselada + cuernos y núcleo magma
+    head_pts = [
+        (-0.08, 0.88), (-0.18, 0.78), (-0.23, 0.94), (-0.20, 1.07),
+        (-0.06, 1.00), (0.06, 1.00), (0.21, 1.08), (0.26, 0.94), (0.16, 0.75), (0.04, 0.84)
+    ]
+    w["basalt"].add(*make_extruded_polygon(head_pts, 0.056, bevel=0.014, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    frame_pts = [(-0.04, 0.84), (-0.12, 0.82), (-0.14, 1.01), (0.11, 1.02), (0.12, 0.83)]
+    w["iron"].add(*make_extruded_polygon(frame_pts, 0.072, bevel=0.008, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    w["magma"].add(*make_sphere(0.042, segs=10, rings=8, center=(0, gy, 0.925), scale=(0.85, 1.15, 1.35)))
+    w["magma"].add(*make_tube_curve([(-0.08, gy, 0.92), (-0.16, gy, 0.96), (-0.21, gy, 1.03)], [0.006, 0.006, 0.004], segs=6))
+    w["magma"].add(*make_tube_curve([(0.08, gy, 0.91), (0.17, gy, 0.93), (0.23, gy, 0.88)], [0.006, 0.006, 0.004], segs=6))
+    _horn(w["brass"], [(0, gy, 1.00), (-0.04, gy + 0.01, 1.11), (-0.09, gy - 0.01, 1.20)], 0.018)
+    _horn(w["copper"], [(0.05, gy, 0.99), (0.11, gy - 0.01, 1.09), (0.16, gy + 0.01, 1.17)], 0.014)
     return out
 
 
@@ -417,24 +530,24 @@ def build_basalt_shield() -> Dict[str, Dict[str, MeshPart]]:
     s = out["Wrist_L"]
     gy = -0.035
     s["leather"].add(*make_cylinder(0.015, 0.015, 0.18, segs=10, center=(0, gy, 0.0), rot=(math.pi / 2, 0, 0)))
-    # Compuerta de horno hexagonal en dorso de mano izquierda (+X)
-    s["basalt"].add(*make_cylinder(0.24, 0.21, 0.038, segs=6, center=(0.055, gy + 0.04, 0.05),
-                                   rot=(0, 0, math.pi / 2), scale=(1.45, 1.0, 0.88)))
-    s["iron"].add(*make_cylinder(0.252, 0.222, 0.024, segs=6, center=(0.044, gy + 0.04, 0.05),
-                                 rot=(0, 0, math.pi / 2), scale=(1.46, 1.0, 0.89)))
-    s["magma"].add(*make_cylinder(0.072, 0.072, 0.026, segs=6, center=(0.072, gy + 0.05, 0.05), rot=(0, 0, math.pi / 2)))
-    for dz in (-0.042, 0.0, 0.042):
-        s["iron"].add(*make_box(0.018, 0.175, 0.014, center=(0.086, gy + 0.05, 0.05 + dz)))
+    sh_pts = [(0.0, 0.34), (0.18, 0.25), (0.16, 0.02), (0.11, -0.22), (0.0, -0.34), (-0.11, -0.22), (-0.16, 0.02), (-0.18, 0.25)]
+    s["basalt"].add(*make_extruded_polygon(sh_pts, 0.030, bevel=0.010, center=(0.052, gy + 0.02, 0.0), rot=(0, math.pi / 2, 0)))
+    s["magma"].add(*make_sphere(0.050, segs=10, rings=8, center=(0.072, gy + 0.05, 0.0), scale=(0.55, 1.25, 0.90)))
+    s["iron"].add(*make_torus(0.084, 0.012, 18, 6, center=(0.068, gy + 0.05, 0.0), rot=(0, 0, math.pi / 2)))
+    for dz in (-0.035, 0.0, 0.035):
+        s["iron"].add(*make_tube_curve([(0.075, gy - 0.05, dz), (0.092, gy + 0.05, dz * 0.8), (0.075, gy + 0.15, dz)], [0.0065, 0.007, 0.0065], segs=6))
+    for sd in (-1, 1):
+        _horn(s["brass"], [(0.052, gy + 0.24, sd * 0.15), (0.066, gy + 0.34, sd * 0.22), (0.042, gy + 0.44, sd * 0.25)], 0.017)
+    _horn(s["copper"], [(0.050, gy - 0.31, 0.0), (0.058, gy - 0.40, 0.0), (0.038, gy - 0.46, 0.0)], 0.015)
     return out
 
 
 # ==============================================================================
-# ARQUETIPO 2 (LIGERA): CAZADOR DE DUNAS & TORMENTA (ROSTRO ABIERTO)
+# ARQUETIPO 2 (LIGERA): CAZADOR DE DUNAS & TORMENTA (ROSTRO ABIERTO S-RANK)
 # ==============================================================================
 def gen_dune_textures() -> Dict[str, bytes]:
     rng = np.random.default_rng(202)
     s = 128
-    # Lino ocre arena con tejido cruzado
     sand = Image.new("RGB", (s, s), (156, 128, 86))
     sd = ImageDraw.Draw(sand)
     for k in range(0, s, 4):
@@ -443,12 +556,10 @@ def gen_dune_textures() -> Dict[str, bytes]:
     arr = np.clip(np.array(sand, dtype=np.int16) + rng.integers(-6, 7, (s, s, 1)), 0, 255).astype(np.uint8)
     sand = Image.fromarray(arr, "RGB")
 
-    # Índigo profundo del desierto
     indigo = Image.new("RGB", (s, s), (28, 48, 78))
     iarr = np.clip(np.array(indigo, dtype=np.int16) + rng.integers(-5, 6, (s, s, 1)), 0, 255).astype(np.uint8)
     indigo = Image.fromarray(iarr, "RGB")
 
-    # Cuero sillero tostado
     leather = Image.new("RGB", (s, s), (68, 40, 24))
     larr = np.clip(np.array(leather, dtype=np.int16) + rng.integers(-7, 8, (s, s, 1)), 0, 255).astype(np.uint8)
     leather = Image.fromarray(larr, "RGB")
@@ -477,79 +588,93 @@ def _dp() -> Dict[str, MeshPart]:
 
 
 def build_dune_helmet() -> Dict[str, Dict[str, MeshPart]]:
-    """Turbante voluminoso + gafas de aviador subidas a la frente (deja ojos y rostro 100% visibles)."""
+    """Capucha picuda de asesino nómada + cuernos curvos de latón + semivelo bajo ojos (rostro superior 100% libre)."""
     out = {"Head": _dp()}
     h = out["Head"]
-    # Turbante alto enrollado sobre la coronilla (por encima de y = 0.175 para despejar cejas y ojos)
-    for k in range(3):
-        ry = 0.195 + k * 0.032
-        rad = 0.126 - k * 0.010
-        h["sand" if k % 2 == 0 else "indigo"].add(*make_torus(rad, 0.028, 22, 8, center=(0, ry, -0.008),
-                                                             rot=(0.14 - k * 0.04, 0, 0.06 if k == 1 else -0.05)))
-    # Cúpula superior del turbante + joya turquesa frontal
-    h["sand"].add(*make_sphere(0.112, segs=16, rings=10, center=(0, 0.235, -0.01), scale=(1.02, 0.72, 1.05)))
-    h["brass"].add(*make_cylinder(0.020, 0.020, 0.014, segs=8, center=(0, 0.228, 0.122), rot=(math.pi / 2, 0, 0)))
-    h["turq"].add(*make_sphere(0.014, segs=8, rings=6, center=(0, 0.228, 0.128), scale=(0.8, 1.2, 0.6)))
-    # Cola del turbante cayendo por detrás de la nuca
-    h["indigo"].add(*make_curved_shell(-0.08, 0.16, 0.118, 0.128, 0.122, 0.132,
-                                       math.pi * 0.72, math.pi * 1.28, thickness=0.008, tatter_waves=3, tatter_amp=0.025))
-    # Gafas de aviador de latón sobre la frente (y = 0.188, fuera de los ojos)
-    h["leather"].add(*make_curved_shell(0.172, 0.202, 0.124, 0.132, 0.124, 0.132, -math.pi, math.pi, thickness=0.006))
+    # Capucha en arco picudo que enmarca la cara por encima de las cejas
+    h["indigo"].add(*make_curved_shell(
+        0.155, 0.275, 0.128, 0.138, 0.072, 0.110,
+        -math.pi * 0.96, math.pi * 0.96, thickness=0.010, ny=12, na=24, peak_front_y=0.030
+    ))
+    h["sand"].add(*make_curved_shell(
+        -0.06, 0.215, 0.132, 0.142, 0.126, 0.136,
+        math.pi * 0.45, math.pi * 1.55, thickness=0.009, ny=12, na=18, flare_bot=0.042, tatter_waves=4, tatter_amp=0.032
+    ))
+    # Cola picuda trasera de la capucha
+    _horn(h["indigo"], [(0, 0.245, -0.05), (0, 0.265, -0.145), (0, 0.235, -0.225)], 0.048)
+    # Semivelo inferior (por debajo de nariz/ojos, y = -0.02..0.068) dejando ojos y cejas 100% visibles
+    h["vermilion"].add(*make_curved_shell(
+        -0.02, 0.068, 0.118, 0.126, 0.120, 0.128,
+        -1.35, 1.35, thickness=0.008, ny=8, na=18, peak_front_y=0.016
+    ))
+    # Diadema con joya turquesa sobre el entrecejo y dos cuernos laterales de latón
+    h["brass"].add(*make_curved_shell(0.168, 0.196, 0.128, 0.136, 0.128, 0.136, -1.15, 1.15, thickness=0.007, peak_front_y=-0.018))
+    h["turq"].add(*make_sphere(0.015, segs=8, rings=6, center=(0, 0.180, 0.142), scale=(0.8, 1.3, 0.6)))
     for sgn in (-1, 1):
-        h["brass"].add(*make_torus(0.024, 0.005, 14, 6, center=(sgn * 0.036, 0.188, 0.126), rot=(math.pi / 2 - 0.18, 0, 0)))
-        h["turq"].add(*make_cylinder(0.019, 0.019, 0.006, segs=12, center=(sgn * 0.036, 0.188, 0.126), rot=(math.pi / 2 - 0.18, 0, 0)))
+        _horn(h["brass"], [(sgn * 0.095, 0.195, 0.04), (sgn * 0.155, 0.255, -0.01), (sgn * 0.150, 0.335, -0.08)], 0.016)
     return out
 
 
 def build_dune_shoulders() -> Dict[str, Dict[str, MeshPart]]:
-    out = {"UpperArm_L": _bp(), "Torso": _dp(), "UpperArm_R": _dp()}
-    out["UpperArm_L"] = _dp()
-    # Poncho asimétrico de arena cayendo sobre hombro IZQUIERDO + bufanda bermellón al cuello
+    out = {"UpperArm_L": _dp(), "Torso": _dp(), "UpperArm_R": _dp()}
     tr = out["Torso"]
-    tr["sand"].add(*make_curved_shell(0.02, 0.28, 0.182, 0.145, 0.238, 0.172,
-                                      -0.15, math.pi * 1.28, thickness=0.009, tatter_waves=4, tatter_amp=0.045, flare_bot=0.045))
-    tr["vermilion"].add(*make_curved_shell(0.22, 0.30, 0.132, 0.130, 0.148, 0.140,
-                                           -math.pi, math.pi, thickness=0.012))
-    # Hombro izquierdo: hombrera ligera de cuero con catalejo de latón sujeto
+    # Manto asimétrico del desierto cayendo por hombro izquierdo y espalda en picos rasgados
+    tr["sand"].add(*make_curved_shell(
+        -0.18, 0.28, 0.225, 0.185, 0.155, 0.140,
+        -0.05, math.pi * 1.28, thickness=0.009, ny=12, na=22, flare_bot=0.055, tatter_waves=5, tatter_amp=0.048
+    ))
+    tr["vermilion"].add(*make_curved_shell(
+        0.21, 0.30, 0.134, 0.132, 0.148, 0.142,
+        -math.pi, math.pi, thickness=0.011, ny=6, na=22, flare_top=0.016
+    ))
+    # Izquierdo: hombrera alada de halcón en latón con 2 cuernos curvos
     ul = out["UpperArm_L"]
-    ul["leather"].add(*make_curved_shell(-0.06, 0.04, 0.088, 0.085, 0.095, 0.092, -0.2, 2.6, thickness=0.010))
-    ul["brass"].add(*make_cylinder(0.018, 0.014, 0.135, segs=10, center=(0.086, -0.02, 0.045), rot=(0.45, 0, -0.22)))
-    # Hombro derecho despejado: tirante fino + pañuelo
+    ul["leather"].add(*make_curved_shell(-0.04, 0.06, 0.092, 0.092, 0.082, 0.082, -0.35, 2.75, thickness=0.010, flare_bot=0.018))
+    ul["brass"].add(*make_curved_shell(0.01, 0.08, 0.100, 0.100, 0.086, 0.086, -0.2, 2.4, thickness=0.009, peak_front_y=0.022))
+    _horn(ul["brass"], [(0.055, 0.065, 0.01), (0.125, 0.135, -0.01), (0.165, 0.215, -0.04)], 0.017)
+    _horn(ul["brass"], [(0.080, 0.035, -0.02), (0.145, 0.085, -0.04), (0.185, 0.135, -0.07)], 0.012)
+    # Derecho: arnés ligero y pañuelo
     ur = out["UpperArm_R"]
-    ur["indigo"].add(*make_curved_shell(-0.04, 0.01, 0.082, 0.080, 0.084, 0.082, -2.5, -0.4, thickness=0.007))
+    ur["indigo"].add(*make_curved_shell(-0.045, 0.015, 0.086, 0.086, 0.082, 0.082, -2.6, -0.3, thickness=0.008))
     return out
 
 
 def build_dune_torso() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Torso": _dp()}
     t = out["Torso"]
-    # Túnica cruzada índigo/arena ceñida sin placas pesadas + bandolera diagonal con bolsas
-    t["indigo"].add(*make_curved_shell(-0.17, 0.28, 0.166, 0.128, 0.214, 0.152, -math.pi, math.pi, thickness=0.010))
-    t["sand"].add(*make_extruded_polygon([(0.0, -0.15), (0.085, 0.05), (0.115, 0.26), (0.015, 0.27)], 0.010,
-                                         center=(0.045, 0.04, 0.152), rot=(0.06, -0.25, 0)))
-    strap = [(-0.155, 0.24, 0.145), (-0.03, 0.08, 0.168), (0.07, -0.04, 0.160), (0.15, -0.14, 0.132)]
-    t["leather"].add(*make_tube_curve(strap, [0.020, 0.020, 0.020, 0.020], segs=8))
-    t["leather"].add(*make_box(0.046, 0.064, 0.032, center=(0.06, 0.00, 0.172), rot=(0, 0, -0.5), bevel=0.005))
-    t["brass"].add(*make_box(0.018, 0.022, 0.014, center=(-0.03, 0.08, 0.176)))
+    # Camisa plisada arena + chaleco solapa V abierto índigo + cuello viento bermellón dentado
+    t["sand"].add(*make_curved_shell(-0.16, 0.27, 0.162, 0.124, 0.208, 0.148, -math.pi, math.pi, thickness=0.009))
+    t["indigo"].add(*make_curved_shell(-0.17, 0.28, 0.172, 0.132, 0.220, 0.156, 0.34, math.tau - 0.34, thickness=0.010, flare_bot=0.016))
+    t["vermilion"].add(*make_curved_shell(
+        0.24, 0.36, 0.118, 0.116, 0.150, 0.138,
+        0.52, math.tau - 0.52, thickness=0.010, flare_top=0.028, tatter_waves=5, tatter_amp=0.018
+    ))
+    # Bandolera diagonal con 3 cuchillos Jambiya biselados
+    t["leather"].add(*make_tube_curve([(-0.155, 0.24, 0.145), (-0.03, 0.08, 0.170), (0.15, -0.14, 0.132)], [0.020, 0.020, 0.018], segs=8))
+    for i, (dx, dy) in enumerate(((-0.08, 0.14), (-0.01, 0.06), (0.06, -0.02))):
+        dag_pts = [(0.0, -0.045), (0.012, 0.01), (0.0, 0.065), (-0.012, 0.01)]
+        t["steel"].add(*make_extruded_polygon(dag_pts, 0.008, bevel=0.002, center=(dx, dy, 0.176), rot=(0, 0, -0.65)))
+        t["brass"].add(*make_box(0.024, 0.014, 0.016, center=(dx - 0.02, dy + 0.02, 0.178), rot=(0, 0, -0.65)))
+    for sgn in (-1, 1):
+        t["brass"].add(*make_tube_curve([(sgn * 0.05, 0.05, 0.165), (sgn * 0.155, 0.07, 0.105), (sgn * 0.175, 0.08, -0.02)], [0.008, 0.009, 0.007], segs=6))
     return out
 
 
 def build_dune_gloves() -> Dict[str, Dict[str, MeshPart]]:
-    out = {"Forearm_R": _dp(), "Wrist_R": _dp(), "Forearm_L": _dp(), "Wrist_L": _dp()}
+    out = {"Forearm_R": _bp() if False else _dp(), "Wrist_R": _dp(), "Forearm_L": _dp(), "Wrist_L": _dp()}
     for sd, sgn in (("R", -1), ("L", 1)):
         fa, wr = out["Forearm_" + sd], out["Wrist_" + sd]
-        for b in range(5):
-            yb = -0.245 + b * 0.040
-            rb = 0.046 + b * 0.0025
-            fa["sand" if b % 2 == 0 else "leather"].add(*make_curved_shell(yb, yb + 0.034, rb, rb, rb + 0.002, rb + 0.002,
-                                                                           -math.pi, math.pi, thickness=0.006))
+        fa["leather"].add(*make_curved_shell(-0.245, -0.03, 0.052, 0.052, 0.066, 0.066, -math.pi, math.pi, thickness=0.008, flare_top=0.010))
+        fa["indigo"].add(*make_curved_shell(-0.250, -0.185, 0.058, 0.058, 0.060, 0.060, -math.pi, math.pi, thickness=0.007))
         if sgn > 0:
-            # Brújula de latón con aguja turquesa en muñeca izquierda
-            fa["brass"].add(*make_cylinder(0.026, 0.026, 0.014, segs=12, center=(0.056, -0.20, 0.0), rot=(0, 0, math.pi / 2)))
-            fa["turq"].add(*make_sphere(0.012, segs=8, rings=6, center=(0.064, -0.20, 0.0)))
+            fin_pts = [(0.0, -0.04), (0.058, 0.01), (0.038, 0.082), (0.0, 0.04)]
+            fa["steel"].add(*make_extruded_polygon(fin_pts, 0.010, bevel=0.003, center=(0.042, -0.04, -0.015)))
+            fa["brass"].add(*make_cylinder(0.025, 0.025, 0.014, segs=12, center=(0.054, -0.20, 0.0), rot=(0, 0, math.pi / 2)))
+            fa["turq"].add(*make_sphere(0.012, segs=8, rings=6, center=(0.062, -0.20, 0.0)))
         else:
-            # Guardamano ligero de cuero y acero en mano derecha
-            wr["steel"].add(*make_box(0.036, 0.072, 0.084, center=(-0.022, -0.032, 0.0), bevel=0.004))
+            wr["brass"].add(*make_curved_shell(-0.072, 0.005, 0.046, 0.040, 0.048, 0.042, -math.pi, math.pi, thickness=0.006))
+            for kz in (-0.018, 0.018):
+                _horn(wr["steel"], [(-0.036, -0.035, kz), (-0.062, -0.055, kz), (-0.082, -0.095, kz)], 0.007, segs=5)
     return out
 
 
@@ -558,11 +683,18 @@ def build_dune_belt() -> Dict[str, Dict[str, MeshPart]]:
     p = out["Pelvis"]
     p["vermilion"].add(*make_curved_shell(-0.08, 0.05, 0.174, 0.138, 0.178, 0.142, -math.pi, math.pi, thickness=0.012))
     p["indigo"].add(*make_curved_shell(-0.04, 0.02, 0.180, 0.144, 0.182, 0.146, -math.pi, math.pi, thickness=0.010))
-    # Cantimplora redonda en cadera izquierda + manta enrollada trasera
-    p["brass"].add(*make_cylinder(0.048, 0.048, 0.036, segs=14, center=(0.185, -0.055, -0.025), rot=(0, 0, math.pi / 2)))
-    p["leather"].add(*make_cylinder(0.046, 0.046, 0.24, segs=12, center=(0.0, 0.025, -0.168), rot=(0, 0, math.pi / 2)))
-    # Faja colgante frontal abierta
-    p["sand"].add(*make_curved_shell(-0.48, -0.05, 0.215, 0.182, 0.174, 0.138, -0.45, 0.45, thickness=0.009, tatter_waves=3, tatter_amp=0.045))
+    clasp_pts = [(0.0, -0.055), (0.062, 0.0), (0.045, 0.045), (0.0, 0.025), (-0.045, 0.045), (-0.062, 0.0)]
+    p["brass"].add(*make_extruded_polygon(clasp_pts, 0.016, bevel=0.004, center=(0, -0.008, 0.152)))
+    p["turq"].add(*make_sphere(0.016, segs=8, rings=6, center=(0, -0.008, 0.162)))
+    # Faldón partido nómada abierto al frente en girones afilados
+    p["indigo"].add(*make_curved_shell(
+        -0.64, -0.04, 0.252, 0.215, 0.178, 0.142,
+        0.44, math.tau - 0.44, thickness=0.008, ny=12, na=28, flare_bot=0.055, tatter_waves=5, tatter_amp=0.062
+    ))
+    p["vermilion"].add(*make_curved_shell(
+        -0.56, -0.04, 0.232, 0.198, 0.174, 0.138,
+        0.48, 1.05, thickness=0.006, ny=10, na=10, tatter_waves=3, tatter_amp=0.04
+    ))
     return out
 
 
@@ -570,13 +702,21 @@ def build_dune_tassets() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side, sgn in (("Thigh_L", 1), ("Thigh_R", -1)):
         p = _dp()
-        p["indigo"].add(*make_curved_shell(-0.34, -0.02, 0.118, 0.105, 0.104, 0.092,
-                                           0.4 if sgn > 0 else -2.6, 2.6 if sgn > 0 else -0.4,
-                                           thickness=0.008, tatter_waves=3, tatter_amp=0.045))
-        # Vainas de cuchillos arrojadizos
-        for k in (-1, 1):
-            p["leather"].add(*make_box(0.016, 0.105, 0.024, center=(sgn * 0.112, -0.14, k * 0.028), rot=(0.15 * k, 0, sgn * -0.1)))
-            p["brass"].add(*make_cylinder(0.006, 0.006, 0.040, segs=6, center=(sgn * 0.116, -0.075, k * 0.028)))
+        for row in range(2):
+            yc = -0.055 - row * 0.088
+            scale_pts = [(0.0, -0.062), (0.054, 0.0), (0.045, 0.042), (-0.045, 0.042), (-0.054, 0.0)]
+            p["indigo" if row == 0 else "leather"].add(*make_extruded_polygon(
+                scale_pts, 0.012, bevel=0.004,
+                center=(sgn * 0.114, yc, 0.015),
+                rot=(0.0, sgn * math.pi * 0.42, sgn * -0.14)
+            ))
+        if sgn > 0:
+            # Cuchillos arrojadizos curvos Jambiya
+            for k in (-1, 1):
+                dag_pts = [(0.0, -0.06), (0.014, 0.01), (0.022, 0.07), (0.0, 0.02)]
+                p["steel"].add(*make_extruded_polygon(dag_pts, 0.008, bevel=0.002, center=(0.122, -0.14, k * 0.032), rot=(0.18 * k, 0, -0.1)))
+        else:
+            p["brass"].add(*make_cylinder(0.044, 0.044, 0.032, segs=14, center=(-0.126, -0.08, -0.02), rot=(0, 0, math.pi / 2)))
         out[side] = p
     return out
 
@@ -585,22 +725,20 @@ def build_dune_cuisses() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side, sgn in (("Thigh_L", 1), ("Thigh_R", -1)):
         p = _dp()
-        p["sand"].add(*make_curved_shell(-0.39, -0.06, 0.095, 0.095, 0.116, 0.116, -math.pi, math.pi, thickness=0.009))
-        for y in (-0.16, -0.30):
-            p["leather"].add(*make_curved_shell(y, y + 0.022, 0.116, 0.116, 0.116, 0.116, -math.pi, math.pi, thickness=0.008))
-        if sgn < 0:
-            # Rollo de mapa estelar en muslo derecho
-            p["sand"].add(*make_cylinder(0.022, 0.022, 0.17, segs=10, center=(-0.118, -0.22, 0.02), rot=(0.25, 0, 0)))
+        p["sand"].add(*make_curved_shell(-0.38, -0.06, 0.094, 0.094, 0.116, 0.116, -math.pi, math.pi, thickness=0.009, peak_front_y=-0.015))
+        p["brass"].add(*make_tube_curve([(sgn * 0.06, -0.12, 0.08), (sgn * 0.11, -0.22, 0.01), (sgn * 0.07, -0.32, -0.05)], [0.007, 0.009, 0.007], segs=6))
         out[side] = p
     return out
 
 
 def build_dune_knees() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Knee_L": _dp(), "Knee_R": _dp()}
-    for side in ("Knee_L", "Knee_R"):
+    for side, sgn in (("Knee_L", 1), ("Knee_R", -1)):
         k = out[side]
-        k["leather"].add(*make_curved_shell(-0.042, 0.042, 0.082, 0.082, 0.082, 0.082, -math.pi, math.pi, thickness=0.008))
-        k["brass"].add(*make_cylinder(0.036, 0.036, 0.018, segs=8, center=(0, 0, 0.084), rot=(math.pi / 2, 0, 0)))
+        k["leather"].add(*make_curved_shell(-0.044, 0.044, 0.084, 0.084, 0.084, 0.084, -1.6, 1.6, thickness=0.008))
+        wing_pts = [(0.0, -0.058), (0.052, -0.01), (0.064, 0.035), (0.0, 0.062), (-0.048, 0.025), (-0.042, -0.02)]
+        k["brass"].add(*make_extruded_polygon(wing_pts, 0.014, bevel=0.004, center=(sgn * 0.01, 0, 0.084), rot=(0, sgn * 0.18, 0)))
+        k["turq"].add(*make_sphere(0.016, segs=8, rings=6, center=(0, 0, 0.094)))
     return out
 
 
@@ -608,12 +746,10 @@ def build_dune_boots() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side in ("L", "R"):
         sh, ak = _dp(), _dp()
-        sh["leather"].add(*make_curved_shell(-0.44, -0.10, 0.070, 0.072, 0.086, 0.088, -math.pi, math.pi, thickness=0.009))
-        sh["vermilion"].add(*make_curved_shell(-0.16, -0.09, 0.088, 0.090, 0.094, 0.096, -math.pi, math.pi, thickness=0.008))
-        ak["leather"].add(*make_box(0.096, 0.064, 0.220, center=(0, -0.022, 0.052), bevel=0.012))
-        # Puntera curva levantada estilo nómada
-        ak["brass"].add(*make_tube_curve([(0, -0.036, 0.14), (0, -0.022, 0.19), (0, 0.024, 0.215)],
-                                         [0.026, 0.016, 0.005], segs=8))
+        sh["leather"].add(*make_curved_shell(-0.44, -0.06, 0.068, 0.070, 0.090, 0.094, -math.pi, math.pi, thickness=0.009, peak_front_y=0.022))
+        sh["vermilion"].add(*make_curved_shell(-0.15, -0.05, 0.090, 0.094, 0.102, 0.106, -math.pi, math.pi, thickness=0.008, flare_top=0.016, tatter_waves=4, tatter_amp=0.014))
+        _boot_foot({"leather": ak["leather"], "brass": ak["brass"], "indigo": ak["indigo"]},
+                   "indigo", "leather", "brass", "brass", foot_w=0.100, toe_len=0.172, pointed=0.35)
         out["Shin_" + side] = sh
         out["Ankle_" + side] = ak
     return out
@@ -623,14 +759,15 @@ def build_dune_weapon() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Wrist_R": _dp()}
     w = out["Wrist_R"]
     gy = -0.035
-    w["leather"].add(*make_cylinder(0.015, 0.016, 0.22, segs=10, center=(0, gy, 0.0), rot=(math.pi / 2, 0, 0)))
-    w["brass"].add(*make_sphere(0.024, segs=8, rings=6, center=(0, gy, -0.125)))
-    w["brass"].add(*make_torus(0.075, 0.011, 16, 8, arc=math.pi * 1.05, center=(0, gy, 0.125), rot=(0, -math.pi * 0.52, 0)))
-    w["turq"].add(*make_sphere(0.018, segs=8, rings=6, center=(0, gy + 0.016, 0.125)))
-    # Hoja alfanje creciente en el plano XZ orientada en +Z
-    scim_pts = [(-0.016, 0.12), (0.040, 0.48), (0.115, 0.80), (0.055, 1.06), (0.055, 0.78), (0.005, 0.45), (-0.032, 0.12)]
-    w["steel"].add(*make_extruded_polygon(scim_pts, 0.009, bevel=0.003, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
-    w["vermilion"].add(*make_cylinder(0.004, 0.022, 0.14, segs=8, center=(-0.02, gy, -0.20), rot=(math.pi / 2, 0, 0)))
+    w["leather"].add(*make_cylinder(0.015, 0.016, 0.23, segs=12, center=(0, gy, 0.0), rot=(math.pi / 2, 0, 0)))
+    _horn(w["brass"], [(0, gy, -0.115), (0.026, gy, -0.155), (0.052, gy, -0.140)], 0.016)
+    w["vermilion"].add(*make_curved_shell(-0.36, -0.15, 0.022, 0.022, 0.012, 0.012, -0.4, 0.4, thickness=0.004, center=(0.03, gy, 0.0), rot=(math.pi / 2, 0, 0)))
+    guard_pts = [(-0.105, 0.16), (0.0, 0.105), (0.125, 0.18), (0.0, 0.155)]
+    w["brass"].add(*make_extruded_polygon(guard_pts, 0.018, bevel=0.005, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    w["turq"].add(*make_sphere(0.018, segs=8, rings=6, center=(0, gy + 0.015, 0.135)))
+    scim_pts = [(-0.016, 0.13), (0.042, 0.50), (0.140, 0.92), (0.062, 1.12), (0.072, 0.85), (0.025, 0.52), (-0.036, 0.13)]
+    w["steel"].add(*make_extruded_polygon(scim_pts, 0.010, bevel=0.004, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    w["turq"].add(*make_tube_curve([(-0.020, gy, 0.18), (0.018, gy, 0.48), (0.072, gy, 0.76), (0.095, gy, 0.96)], [0.0045, 0.0045, 0.004, 0.003], segs=6))
     return out
 
 
@@ -639,23 +776,29 @@ def build_dune_shield() -> Dict[str, Dict[str, MeshPart]]:
     s = out["Wrist_L"]
     gy = -0.035
     s["leather"].add(*make_cylinder(0.015, 0.015, 0.18, segs=10, center=(0, gy, 0), rot=(math.pi / 2, 0, 0)))
-    s["brass"].add(*make_box(0.022, 0.016, 0.11, center=(0, gy, 0.09), rot=(0, math.pi / 2, 0)))
-    # Hoja de daga de parada hacia +Z
-    s["steel"].add(*make_cylinder(0.002, 0.020, 0.34, segs=4, center=(0, gy, 0.27), rot=(math.pi / 2, 0, 0), scale=(0.4, 1.0, 1.0)))
-    # Broquel compacto solar lateral (+X)
-    s["leather"].add(*make_cylinder(0.135, 0.145, 0.018, segs=16, center=(0.046, gy + 0.02, 0.02), rot=(0, 0, math.pi / 2)))
-    s["brass"].add(*make_torus(0.138, 0.011, 18, 6, center=(0.052, gy + 0.02, 0.02), rot=(0, 0, math.pi / 2)))
-    s["turq"].add(*make_sphere(0.030, segs=8, rings=6, center=(0.060, gy + 0.02, 0.02), scale=(0.55, 1.0, 1.0)))
+    _horn(s["brass"], [(0, gy, -0.09), (0.018, gy, -0.13), (0.038, gy, -0.115)], 0.014)
+    g_pts = [(-0.07, 0.11), (0.0, 0.075), (0.07, 0.11), (0.0, 0.095)]
+    s["brass"].add(*make_extruded_polygon(g_pts, 0.014, bevel=0.003, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    jam_pts = [(-0.016, 0.10), (-0.032, 0.25), (0.008, 0.37), (0.055, 0.48), (0.015, 0.34), (0.018, 0.10)]
+    s["steel"].add(*make_extruded_polygon(jam_pts, 0.009, bevel=0.003, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    # Broquel estrella de 8 puntas en dorso de mano
+    star_pts = []
+    for i in range(8):
+        ang = (i / 8) * math.tau
+        r = 0.145 if i % 2 == 0 else 0.102
+        star_pts.append((math.cos(ang) * r, math.sin(ang) * r * 1.12))
+    s["leather"].add(*make_extruded_polygon(star_pts, 0.016, bevel=0.004, center=(0.044, gy + 0.02, 0.02), rot=(0, math.pi / 2, 0)))
+    s["brass"].add(*make_torus(0.118, 0.009, 20, 6, center=(0.054, gy + 0.02, 0.02), rot=(0, 0, math.pi / 2)))
+    s["turq"].add(*make_sphere(0.032, segs=8, rings=6, center=(0.062, gy + 0.02, 0.02), scale=(0.55, 1.2, 1.0)))
     return out
 
 
 # ==============================================================================
-# ARQUETIPO 3 (MAGO): TEJEDOR DEL ASTROLABIO & ECLIPSE (ROSTRO ABIERTO)
+# ARQUETIPO 3 (MAGO): TEJEDOR DEL ASTROLABIO & ECLIPSE (ROSTRO ABIERTO S-RANK)
 # ==============================================================================
 def gen_astrolabe_textures() -> Dict[str, bytes]:
     rng = np.random.default_rng(303)
     s = 128
-    # Terciopelo azul medianoche estrellado
     velvet = Image.new("RGB", (s, s), (16, 22, 46))
     vd = ImageDraw.Draw(velvet)
     for _ in range(48):
@@ -664,12 +807,10 @@ def gen_astrolabe_textures() -> Dict[str, bytes]:
     arr = np.clip(np.array(velvet, dtype=np.int16) + rng.integers(-4, 5, (s, s, 1)), 0, 255).astype(np.uint8)
     velvet = Image.fromarray(arr, "RGB")
 
-    # Seda astral gris plateada
     silk = Image.new("RGB", (s, s), (98, 108, 134))
     sarr = np.clip(np.array(silk, dtype=np.int16) + rng.integers(-5, 6, (s, s, 1)), 0, 255).astype(np.uint8)
     silk = Image.fromarray(sarr, "RGB")
 
-    # Bronce planetario grabado
     bronze = Image.new("RGB", (s, s), (124, 98, 58))
     bdraw = ImageDraw.Draw(bronze)
     for k in range(16, s, 32):
@@ -699,72 +840,82 @@ def _ap() -> Dict[str, MeshPart]:
 
 
 def build_astro_helmet() -> Dict[str, Dict[str, MeshPart]]:
-    """Diadema abierta orbital + sextante astral sobre la coronilla (rostro 100% despejado)."""
+    """Corona catedralicia abierta con grandes cuernos crecientes asimétricos y halo roto (100% rostro abierto)."""
     out = {"Head": _ap()}
     h = out["Head"]
-    # Banda diadema de bronce sobre la frente alta
-    h["bronze"].add(*make_curved_shell(0.185, 0.215, 0.120, 0.128, 0.120, 0.128, -math.pi, math.pi, thickness=0.008))
-    # Corona orbital inclinada flotando sobre la cabeza (halo de eclipse)
-    h["bronze"].add(*make_torus(0.175, 0.008, 28, 8, center=(0, 0.275, -0.025), rot=(0.45, 0.0, 0.18)))
-    h["silver"].add(*make_torus(0.145, 0.006, 24, 6, center=(0, 0.268, -0.020), rot=(-0.35, 0.2, -0.22)))
-    # Sextante & gema astral sobre el entrecejo superior (y = 0.22)
-    h["bronze"].add(*make_torus(0.038, 0.006, 16, 6, arc=math.pi, center=(0, 0.22, 0.130), rot=(math.pi / 2, 0, math.pi * 0.5)))
-    h["astral"].add(*make_sphere(0.016, segs=8, rings=6, center=(0, 0.228, 0.136)))
-    # Satélites solares laterales
-    for ang in (0.6, math.pi - 0.6, math.pi + 0.6):
-        h["amber"].add(*make_sphere(0.013, segs=8, rings=6,
-                                    center=(math.cos(ang) * 0.175, 0.275 + math.sin(ang) * 0.06, -0.025 + math.sin(ang) * 0.15)))
+    h["bronze"].add(*make_curved_shell(
+        0.168, 0.215, 0.124, 0.132, 0.128, 0.136,
+        -math.pi * 0.92, math.pi * 0.92, thickness=0.008, ny=6, na=22, peak_front_y=-0.025
+    ))
+    h["astral"].add(*make_sphere(0.017, segs=8, rings=6, center=(0, 0.195, 0.140), scale=(0.8, 1.35, 0.6)))
+    # Dos grandes cuernos crecientes asimétricos de bronce y plata en los temporales
+    _horn(h["bronze"], [(0.095, 0.195, 0.02), (0.165, 0.285, -0.02), (0.155, 0.395, -0.09)], 0.020)
+    _horn(h["silver"], [(-0.092, 0.195, 0.02), (-0.155, 0.265, -0.01), (-0.142, 0.355, -0.07)], 0.016)
+    # Halo celestial roto sobre la coronilla + lunas en las orejas
+    h["silver"].add(*make_torus(0.175, 0.007, 24, 6, arc=math.tau * 0.72, center=(0, 0.275, -0.03), rot=(0.45, 0.0, 0.35)))
+    for sgn in (-1, 1):
+        _horn(h["bronze"], [(sgn * 0.105, 0.09, 0.0), (sgn * 0.128, 0.135, -0.02), (sgn * 0.105, 0.18, 0.01)], 0.008, segs=6)
     return out
 
 
 def build_astro_shoulders() -> Dict[str, Dict[str, MeshPart]]:
-    """Astrolabio Cósmico Gigante de 3 anillos flotando tras los hombros + estola dorsal ceremonial."""
+    """Gran Halo Astrolabio dorsal con 4 agujas aladas + hombrera de media luna izquierda + chal derecho de seda."""
     out = {"Torso": _ap(), "UpperArm_L": _ap(), "UpperArm_R": _ap()}
     tr = out["Torso"]
     cx, cy, cz = 0.0, 0.24, -0.24
-    # 3 anillos concéntricos inclinados del gran astrolabio dorsal
     tr["bronze"].add(*make_torus(0.32, 0.012, 32, 8, center=(cx, cy, cz), rot=(math.pi / 2 + 0.12, 0.0, 0.08)))
     tr["silver"].add(*make_torus(0.24, 0.009, 28, 6, center=(cx, cy, cz), rot=(math.pi / 2 + 0.35, 0.42, -0.25)))
     tr["amber"].add(*make_torus(0.16, 0.007, 24, 6, center=(cx, cy, cz), rot=(math.pi / 2 - 0.35, -0.5, 0.32)))
-    # Orbes estelares en los anillos
+    # 4 agujas celestiales emergiendo del halo dorsal
+    for sx, sy0, sx1, sy1 in ((0.18, 0.36, 0.38, 0.62), (-0.18, 0.36, -0.38, 0.62), (0.24, 0.14, 0.44, 0.05), (-0.24, 0.14, -0.44, 0.05)):
+        _horn(tr["bronze"], [(sx, sy0, cz), ((sx + sx1) * 0.5, (sy0 + sy1) * 0.5, cz - 0.03), (sx1, sy1, cz - 0.01)], 0.016, segs=6)
     for s in range(4):
         ang = (s / 4) * math.tau + 0.35
         tr["astral"].add(*make_sphere(0.022, segs=8, rings=6, center=(math.cos(ang) * 0.32, cy + math.sin(ang) * 0.32, cz)))
-    # Estola sacerdotal colgante dorsal y por hombros
-    tr["silk"].add(*make_curved_shell(-0.26, 0.28, 0.180, 0.145, 0.220, 0.165,
-                                      math.pi * 0.65, math.pi * 1.35, thickness=0.008, tatter_waves=4, tatter_amp=0.04))
-    for k, sd in (("UpperArm_L", 1), ("UpperArm_R", -1)):
-        ua = out[k]
-        ua["velvet"].add(*make_curved_shell(-0.04, 0.05, 0.088, 0.086, 0.105, 0.102,
-                                            0.0 if sd > 0 else -math.pi, math.pi if sd > 0 else 0.0, thickness=0.009))
-        ua["bronze"].add(*make_torus(0.082, 0.007, 16, 6, center=(sd * 0.04, 0.045, 0), rot=(0, 0, sd * 0.3)))
+    # Manto asimétrico izquierdo de terciopelo y chal derecho de seda
+    tr["velvet"].add(*make_curved_shell(
+        -0.24, 0.28, 0.218, 0.175, 0.155, 0.140,
+        0.1, math.pi * 1.25, thickness=0.009, ny=12, na=20, flare_bot=0.055, tatter_waves=4, tatter_amp=0.045
+    ))
+    tr["silk"].add(*make_curved_shell(
+        -0.16, 0.28, 0.212, 0.172, 0.152, 0.138,
+        math.pi * 0.85, math.tau - 0.15, thickness=0.007, ny=10, na=16, flare_bot=0.042, tatter_waves=3, tatter_amp=0.035
+    ))
+    ul = out["UpperArm_L"]
+    ul["bronze"].add(*make_curved_shell(-0.02, 0.08, 0.098, 0.098, 0.084, 0.084, -0.3, 2.5, thickness=0.009, peak_front_y=0.022))
+    _horn(ul["bronze"], [(0.055, 0.075, 0.0), (0.125, 0.165, -0.02), (0.145, 0.275, -0.05)], 0.018)
+    ur = out["UpperArm_R"]
+    ur["silk"].add(*make_curved_shell(-0.04, 0.04, 0.090, 0.090, 0.084, 0.084, -2.5, -0.2, thickness=0.008))
     return out
 
 
 def build_astro_torso() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Torso": _ap()}
     t = out["Torso"]
-    # Túnica ceremonial de terciopelo + cuello plisado en abanico + medallón reloj solar en el pecho
-    t["velvet"].add(*make_curved_shell(-0.17, 0.28, 0.168, 0.132, 0.216, 0.155, -math.pi, math.pi, thickness=0.011))
-    # Cuello plisado alto abierto delante
-    t["silk"].add(*make_curved_shell(0.24, 0.39, 0.108, 0.106, 0.152, 0.140, 0.58, math.tau - 0.58,
-                                     thickness=0.009, flare_top=0.022))
-    # Estola frontal asimétrica + reloj solar astral pectoral
-    t["silk"].add(*make_box(0.095, 0.42, 0.012, center=(-0.035, 0.04, 0.162), rot=(0.05, 0, 0.12), bevel=0.003))
-    t["bronze"].add(*make_torus(0.055, 0.009, 18, 6, center=(0.0, 0.135, 0.172), rot=(math.pi / 2, 0, 0)))
-    t["astral"].add(*make_sphere(0.022, segs=8, rings=6, center=(0.0, 0.135, 0.174)))
+    t["silk"].add(*make_curved_shell(-0.16, 0.27, 0.164, 0.128, 0.210, 0.150, -math.pi, math.pi, thickness=0.009))
+    # Abrigo V abierto de terciopelo con cuello catedralicio dentado
+    t["velvet"].add(*make_curved_shell(-0.17, 0.28, 0.172, 0.134, 0.220, 0.158, 0.36, math.tau - 0.36, thickness=0.011, flare_bot=0.018))
+    t["velvet"].add(*make_curved_shell(
+        0.24, 0.40, 0.116, 0.114, 0.162, 0.146,
+        0.55, math.tau - 0.55, thickness=0.010, flare_top=0.034, tatter_waves=5, tatter_amp=0.020
+    ))
+    for sgn in (-1, 1):
+        t["bronze"].add(*make_tube_curve([(sgn * 0.045, 0.08, 0.168), (sgn * 0.155, 0.12, 0.105), (sgn * 0.178, 0.14, -0.02)], [0.008, 0.009, 0.007], segs=6))
+    t["bronze"].add(*make_torus(0.052, 0.009, 18, 6, center=(0.0, 0.145, 0.172), rot=(math.pi / 2, 0, 0)))
+    t["astral"].add(*make_sphere(0.022, segs=8, rings=6, center=(0.0, 0.145, 0.175)))
     return out
 
 
 def build_astro_gloves() -> Dict[str, Dict[str, MeshPart]]:
-    """Mangas acampanadas ceremoniales muy anchas en puño + mitones rúnicos."""
     out = {"Forearm_R": _ap(), "Wrist_R": _ap(), "Forearm_L": _ap(), "Wrist_L": _ap()}
     for sd, sgn in (("R", -1), ("L", 1)):
         fa, wr = out["Forearm_" + sd], out["Wrist_" + sd]
-        fa["velvet"].add(*make_curved_shell(-0.25, -0.02, 0.108, 0.108, 0.058, 0.058, -math.pi, math.pi,
-                                            thickness=0.008, flare_bot=0.028))
-        fa["silk"].add(*make_curved_shell(-0.255, -0.215, 0.115, 0.115, 0.105, 0.105, -math.pi, math.pi, thickness=0.007))
-        fa["bronze"].add(*make_torus(0.112, 0.006, 18, 6, center=(0, -0.23, 0)))
+        fa["velvet"].add(*make_curved_shell(
+            -0.25, -0.02, 0.116, 0.116, 0.058, 0.058,
+            -math.pi, math.pi, thickness=0.008, flare_bot=0.034, tatter_waves=4, tatter_amp=0.022
+        ))
+        fa["silk"].add(*make_curved_shell(-0.245, -0.19, 0.112, 0.112, 0.098, 0.098, -math.pi, math.pi, thickness=0.006))
+        fa["bronze"].add(*make_torus(0.118, 0.006, 18, 6, center=(0, -0.22, 0)))
         wr["astral"].add(*make_sphere(0.012, segs=6, rings=5, center=(sgn * 0.026, -0.025, 0)))
     return out
 
@@ -772,26 +923,31 @@ def build_astro_gloves() -> Dict[str, Dict[str, MeshPart]]:
 def build_astro_belt() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Pelvis": _ap()}
     p = out["Pelvis"]
-    p["silk"].add(*make_curved_shell(-0.07, 0.05, 0.175, 0.138, 0.178, 0.142, -math.pi, math.pi, thickness=0.012))
-    p["bronze"].add(*make_torus(0.042, 0.008, 16, 6, center=(0, -0.01, 0.152), rot=(math.pi / 2, 0, 0)))
-    # Faldón ceremonial largo de 4 paneles partidos
-    for a0, a1 in ((-0.45, 0.45), (0.65, 1.95), (math.pi * 0.65, math.pi * 1.35), (math.tau - 1.95, math.tau - 0.65)):
-        p["velvet"].add(*make_curved_shell(-0.68, -0.05, 0.258, 0.228, 0.178, 0.142, a0, a1,
-                                           thickness=0.009, flare_bot=0.060))
-        p["silk"].add(*make_curved_shell(-0.685, -0.62, 0.262, 0.232, 0.256, 0.226, a0 + 0.04, a1 - 0.04, thickness=0.007))
+    p["silk"].add(*make_curved_shell(-0.07, 0.05, 0.175, 0.138, 0.178, 0.142, -math.pi, math.pi, thickness=0.012, peak_front_y=-0.022))
+    clasp_pts = [(0.0, -0.052), (0.052, 0.0), (0.035, 0.045), (0.0, 0.025), (-0.035, 0.045), (-0.052, 0.0)]
+    p["bronze"].add(*make_extruded_polygon(clasp_pts, 0.014, bevel=0.004, center=(0, -0.01, 0.152)))
+    p["astral"].add(*make_sphere(0.016, segs=8, rings=6, center=(0, -0.01, 0.162)))
+    # Faldón ceremonial de 4 colas de golondrina catedralicias
+    for a0, a1 in ((-0.42, 0.42), (0.62, 1.98), (math.pi * 0.66, math.pi * 1.34), (math.tau - 1.98, math.tau - 0.62)):
+        p["velvet"].add(*make_curved_shell(
+            -0.70, -0.04, 0.268, 0.232, 0.178, 0.142,
+            a0, a1, thickness=0.009, ny=12, na=12, flare_bot=0.068, tatter_waves=3, tatter_amp=0.048
+        ))
+        p["silk"].add(*make_curved_shell(-0.70, -0.63, 0.270, 0.234, 0.262, 0.228, a0 + 0.05, a1 - 0.05, thickness=0.006))
     return out
 
 
 def build_astro_tassets() -> Dict[str, Dict[str, MeshPart]]:
-    """Péndulos colgantes y pequeños relojes estelares laterales en caderas."""
     out = {}
     for side, sgn in (("Thigh_L", 1), ("Thigh_R", -1)):
         p = _ap()
+        scale_pts = [(0.0, -0.065), (0.050, 0.0), (0.042, 0.045), (-0.042, 0.045), (-0.050, 0.0)]
+        p["silk"].add(*make_extruded_polygon(scale_pts, 0.010, bevel=0.003, center=(sgn * 0.114, -0.06, 0.012), rot=(0, sgn * math.pi * 0.42, sgn * -0.14)))
         for offz in (-0.032, 0.032):
-            p["bronze"].add(*make_cylinder(0.003, 0.003, 0.20, segs=6, center=(sgn * 0.115, -0.13, offz)))
-            p["amber"].add(*make_sphere(0.016, segs=8, rings=6, center=(sgn * 0.115, -0.235, offz), scale=(0.8, 1.4, 0.8)))
-        p["bronze"].add(*make_torus(0.044, 0.006, 16, 6, center=(sgn * 0.118, -0.14, 0.0), rot=(0, 0, math.pi / 2)))
-        p["astral"].add(*make_sphere(0.016, segs=8, rings=6, center=(sgn * 0.120, -0.14, 0.0)))
+            p["bronze"].add(*make_cylinder(0.003, 0.003, 0.20, segs=6, center=(sgn * 0.118, -0.15, offz)))
+            p["amber"].add(*make_sphere(0.016, segs=8, rings=6, center=(sgn * 0.118, -0.255, offz), scale=(0.8, 1.4, 0.8)))
+        p["bronze"].add(*make_torus(0.044, 0.006, 16, 6, center=(sgn * 0.120, -0.15, 0.0), rot=(0, 0, math.pi / 2)))
+        p["astral"].add(*make_sphere(0.016, segs=8, rings=6, center=(sgn * 0.122, -0.15, 0.0)))
         out[side] = p
     return out
 
@@ -800,18 +956,20 @@ def build_astro_cuisses() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side, sgn in (("Thigh_L", 1), ("Thigh_R", -1)):
         p = _ap()
-        p["velvet"].add(*make_curved_shell(-0.38, -0.06, 0.092, 0.092, 0.112, 0.112, -math.pi, math.pi, thickness=0.009))
-        p["silk"].add(*make_box(0.012, 0.28, 0.022, center=(sgn * 0.106, -0.22, 0.0)))
+        p["velvet"].add(*make_curved_shell(-0.38, -0.06, 0.092, 0.092, 0.112, 0.112, -math.pi, math.pi, thickness=0.009, peak_front_y=-0.015))
+        p["silk"].add(*make_tube_curve([(sgn * 0.05, -0.10, 0.08), (sgn * 0.106, -0.22, 0.0), (sgn * 0.06, -0.34, -0.05)], [0.007, 0.008, 0.007], segs=6))
         out[side] = p
     return out
 
 
 def build_astro_knees() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Knee_L": _ap(), "Knee_R": _ap()}
-    for side in ("Knee_L", "Knee_R"):
+    for side, sgn in (("Knee_L", 1), ("Knee_R", -1)):
         k = out[side]
-        k["bronze"].add(*make_torus(0.042, 0.006, 16, 6, center=(0, 0, 0.088), rot=(math.pi / 2, 0, 0)))
-        k["astral"].add(*make_sphere(0.014, segs=8, rings=6, center=(0, 0, 0.092)))
+        cres_pts = [(0.0, -0.058), (0.046, -0.01), (0.055, 0.035), (0.0, 0.062), (-0.044, 0.025)]
+        k["bronze"].add(*make_extruded_polygon(cres_pts, 0.012, bevel=0.004, center=(sgn * 0.008, 0, 0.086), rot=(0, sgn * 0.18, 0)))
+        _horn(k["silver"], [(sgn * 0.042, 0.015, 0.072), (sgn * 0.078, 0.048, 0.048), (sgn * 0.095, 0.092, 0.015)], 0.009, segs=6)
+        k["astral"].add(*make_sphere(0.014, segs=8, rings=6, center=(0, 0, 0.096)))
     return out
 
 
@@ -819,12 +977,11 @@ def build_astro_boots() -> Dict[str, Dict[str, MeshPart]]:
     out = {}
     for side in ("L", "R"):
         sh, ak = _ap(), _ap()
-        sh["velvet"].add(*make_curved_shell(-0.44, -0.18, 0.068, 0.070, 0.084, 0.086, -math.pi, math.pi, thickness=0.008))
-        sh["silk"].add(*make_torus(0.086, 0.010, 16, 6, center=(0, -0.18, 0)))
-        ak["velvet"].add(*make_box(0.092, 0.058, 0.215, center=(0, -0.024, 0.050), bevel=0.010))
-        ak["bronze"].add(*make_tube_curve([(0, -0.036, 0.14), (0, -0.020, 0.195), (0, 0.035, 0.225)],
-                                         [0.022, 0.014, 0.004], segs=8))
-        ak["amber"].add(*make_sphere(0.011, segs=6, rings=5, center=(0, 0.012, 0.09)))
+        sh["velvet"].add(*make_curved_shell(-0.44, -0.12, 0.068, 0.070, 0.088, 0.092, -math.pi, math.pi, thickness=0.008, peak_front_y=0.022))
+        sh["silk"].add(*make_curved_shell(-0.18, -0.10, 0.086, 0.090, 0.098, 0.102, -math.pi, math.pi, thickness=0.008, flare_top=0.015, tatter_waves=4, tatter_amp=0.012))
+        _boot_foot({"velvet": ak["velvet"], "bronze": ak["bronze"], "silver": ak["silver"]},
+                   "silver", "velvet", "bronze", "silver", foot_w=0.096, toe_len=0.170, pointed=0.40)
+        ak["amber"].add(*make_sphere(0.012, segs=6, rings=5, center=(0, 0.012, 0.092)))
         out["Shin_" + side] = sh
         out["Ankle_" + side] = ak
     return out
@@ -834,35 +991,40 @@ def build_astro_weapon() -> Dict[str, Dict[str, MeshPart]]:
     out = {"Wrist_R": _ap()}
     w = out["Wrist_R"]
     gy = -0.035
-    w["bronze"].add(*make_cylinder(0.014, 0.016, 1.54, segs=10, center=(0, gy, 0.34), rot=(math.pi / 2, 0, 0)))
-    w["velvet"].add(*make_cylinder(0.018, 0.018, 0.22, segs=10, center=(0, gy, 0.02), rot=(math.pi / 2, 0, 0)))
-    w["silver"].add(*make_cylinder(0.002, 0.018, 0.12, segs=8, center=(0, gy, -0.49), rot=(math.pi / 2, 0, 0)))
-    # Corona cardán de 3 anillos girados + sol astral flotante en punta (+Z = 1.24)
+    w["bronze"].add(*make_tube_curve([
+        (0, gy, -0.46), (0.012, gy + 0.008, -0.05), (-0.014, gy - 0.008, 0.42), (0.010, gy + 0.006, 0.85), (0, gy, 1.12)
+    ], [0.014, 0.014, 0.014, 0.014, 0.014], segs=10))
+    w["velvet"].add(*make_cylinder(0.019, 0.019, 0.24, segs=12, center=(0, gy, 0.01), rot=(math.pi / 2, 0, 0)))
+    _horn(w["silver"], [(0, gy, -0.46), (0, gy + 0.012, -0.54), (0, gy, -0.60)], 0.018)
+    # Hoja creciente lunar enmarcando el planetario (y -> Z = 1.24)
+    cres_pts = [(-0.01, 1.06), (0.22, 1.24), (0.44, 1.18), (0.48, 0.82), (0.34, 1.02), (0.18, 1.08), (0.01, 0.99)]
+    w["silver"].add(*make_extruded_polygon(cres_pts, 0.010, bevel=0.004, center=(0, gy, 0), rot=(-math.pi / 2, 0, 0)))
+    _horn(w["bronze"], [(-0.01, gy, 1.08), (-0.14, gy + 0.02, 1.22), (-0.18, gy - 0.01, 1.38)], 0.015)
     cz = 1.24
-    w["bronze"].add(*make_torus(0.095, 0.010, 18, 6, arc=math.pi * 1.15, center=(0, gy, 1.21), rot=(math.pi / 2, -0.5, 0)))
-    w["bronze"].add(*make_torus(0.118, 0.008, 24, 6, center=(0, gy, cz), rot=(math.pi / 2, 0.35, 0)))
-    w["silver"].add(*make_torus(0.088, 0.006, 22, 6, center=(0, gy, cz), rot=(0.65, -0.5, 0.35)))
-    w["amber"].add(*make_torus(0.058, 0.005, 18, 6, center=(0, gy, cz), rot=(-0.7, 0.6, 0.8)))
-    w["astral"].add(*make_sphere(0.036, segs=10, rings=8, center=(0, gy, cz)))
+    w["bronze"].add(*make_torus(0.118, 0.008, 24, 6, center=(0.04, gy, cz), rot=(math.pi / 2, 0.35, 0)))
+    w["silver"].add(*make_torus(0.088, 0.006, 22, 6, center=(0.04, gy, cz), rot=(0.65, -0.5, 0.35)))
+    w["amber"].add(*make_torus(0.056, 0.005, 18, 6, center=(0.04, gy, cz), rot=(-0.7, 0.6, 0.8)))
+    w["astral"].add(*make_sphere(0.036, segs=10, rings=8, center=(0.04, gy, cz)))
+    w["silk"].add(*make_curved_shell(0.62, 1.02, 0.025, 0.025, 0.012, 0.012, -0.4, 0.4, thickness=0.004, center=(0.04, gy, 0), rot=(-math.pi / 2, 0, 0)))
     return out
 
 
 def build_astro_shield() -> Dict[str, Dict[str, MeshPart]]:
-    """Grimorio Abierto & Planetario Flotante en mano izquierda."""
+    """Grimorio Catedralicio Abierto & Planetario Flotante en mano izquierda."""
     out = {"Wrist_L": _ap()}
     s = out["Wrist_L"]
     gy = -0.035
     s["bronze"].add(*make_cylinder(0.012, 0.012, 0.14, segs=8, center=(0, gy, 0), rot=(math.pi / 2, 0, 0)))
-    # Lomo y dos tapas abiertas en V
-    s["velvet"].add(*make_box(0.034, 0.026, 0.23, center=(0.032, gy + 0.04, 0.0)))
+    s["bronze"].add(*make_cylinder(0.016, 0.016, 0.24, segs=8, center=(0.032, gy + 0.04, 0.0), rot=(math.pi / 2, 0, 0)))
     for sd in (-1, 1):
-        s["velvet"].add(*make_box(0.012, 0.125, 0.22, center=(0.048, gy + 0.04, sd * 0.062), rot=(0, -sd * 0.42, 0)))
+        s["velvet"].add(*make_box(0.012, 0.125, 0.23, center=(0.048, gy + 0.04, sd * 0.062), rot=(0, -sd * 0.42, 0), bevel=0.004))
         s["parchment"].add(*make_box(0.014, 0.112, 0.20, center=(0.056, gy + 0.04, sd * 0.058), rot=(0, -sd * 0.42, 0)))
-    # Planetario flotante delante del libro abierto
-    ox, oy, oz = 0.145, gy + 0.06, 0.0
+        _horn(s["bronze"], [(0.068, gy + 0.15, sd * 0.11), (0.078, gy + 0.21, sd * 0.14), (0.068, gy + 0.25, sd * 0.10)], 0.008)
+    ox, oy, oz = 0.148, gy + 0.06, 0.0
     s["astral"].add(*make_sphere(0.032, segs=10, rings=8, center=(ox, oy, oz)))
-    s["bronze"].add(*make_torus(0.064, 0.005, 20, 6, center=(ox, oy, oz), rot=(0.55, 0.4, 0.2)))
-    s["amber"].add(*make_torus(0.050, 0.004, 18, 6, center=(ox, oy, oz), rot=(-0.6, 0.8, 0.5)))
+    s["bronze"].add(*make_torus(0.068, 0.0055, 22, 6, center=(ox, oy, oz), rot=(0.55, 0.4, 0.2)))
+    s["amber"].add(*make_torus(0.050, 0.0045, 18, 6, center=(ox, oy, oz), rot=(-0.6, 0.8, 0.5)))
+    _horn(s["silver"], [(ox, oy + 0.12, -0.055), (ox + 0.008, oy + 0.16, 0.0), (ox, oy + 0.12, 0.055)], 0.009)
     return out
 
 
