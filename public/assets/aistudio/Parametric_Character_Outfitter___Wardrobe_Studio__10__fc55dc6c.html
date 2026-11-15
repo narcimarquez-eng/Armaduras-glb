@@ -21797,31 +21797,43 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     );
     eyePivot.add(sclera);
 
-    // Iris + Pupila nítidos en proporción humana
+    // Iris + Pupila nítidos conformados a la curvatura esférica del globo ocular (nunca atraviesa los párpados)
     const irisR = eyeTypeData.irisRadius * 0.88;
-    const iris = new THREE.Mesh(
-      new THREE.CircleGeometry(irisR, isGoku ? 16 : 28),
-      humanIrisMat
+    const irisTheta = Math.asin(Math.min(0.72, irisR / scleraR));
+    const irisGeo = new THREE.SphereGeometry(scleraR * 1.008, isGoku ? 16 : 28, 12, 0, Math.PI * 2, 0, irisTheta);
+    irisGeo.rotateX(Math.PI / 2);
+    const irisPosAttr = irisGeo.attributes.position;
+    const irisUvAttr = irisGeo.attributes.uv;
+    const irisMaxXY = scleraR * 1.008 * Math.sin(irisTheta);
+    for (let k = 0; k < irisPosAttr.count; k++) {
+      const ix = irisPosAttr.getX(k);
+      const iy = irisPosAttr.getY(k);
+      irisUvAttr.setXY(k, 0.5 + 0.5 * (ix / irisMaxXY), 0.5 + 0.5 * (iy / irisMaxXY));
+    }
+    irisUvAttr.needsUpdate = true;
+    const iris = new THREE.Mesh(irisGeo, humanIrisMat);
+    iris.scale.set(
+      sclera.scale.x,
+      sclera.scale.y * (isGoku ? 0.88 : 1.0),
+      sclera.scale.z
     );
-    iris.position.set(0, 0, scleraR * eyeTypeData.scleraScale[2] + 0.0005);
-    iris.scale.set(eyeAspect, eyeSquash * (isGoku ? 0.88 : 1.0), 1.0);
     eyePivot.add(iris);
 
     // Cúpula corneal húmeda para reflejo especular vivo
     const cornea = new THREE.Mesh(
-      new THREE.SphereGeometry(irisR * 1.15, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.38),
+      new THREE.SphereGeometry(scleraR * 1.022, 18, 12, 0, Math.PI * 2, 0, irisTheta * 1.06),
       corneaDomeMat
     );
     cornea.rotation.x = Math.PI / 2;
-    cornea.position.set(0, 0, scleraR * eyeTypeData.scleraScale[2] * 0.72);
+    cornea.scale.copy(sclera.scale);
     eyePivot.add(cornea);
 
     // Sombra suave bajo el párpado superior para profundidad realista
     const upperEyeAO = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.015, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.32),
+      new THREE.SphereGeometry(scleraR * 1.028, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.34),
       eyeLidShadeMat
     );
-    upperEyeAO.rotation.x = -0.22;
+    upperEyeAO.rotation.x = -0.06 - (eyeOpen - 1.0) * 0.14;
     upperEyeAO.scale.copy(sclera.scale);
     eyePivot.add(upperEyeAO);
 
@@ -21829,38 +21841,38 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const scY = eyeTypeData.scleraScale[1] * eyeSquash;
     const scZ = scleraR * eyeTypeData.scleraScale[2];
 
-    // Capotas anatómicas de párpado superior e inferior con caída natural (cubre suavemente el cuarto superior del iris sin intersectarlo)
+    // Capotas anatómicas de párpado superior e inferior por delante del globo ocular (cubren ligeramente el borde superior de iris/pupila en apertura normal y se abren limpiamente al subir eyeOpen)
     const upperLidCap = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.15, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.40),
+      new THREE.SphereGeometry(scleraR * 1.055, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.40),
       faceSkinMat
     );
     upperLidCap.scale.copy(sclera.scale);
-    upperLidCap.rotation.x = 0.18 - (eyeOpen - 1.0) * 0.16;
+    upperLidCap.rotation.x = 0.09 - (eyeOpen - 1.0) * 0.20;
     eyePivot.add(upperLidCap);
 
     const lowerLidCap = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.07, 20, 10, 0, Math.PI * 2, Math.PI * 0.57, Math.PI * 0.24),
+      new THREE.SphereGeometry(scleraR * 1.045, 22, 12, 0, Math.PI * 2, Math.PI * 0.65, Math.PI * 0.22),
       faceSkinMat
     );
     lowerLidCap.scale.copy(sclera.scale);
-    lowerLidCap.rotation.x = 0.04 + (eyeOpen - 1.0) * 0.08;
+    lowerLidCap.rotation.x = 0.02 + (eyeOpen - 1.0) * 0.08;
     eyePivot.add(lowerLidCap);
 
     if (isGoku) {
       const upperCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0160 * eyeAspect, -0.0012 * eyeSquash, scZ * 0.54),
-        new THREE.Vector3(-dir * 0.004 * eyeAspect, (0.0036 + (eyeOpen - 1.0) * 0.0020) * eyeSquash, scZ * 1.07),
-        new THREE.Vector3(dir * 0.0152 * eyeAspect, -0.0006 * eyeSquash, scZ * 0.48),
+        new THREE.Vector3(-dir * 0.0155 * eyeAspect, -0.0008 * eyeSquash, scZ * 0.56),
+        new THREE.Vector3(-dir * 0.004 * eyeAspect, (0.0033 + (eyeOpen - 1.0) * 0.0024) * eyeSquash, scZ * 1.06),
+        new THREE.Vector3(dir * 0.0148 * eyeAspect, -0.0004 * eyeSquash, scZ * 0.50),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0018, 8, false), faceSkinMat));
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0008, 6, false), lashLineMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0014, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0007, 6, false), lashLineMat));
 
       const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0160 * eyeAspect, -0.0012 * eyeSquash, scZ * 0.48),
-        new THREE.Vector3(0, (-0.0044 - (1.0 - eyeOpen) * 0.0016) * eyeSquash, scZ * 1.00),
-        new THREE.Vector3(dir * 0.0152 * eyeAspect, -0.0006 * eyeSquash, scZ * 0.44),
+        new THREE.Vector3(-dir * 0.0155 * eyeAspect, -0.0008 * eyeSquash, scZ * 0.50),
+        new THREE.Vector3(0, (-0.0056 - (eyeOpen - 1.0) * 0.0014) * eyeSquash, scZ * 1.03),
+        new THREE.Vector3(dir * 0.0148 * eyeAspect, -0.0004 * eyeSquash, scZ * 0.46),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0015, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0012, 8, false), faceSkinMat));
 
       const browCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0185 * eyeAspect, 0.0175, 0.0182),
@@ -21872,19 +21884,19 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       eyePivot.add(gBrow);
     } else if (isFish) {
       const upperCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0162 * eyeAspect, 0.0, scZ * 0.50),
-        new THREE.Vector3(0, (0.0036 + (eyeOpen - 1.0) * 0.0020) * eyeSquash, scZ * 1.07),
-        new THREE.Vector3(dir * 0.0155 * eyeAspect, 0.0, scZ * 0.46),
+        new THREE.Vector3(-dir * 0.0156 * eyeAspect, 0.0, scZ * 0.52),
+        new THREE.Vector3(0, (0.0033 + (eyeOpen - 1.0) * 0.0024) * eyeSquash, scZ * 1.06),
+        new THREE.Vector3(dir * 0.0150 * eyeAspect, 0.0, scZ * 0.48),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0018, 8, false), faceSkinMat));
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0008, 6, false), lashLineMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0014, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0007, 6, false), lashLineMat));
 
       const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0162 * eyeAspect, 0.0, scZ * 0.46),
-        new THREE.Vector3(0, (-0.0046 - (1.0 - eyeOpen) * 0.0016) * eyeSquash, scZ * 1.00),
-        new THREE.Vector3(dir * 0.0155 * eyeAspect, 0.0, scZ * 0.42),
+        new THREE.Vector3(-dir * 0.0156 * eyeAspect, 0.0, scZ * 0.48),
+        new THREE.Vector3(0, (-0.0056 - (eyeOpen - 1.0) * 0.0014) * eyeSquash, scZ * 1.03),
+        new THREE.Vector3(dir * 0.0150 * eyeAspect, 0.0, scZ * 0.44),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0015, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0012, 8, false), faceSkinMat));
 
       const browCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0170 * eyeAspect, 0.0180, 0.0182),
@@ -21895,33 +21907,33 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       fBrow.scale.set(1.0, 0.78, 0.48);
       eyePivot.add(fBrow);
     } else {
-      // Borde anatómico de párpados y línea sutil de pestañas ceñidos al borde inferior de upperLidCap
-      const lidH = (0.0034 + (eyeOpen - 1.0) * 0.0018) * scY;
+      // Borde anatómico de párpados y línea sutil de pestañas fundidos sobre el borde inferior de upperLidCap
+      const lidH = (0.0032 + (eyeOpen - 1.0) * 0.0026) * scY;
       const upperCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0138 * scX, -0.0008 * scY, scZ * 0.58),
-        new THREE.Vector3(-dir * 0.0045 * scX, lidH, scZ * 1.07),
-        new THREE.Vector3(dir * 0.0045 * scX, lidH * 0.92, scZ * 1.05),
-        new THREE.Vector3(dir * 0.0140 * scX, -0.0010 * scY, scZ * 0.52),
+        new THREE.Vector3(-dir * 0.0136 * scX, -0.0006 * scY, scZ * 0.58),
+        new THREE.Vector3(-dir * 0.0044 * scX, lidH, scZ * 1.055),
+        new THREE.Vector3(dir * 0.0044 * scX, lidH * 0.94, scZ * 1.045),
+        new THREE.Vector3(dir * 0.0138 * scX, -0.0008 * scY, scZ * 0.52),
       ]);
-      const upperLid = new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 20, 0.0017, 10, false), faceSkinMat);
+      const upperLid = new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 20, 0.0013, 10, false), faceSkinMat);
       upperLid.castShadow = false;
       eyePivot.add(upperLid);
 
       const lashCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0135 * scX, -0.0007 * scY, scZ * 0.60),
-        new THREE.Vector3(-dir * 0.004 * scX, lidH * 0.80, scZ * 1.08),
-        new THREE.Vector3(dir * 0.0045 * scX, lidH * 0.74, scZ * 1.06),
-        new THREE.Vector3(dir * 0.0138 * scX, -0.0009 * scY, scZ * 0.54),
+        new THREE.Vector3(-dir * 0.0134 * scX, -0.0005 * scY, scZ * 0.60),
+        new THREE.Vector3(-dir * 0.0042 * scX, lidH * 0.88, scZ * 1.068),
+        new THREE.Vector3(dir * 0.0044 * scX, lidH * 0.82, scZ * 1.058),
+        new THREE.Vector3(dir * 0.0136 * scX, -0.0007 * scY, scZ * 0.54),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 18, 0.00075, 6, false), lashLineMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 18, 0.00065, 6, false), lashLineMat));
 
-      const lowLidH = (-0.0044 - (1.0 - eyeOpen) * 0.0016) * scY;
+      const lowLidH = (-0.0056 - (eyeOpen - 1.0) * 0.0014) * scY;
       const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0135 * scX, -0.0009 * scY, scZ * 0.54),
-        new THREE.Vector3(0, lowLidH, scZ * 0.98),
-        new THREE.Vector3(dir * 0.0138 * scX, -0.0010 * scY, scZ * 0.48),
+        new THREE.Vector3(-dir * 0.0134 * scX, -0.0008 * scY, scZ * 0.54),
+        new THREE.Vector3(0, lowLidH, scZ * 1.02),
+        new THREE.Vector3(dir * 0.0136 * scX, -0.0009 * scY, scZ * 0.48),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0014, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0012, 8, false), faceSkinMat));
 
       // Ceja arqueada claramente separada sobre el arco superciliar
       const browYOffset = eyeTypeData.browOffset;
