@@ -7299,8 +7299,15 @@
     }
 
     const sovereignBeltTexCache = {};
-    function getSovereignBeltTexture(kind) {
-      if (sovereignBeltTexCache[kind]) return sovereignBeltTexCache[kind];
+    function getSovereignBeltTexture(kind, clothHex = null, trimHex = null, primaryHex = null) {
+      const cacheKey = `${kind}|${clothHex || ''}|${trimHex || ''}|${primaryHex || ''}`;
+      if (sovereignBeltTexCache[cacheKey]) return sovereignBeltTexCache[cacheKey];
+      const cCol = clothHex ? new THREE.Color(clothHex) : null;
+      const tCol = trimHex ? new THREE.Color(trimHex) : null;
+      const pCol = primaryHex ? new THREE.Color(primaryHex) : null;
+      const hexOf = (col, fallback) => col ? ('#' + col.getHexString()) : fallback;
+      const scaleHex = (col, f, fallback) => col ? ('#' + col.clone().multiplyScalar(f).getHexString()) : fallback;
+      const lerpHex = (col, target, a, fallback) => col ? ('#' + col.clone().lerp(new THREE.Color(target), a).getHexString()) : fallback;
       const S = 512;
       const c = document.createElement('canvas'); c.width = S; c.height = S;
       const ctx = c.getContext('2d');
@@ -7311,14 +7318,14 @@
       if (kind === 'imperial_ivory') {
         // Brocado marfil cálido con filigrana dorada marcada y cenefas verticales reales
         const g = ctx.createLinearGradient(0, 0, S, 0);
-        g.addColorStop(0, '#bfa984'); g.addColorStop(0.5, '#ede0c8'); g.addColorStop(1, '#bfa984');
+        g.addColorStop(0, scaleHex(cCol, 0.68, '#bfa984')); g.addColorStop(0.5, hexOf(cCol, '#ede0c8')); g.addColorStop(1, scaleHex(cCol, 0.68, '#bfa984'));
         ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-        ctx.strokeStyle = 'rgba(130,98,48,0.22)'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = cCol ? 'rgba(255,255,255,0.08)' : 'rgba(130,98,48,0.22)'; ctx.lineWidth = 1.5;
         for (let y = 0; y < S; y += 6) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(S, y); ctx.stroke(); }
         // Cenefas doradas laterales nítidas
-        ctx.strokeStyle = '#9c6e1c'; ctx.lineWidth = 14;
+        ctx.strokeStyle = scaleHex(tCol, 0.82, '#9c6e1c'); ctx.lineWidth = 14;
         ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(22, S); ctx.moveTo(S - 22, 0); ctx.lineTo(S - 22, S); ctx.stroke();
-        ctx.strokeStyle = '#d4a644'; ctx.lineWidth = 6;
+        ctx.strokeStyle = lerpHex(tCol, '#ffffff', 0.35, '#d4a644'); ctx.lineWidth = 6;
         ctx.beginPath(); ctx.moveTo(42, 0); ctx.lineTo(42, S); ctx.moveTo(S - 42, 0); ctx.lineTo(S - 42, S); ctx.stroke();
         bCtx.strokeStyle = '#f0f0f0'; bCtx.lineWidth = 12;
         bCtx.beginPath(); bCtx.moveTo(22, 0); bCtx.lineTo(22, S); bCtx.moveTo(S - 22, 0); bCtx.lineTo(S - 22, S); bCtx.stroke();
@@ -7326,7 +7333,7 @@
         for (let row = 0; row < 3; row++) {
           const cy = 96 + row * 150;
           [-1, 1].forEach(sd => {
-            ctx.strokeStyle = '#9e6f1a'; ctx.lineWidth = 6.5;
+            ctx.strokeStyle = scaleHex(tCol, 0.84, '#9e6f1a'); ctx.lineWidth = 6.5;
             ctx.beginPath();
             ctx.moveTo(S * 0.5, cy);
             ctx.bezierCurveTo(S * 0.5 + sd * 75, cy - 52, S * 0.5 + sd * 125, cy + 48, S * 0.5 + sd * 165, cy - 10);
@@ -7338,16 +7345,16 @@
             bCtx.stroke();
           });
         }
-        ctx.strokeStyle = '#a8781d'; ctx.lineWidth = 8;
+        ctx.strokeStyle = scaleHex(tCol, 0.90, '#a8781d'); ctx.lineWidth = 8;
         ctx.beginPath(); ctx.moveTo(S * 0.5, 24); ctx.lineTo(S * 0.64, S * 0.5); ctx.lineTo(S * 0.5, S - 24); ctx.lineTo(S * 0.36, S * 0.5); ctx.closePath(); ctx.stroke();
       } else if (kind === 'sylvan_vine') {
         // Cinta crema/lino con bordes dorados y liana verde esmeralda bordada de hojas
         const g = ctx.createLinearGradient(0, 0, S, 0);
-        g.addColorStop(0, '#c2ad83'); g.addColorStop(0.5, '#efe4cc'); g.addColorStop(1, '#c2ad83');
+        g.addColorStop(0, scaleHex(cCol, 0.68, '#c2ad83')); g.addColorStop(0.5, hexOf(cCol, '#efe4cc')); g.addColorStop(1, scaleHex(cCol, 0.68, '#c2ad83'));
         ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-        ctx.strokeStyle = '#8c6d32'; ctx.lineWidth = 14;
+        ctx.strokeStyle = hexOf(tCol, '#8c6d32'); ctx.lineWidth = 14;
         ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(16, S); ctx.moveTo(S - 16, 0); ctx.lineTo(S - 16, S); ctx.stroke();
-        ctx.strokeStyle = '#15803d'; ctx.lineWidth = 7;
+        ctx.strokeStyle = lerpHex(cCol, '#34d399', 0.72, '#15803d'); ctx.lineWidth = 7;
         ctx.beginPath();
         for (let y = 0; y <= S; y += 8) {
           const x = S * 0.5 + Math.sin((y / S) * Math.PI * 8) * 58;
@@ -7365,7 +7372,7 @@
           const ly = 18 + i * 31;
           const sd = i % 2 === 0 ? 1 : -1;
           const lx = S * 0.5 + Math.sin((ly / S) * Math.PI * 8) * 58 + sd * 38;
-          ctx.fillStyle = '#166534';
+          ctx.fillStyle = lerpHex(cCol, '#10b981', 0.60, '#166534');
           ctx.beginPath(); ctx.ellipse(lx, ly, 26, 12, sd * 0.55, 0, Math.PI * 2); ctx.fill();
           bCtx.fillStyle = '#f0f0f0';
           bCtx.beginPath(); bCtx.ellipse(lx, ly, 26, 12, sd * 0.55, 0, Math.PI * 2); bCtx.fill();
@@ -7373,9 +7380,9 @@
       } else if (kind === 'astral_runes') {
         // Placa acero plata oscura grabada con runas arcanas brillantes
         const g = ctx.createLinearGradient(0, 0, 0, S);
-        g.addColorStop(0, '#64748b'); g.addColorStop(0.5, '#334155'); g.addColorStop(1, '#1e293b');
+        g.addColorStop(0, lerpHex(pCol, '#94a3b8', 0.25, '#64748b')); g.addColorStop(0.5, hexOf(pCol, '#334155')); g.addColorStop(1, scaleHex(pCol, 0.58, '#1e293b'));
         ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-        ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 5;
+        ctx.strokeStyle = lerpHex(tCol, '#fef3c7', 0.35, '#c4b5fd'); ctx.lineWidth = 5;
         ctx.strokeRect(8, 22, S - 16, S - 44);
         bCtx.strokeStyle = '#303030'; bCtx.lineWidth = 6;
         bCtx.strokeRect(8, 22, S - 16, S - 44);
@@ -7383,7 +7390,7 @@
         for (let i = 0; i < glyphCount; i++) {
           const rx = 28 + i * ((S - 56) / glyphCount);
           const ry = S * 0.5;
-          ctx.strokeStyle = '#d8b4fe'; ctx.lineWidth = 5;
+          ctx.strokeStyle = lerpHex(tCol, '#ffffff', 0.45, '#d8b4fe'); ctx.lineWidth = 5;
           bCtx.strokeStyle = '#242424'; bCtx.lineWidth = 6;
           const drawRune = (cTarget) => {
             cTarget.beginPath();
@@ -7398,23 +7405,27 @@
       } else if (kind === 'astral_cosmos') {
         // Terciopelo azul medianoche & violeta real con constelaciones doradas/plata
         const g = ctx.createLinearGradient(0, 0, S, S);
-        g.addColorStop(0, '#0d1945'); g.addColorStop(0.5, '#241047'); g.addColorStop(1, '#0e1b49');
+        g.addColorStop(0, scaleHex(cCol, 0.85, '#0d1945')); g.addColorStop(0.5, hexOf(cCol, '#241047')); g.addColorStop(1, scaleHex(cCol, 0.90, '#0e1b49'));
         ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-        ctx.strokeStyle = '#cbb6ff'; ctx.lineWidth = 7;
+        ctx.strokeStyle = hexOf(tCol, '#cbb6ff'); ctx.lineWidth = 7;
         ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(18, S); ctx.moveTo(S - 18, 0); ctx.lineTo(S - 18, S); ctx.stroke();
         const stars = [
           [110, 80], [200, 130], [155, 225], [260, 275], [340, 180], [400, 105],
           [125, 360], [230, 415], [320, 345], [395, 405], [256, 170], [256, 325]
         ];
-        ctx.strokeStyle = 'rgba(226, 208, 255, 0.78)'; ctx.lineWidth = 2.4;
+        ctx.save();
+        ctx.strokeStyle = tCol ? ('#' + tCol.getHexString()) : 'rgba(226, 208, 255, 0.78)';
+        if (tCol) ctx.globalAlpha = 0.78;
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
         [[0,1],[1,2],[2,3],[3,4],[4,5],[2,10],[10,4],[6,7],[7,8],[8,9],[3,11],[11,8]].forEach(([a, bIdx]) => {
           ctx.moveTo(stars[a][0], stars[a][1]); ctx.lineTo(stars[bIdx][0], stars[bIdx][1]);
         });
         ctx.stroke();
+        ctx.restore();
         stars.forEach(([sx, sy], idx) => {
           const r = idx % 3 === 0 ? 7.5 : 4.5;
-          ctx.fillStyle = idx % 2 === 0 ? '#fde68a' : '#e9d5ff';
+          ctx.fillStyle = idx % 2 === 0 ? hexOf(tCol, '#fde68a') : lerpHex(tCol, '#ffffff', 0.45, '#e9d5ff');
           ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
           bCtx.fillStyle = '#ffffff';
           bCtx.beginPath(); bCtx.arc(sx, sy, r, 0, Math.PI * 2); bCtx.fill();
@@ -7422,13 +7433,13 @@
       } else if (kind === 'crimson_flame') {
         // Terciopelo carmesí & negro con llamas doradas en los bordes y centro
         const g = ctx.createLinearGradient(0, 0, S, 0);
-        g.addColorStop(0, '#1f0509'); g.addColorStop(0.5, '#7c101e'); g.addColorStop(1, '#1f0509');
+        g.addColorStop(0, scaleHex(cCol, 0.42, '#1f0509')); g.addColorStop(0.5, hexOf(cCol, '#7c101e')); g.addColorStop(1, scaleHex(cCol, 0.42, '#1f0509'));
         ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-        ctx.strokeStyle = '#d4a038'; ctx.lineWidth = 10;
+        ctx.strokeStyle = hexOf(tCol, '#d4a038'); ctx.lineWidth = 10;
         ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(18, S); ctx.moveTo(S - 18, 0); ctx.lineTo(S - 18, S); ctx.stroke();
         for (let k = -1; k <= 1; k++) {
           const bx = S * 0.5 + k * 145;
-          ctx.strokeStyle = k === 0 ? '#f59e0b' : '#c88e2b'; ctx.lineWidth = 6;
+          ctx.strokeStyle = k === 0 ? lerpHex(tCol, '#f59e0b', 0.35, '#f59e0b') : hexOf(tCol, '#c88e2b'); ctx.lineWidth = 6;
           ctx.beginPath();
           ctx.moveTo(bx, S - 24);
           ctx.bezierCurveTo(bx - 42, S * 0.65, bx + 42, S * 0.36, bx, 38);
@@ -7442,17 +7453,17 @@
         }
       } else if (kind === 'crimson_scales') {
         // Escamas de dragón carmesí oscurecido con filos bruñidos de oro/rojo
-        ctx.fillStyle = '#1f080d'; ctx.fillRect(0, 0, S, S);
+        ctx.fillStyle = scaleHex(pCol, 0.45, '#1f080d'); ctx.fillRect(0, 0, S, S);
         const step = 64;
         for (let row = 0; row <= S + step; row += step / 2) {
           const off = (Math.round(row / (step / 2)) % 2) * (step / 2);
           for (let col = -step; col <= S + step; col += step) {
             const cx = col + off, cy = row;
             const sg = ctx.createRadialGradient(cx, cy - 10, 4, cx, cy, step * 0.55);
-            sg.addColorStop(0, '#991b1b'); sg.addColorStop(0.72, '#3b0712'); sg.addColorStop(1, '#120306');
+            sg.addColorStop(0, lerpHex(cCol, '#991b1b', 0.4, '#991b1b')); sg.addColorStop(0.72, scaleHex(pCol, 0.65, '#3b0712')); sg.addColorStop(1, scaleHex(pCol, 0.35, '#120306'));
             ctx.fillStyle = sg;
             ctx.beginPath(); ctx.moveTo(cx, cy + 28); ctx.lineTo(cx + 30, cy); ctx.lineTo(cx, cy - 28); ctx.lineTo(cx - 30, cy); ctx.closePath(); ctx.fill();
-            ctx.strokeStyle = '#c88b32'; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.strokeStyle = hexOf(tCol, '#c88b32'); ctx.lineWidth = 2.5; ctx.stroke();
             bCtx.fillStyle = '#d4d4d4';
             bCtx.beginPath(); bCtx.moveTo(cx, cy + 24); bCtx.lineTo(cx + 26, cy); bCtx.lineTo(cx, cy - 24); bCtx.lineTo(cx - 26, cy); bCtx.closePath(); bCtx.fill();
           }
@@ -7464,8 +7475,8 @@
       colorTex.colorSpace = THREE.SRGBColorSpace;
       const bumpTex = new THREE.CanvasTexture(b);
       bumpTex.wrapS = THREE.RepeatWrapping; bumpTex.wrapT = THREE.RepeatWrapping;
-      sovereignBeltTexCache[kind] = { colorTex, bumpTex };
-      return sovereignBeltTexCache[kind];
+      sovereignBeltTexCache[cacheKey] = { colorTex, bumpTex };
+      return sovereignBeltTexCache[cacheKey];
     }
 
     // Construye los 4 diseños de cinturones reales de gala para niveles S y SR (y estilos 10..16):
@@ -7676,6 +7687,10 @@
       // >= 45% más grandes que la versión anterior (0.38..0.58m de largo, estolas ~1.45x anchas)
       const bannerLen = Math.min(0.60, Math.max(0.38, pSize.y * (STATE.fit.mageRobe ? 2.40 : 2.15))) * (STATE.fit.beltCrotchLength || 1.0);
       const { glowMat } = mats;
+      const clothHex = (mats.clothMat && mats.clothMat.color) ? ('#' + mats.clothMat.color.getHexString()) : (STATE.clothColor || null);
+      const trimHex = (mats.trimMat && mats.trimMat.color) ? ('#' + mats.trimMat.color.getHexString()) : (STATE.secondaryColor || null);
+      const primaryHex = (mats.mainMat && mats.mainMat.color) ? ('#' + mats.mainMat.color.getHexString()) : (STATE.primaryColor || null);
+      const glowHex = (glowMat && glowMat.color) ? ('#' + glowMat.color.getHexString()) : (STATE.glowColor || '#6d28d9');
 
       const addHangingChain = (pts, radius, mat, withBeads = true) => {
         const curve = new THREE.CatmullRomCurve3(pts);
@@ -7701,14 +7716,13 @@
 
       if (style === 'imperial_celestial') {
         // === 1. IMPERIAL CELESTIAL (+45% tamaño, cintura ceñida sin bultos, alerones estilizados y despeje total sobre musleras) ===
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xe6b84c, roughness: 0.22, metalness: 0.92 });
-        const ivoryPack = getSovereignBeltTexture('imperial_ivory');
+        const goldMat = mats.trimMat;
+        const ivoryPack = getSovereignBeltTexture('imperial_ivory', clothHex, trimHex, primaryHex);
         const ivoryMat = new THREE.MeshStandardMaterial({
           color: 0xffffff, map: ivoryPack.colorTex, bumpMap: ivoryPack.bumpTex, bumpScale: 0.015,
           roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide
         });
-        let saphMat = glowMat;
-        try { saphMat = getFacetedGemMaterial('sapphire', 'belt'); } catch (e) { }
+        const saphMat = glowMat;
 
         // Banda corona estilizada y ceñida a la cintura, visible por delante sobre el borde inferior del peto
         const crownSurf = (u, v) => {
@@ -7811,16 +7825,15 @@
 
       } else if (style === 'sylvan_verdant') {
         // === 2. SYLVAN VERDANT (+45% tamaño, cintura estilizada sin bulto, hojas 3D y faldones por fuera de musleras) ===
-        const bronzeMat = new THREE.MeshStandardMaterial({ color: 0xb08944, roughness: 0.30, metalness: 0.85 });
-        const emeraldMat = new THREE.MeshStandardMaterial({ color: 0x0b533a, roughness: 0.58, metalness: 0.14, side: THREE.DoubleSide });
-        const oliveGoldMat = new THREE.MeshStandardMaterial({ color: 0x8b6c2b, roughness: 0.48, metalness: 0.25, side: THREE.DoubleSide });
-        const vinePack = getSovereignBeltTexture('sylvan_vine');
+        const bronzeMat = mats.trimMat;
+        const emeraldMat = mats.clothMat;
+        const oliveGoldMat = mats.clothMat;
+        const vinePack = getSovereignBeltTexture('sylvan_vine', clothHex, trimHex, primaryHex);
         const vineMat = new THREE.MeshStandardMaterial({
           color: 0xffffff, map: vinePack.colorTex, bumpMap: vinePack.bumpTex, bumpScale: 0.015,
           roughness: 0.62, metalness: 0.08, side: THREE.DoubleSide
         });
-        let amberMat = glowMat;
-        try { amberMat = getFacetedGemMaterial('topaz', 'belt'); } catch (e) { }
+        const amberMat = glowMat;
 
         const leafBeltSurf = (u, v) => {
           const a = (u - 0.5) * Math.PI * 2;
@@ -7896,20 +7909,22 @@
 
       } else if (style === 'astral_runic') {
         // === 3. ASTRAL RUNIC (+45% tamaño, chevrones ceñidos a la cintura, medallones grandes y faldones por fuera) ===
-        const runePack = getSovereignBeltTexture('astral_runes');
+        const runePack = getSovereignBeltTexture('astral_runes', clothHex, trimHex, primaryHex);
         const runeMetalMat = new THREE.MeshStandardMaterial({
-          color: 0xcbd5e1, map: runePack.colorTex, bumpMap: runePack.bumpTex, bumpScale: 0.018,
-          roughness: 0.30, metalness: 0.86, emissive: new THREE.Color(0x6d28d9), emissiveIntensity: 0.32
+          color: 0xffffff, map: runePack.colorTex, bumpMap: runePack.bumpTex, bumpScale: 0.018,
+          roughness: 0.30, metalness: 0.86, emissive: new THREE.Color(glowHex), emissiveIntensity: 0.28
         });
-        const cosmosPack = getSovereignBeltTexture('astral_cosmos');
+        const cosmosPack = getSovereignBeltTexture('astral_cosmos', clothHex, trimHex, primaryHex);
         const cosmosMat = new THREE.MeshStandardMaterial({
           color: 0xffffff, map: cosmosPack.colorTex, bumpMap: cosmosPack.bumpTex, bumpScale: 0.012,
           roughness: 0.62, metalness: 0.14, side: THREE.DoubleSide
         });
-        const silverMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.25, metalness: 0.92 });
-        const lavenderMat = new THREE.MeshStandardMaterial({ color: 0xc4b5fd, roughness: 0.55, metalness: 0.25 });
-        let ameMat = glowMat;
-        try { ameMat = getFacetedGemMaterial('amethyst', 'belt'); } catch (e) { }
+        const silverMat = mats.trimMat;
+        const lavenderMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(glowHex).lerp(new THREE.Color('#ffffff'), 0.22),
+          roughness: 0.55, metalness: 0.25
+        });
+        const ameMat = glowMat;
 
         // 3 bandas escalonadas en V más altas verticalmente pero delgadas radialmente (cero bulto)
         for (let band = 0; band < 3; band++) {
@@ -7993,20 +8008,22 @@
 
       } else {
         // === 4. CRIMSON DRAGONSCALE & FLAME (+45% tamaño, cintura ceñida sin bulto y faldones por fuera de musleras) ===
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xdca434, roughness: 0.24, metalness: 0.90 });
-        const flamePack = getSovereignBeltTexture('crimson_flame');
+        const goldMat = mats.trimMat;
+        const flamePack = getSovereignBeltTexture('crimson_flame', clothHex, trimHex, primaryHex);
         const flameMat = new THREE.MeshStandardMaterial({
           color: 0xffffff, map: flamePack.colorTex, bumpMap: flamePack.bumpTex, bumpScale: 0.016,
           roughness: 0.48, metalness: 0.25, side: THREE.DoubleSide
         });
-        const scalePack = getSovereignBeltTexture('crimson_scales');
+        const scalePack = getSovereignBeltTexture('crimson_scales', clothHex, trimHex, primaryHex);
         const scaleMat = new THREE.MeshStandardMaterial({
           color: 0xffffff, map: scalePack.colorTex, bumpMap: scalePack.bumpTex, bumpScale: 0.020,
           roughness: 0.36, metalness: 0.52, side: THREE.DoubleSide
         });
-        const blackSilkMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.72, metalness: 0.08 });
-        let rubyMat = glowMat;
-        try { rubyMat = getFacetedGemMaterial('ruby', 'belt'); } catch (e) { }
+        const blackSilkMat = new THREE.MeshStandardMaterial({
+          color: clothHex ? new THREE.Color(clothHex).multiplyScalar(0.35) : new THREE.Color(0x111827),
+          roughness: 0.72, metalness: 0.08
+        });
+        const rubyMat = glowMat;
 
         const flameBeltSurf = (u, v) => {
           const a = (u - 0.5) * Math.PI * 2;
@@ -12671,7 +12688,7 @@
 
     /* === TEXTURAS PROCEDURALES BORDADAS PARA CAPAS ESTILO CUERVO (SR Y S) === */
     const _embroideredCloakTexCache = {};
-    function getEmbroideredCloakTexture(styleKey) {
+    function getEmbroideredCloakTexture(styleKey, clothHex = null, trimHex = null, glowHex = null) {
       const aliasMap = {
         imperial_drape: 'raven_imperial_gold',
         asymmetric_half: 'raven_crimson_sovereign',
@@ -12681,7 +12698,8 @@
         scholar_stole: 'raven_astral_cosmos'
       };
       const key = aliasMap[styleKey] || styleKey || 'raven_imperial_gold';
-      if (_embroideredCloakTexCache[key]) return _embroideredCloakTexCache[key];
+      const cacheKey = `${key}|${clothHex || ''}|${trimHex || ''}|${glowHex || ''}`;
+      if (_embroideredCloakTexCache[cacheKey]) return _embroideredCloakTexCache[cacheKey];
 
       const palettes = {
         raven_imperial_gold:    { body: '#4a0b17', dark: '#1c0308', trim: '#6e1022', gold: '#eab308', hi: '#fef08a', accent: '#f8fafc', motif: 'imperial',  gem: 'ruby' },
@@ -12691,7 +12709,21 @@
         raven_astral_cosmos:    { body: '#10173d', dark: '#06091e', trim: '#231e59', gold: '#facc15', hi: '#e9d5ff', accent: '#93c5fd', motif: 'astral',    gem: 'amethyst' },
         raven_crimson_sovereign:{ body: '#17141f', dark: '#08070d', trim: '#590d1e', gold: '#e09f24', hi: '#fde68a', accent: '#f43f5e', motif: 'sovereign', gem: 'ruby' }
       };
-      const pal = palettes[key] || palettes.raven_imperial_gold;
+      const pal = { ...(palettes[key] || palettes.raven_imperial_gold) };
+      if (clothHex) {
+        const cCol = new THREE.Color(clothHex);
+        pal.body = '#' + cCol.getHexString();
+        pal.dark = '#' + cCol.clone().multiplyScalar(0.45).getHexString();
+        pal.trim = '#' + cCol.clone().lerp(new THREE.Color('#000000'), 0.25).getHexString();
+      }
+      if (trimHex) {
+        const tCol = new THREE.Color(trimHex);
+        pal.gold = '#' + tCol.getHexString();
+        pal.hi = '#' + tCol.clone().lerp(new THREE.Color('#ffffff'), 0.42).getHexString();
+      }
+      if (glowHex) {
+        pal.accent = glowHex;
+      }
 
       const makeEmbroidDrawer = (cCtx, bCtx) => (fn, lw = 2.6, alpha = 0.94) => {
         cCtx.save();
@@ -12969,7 +13001,7 @@
         return t;
       };
 
-      _embroideredCloakTexCache[key] = {
+      _embroideredCloakTexCache[cacheKey] = {
         key,
         pal,
         colorTex: mkTex(cCanvas, true),
@@ -12977,7 +13009,7 @@
         mantleColorTex: mkTex(mcCanvas, true),
         mantleBumpTex: mkTex(mbCanvas, false)
       };
-      return _embroideredCloakTexCache[key];
+      return _embroideredCloakTexCache[cacheKey];
     }
 
     /* === GENERADOR DE 6 CAPAS FLUIDAS ESTILO CUERVO CON BORDADOS (SR Y S) === */
@@ -12991,7 +13023,10 @@
       const tSize = tb.getSize(new THREE.Vector3());
       const { glowMat } = mats;
 
-      const texPack = getEmbroideredCloakTexture(capeStyle);
+      const clothHex = (mats.clothMat && mats.clothMat.color) ? ('#' + mats.clothMat.color.getHexString()) : (STATE.clothColor || null);
+      const trimHex = (mats.trimMat && mats.trimMat.color) ? ('#' + mats.trimMat.color.getHexString()) : (STATE.secondaryColor || null);
+      const glowHex = (glowMat && glowMat.color) ? ('#' + glowMat.color.getHexString()) : (STATE.glowColor || null);
+      const texPack = getEmbroideredCloakTexture(capeStyle, clothHex, trimHex, glowHex);
       const key = texPack.key;
       const pal = texPack.pal;
 
@@ -13016,15 +13051,14 @@
         side: THREE.DoubleSide
       });
       const stitchGoldMat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(pal.gold),
+        color: new THREE.Color(trimHex || pal.gold),
         roughness: 0.28,
         metalness: 0.80,
         envMap: (STATE.envReflections && proceduralStudioEnvMap) ? proceduralStudioEnvMap : null,
         envMapIntensity: 0.85,
         side: THREE.DoubleSide
       });
-      let gemMat = glowMat || stitchGoldMat;
-      try { gemMat = getFacetedGemMaterial(pal.gem || 'ruby', 'torso'); } catch (e) { }
+      const gemMat = glowMat || stitchGoldMat;
 
       const group = new THREE.Group();
       group.name = `Armor_Cape_${key}`;
@@ -14368,12 +14402,12 @@
         12: { tex: 'under_lamellar_laced',        color: '#e4e4e7',                     rough: 0.32, metal: 0.80, bump: 0.042, tile: 2.5 },
         13: { tex: 'under_gambeson_vertical',     color: '#475569',                     rough: 0.74, metal: 0.12, bump: 0.034, tile: 2.2 },
         14: { tex: 'under_gambeson_chevron',      color: '#3f6212',                     rough: 0.76, metal: 0.10, bump: 0.032, tile: 2.4 },
-        15: { tex: 'under_velvet_heraldic',       color: '#991b1b',                     rough: 0.48, metal: 0.28, bump: 0.028, tile: 2.4 },
+        15: { tex: 'under_velvet_heraldic',       color: STATE.primaryColor || '#334155', rough: 0.48, metal: 0.28, bump: 0.028, tile: 2.4 },
         16: { tex: 'under_dark_crystal',          color: '#1e2742',                     rough: 0.34, metal: 0.68, bump: 0.044, tile: 2.6 },
         17: { tex: 'under_ravenbone_linen',       color: '#1b1d24',                     rough: 0.88, metal: 0.04, bump: 0.040, tile: 2.6 },
         18: { tex: 'under_basalt_forge',          color: '#7f1d1d',                     rough: 0.28, metal: 0.84, bump: 0.048, tile: 2.8 },
         19: { tex: 'under_dune_linen',            color: '#0d5c46',                     rough: 0.24, metal: 0.86, bump: 0.045, tile: 3.0 },
-        20: { tex: 'under_astrolabe_velvet',      color: '#2b1452',                     rough: 0.36, metal: 0.45, bump: 0.040, tile: 2.6 }
+        20: { tex: 'under_astrolabe_velvet',      color: STATE.clothColor || STATE.primaryColor || '#2b1452', rough: 0.36, metal: 0.45, bump: 0.040, tile: 2.6 }
       };
 
       // Si el usuario asignó una de las 56 texturas explícitamente a la ranura 'underlayer', la aplicamos
@@ -17581,8 +17615,8 @@
       const grad = ctx.createLinearGradient(0, 0, 0, c.height);
       grad.addColorStop(0.0, 'rgba(255,255,255,0.0)');
       grad.addColorStop(0.03, 'rgba(255,255,255,0.98)');
-      grad.addColorStop(0.80, 'rgba(255,255,255,0.96)');
-      grad.addColorStop(0.95, 'rgba(255,255,255,0.48)');
+      grad.addColorStop(0.72, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.90, 'rgba(255,255,255,0.42)');
       grad.addColorStop(1.0, 'rgba(255,255,255,0.0)');
 
       ctx.globalCompositeOperation = 'destination-in';
@@ -17660,14 +17694,14 @@
       const cy = 0.11;
       const cz = -0.002;
 
-      // Semiejes reales envolventes de Head_Cranium_Mesh (r=0.125, y*1.18, z*1.08) + HairLab_ScalpCap (r=0.1254)
-      let rx = 0.1262 + extraMargin;
+      // Semiejes reales envolventes de Head_Cranium_Mesh (r=0.125, y*1.18, z*1.08) + HairLab_ScalpCap (r=0.1268)
+      let rx = 0.1268 + extraMargin;
       let ry = 0.1492 + extraMargin;
-      let rz = (pz >= 0 ? 0.1375 : 0.1365) + extraMargin;
+      let rz = (pz >= 0 ? 0.1395 : 0.1365) + extraMargin;
 
       // Prominencia frontal y arco superciliar (frente y cejas)
-      if (pz > 0.035 && py > 0.120 && py < 0.185) {
-        const browBump = 0.0115 * Math.exp(-Math.pow((py - 0.148) / 0.018, 2)) * Math.exp(-Math.pow(px / 0.088, 2));
+      if (pz > 0.035 && py > 0.120 && py < 0.215) {
+        const browBump = 0.0125 * Math.exp(-Math.pow((py - 0.156) / 0.026, 2)) * Math.exp(-Math.pow(px / 0.092, 2));
         rz += browBump;
       }
 
@@ -17687,7 +17721,7 @@
       return { cx, cy, cz, rx, ry, rz };
     }
 
-    function applyFacialClearanceShield(pos, isBang, partingSign) {
+    function applyFacialClearanceShield(pos, isBang, partingSign, allowPullZ = true) {
       if (pos.z <= 0.018 || pos.y >= 0.172 || pos.y <= 0.012) return;
 
       const absX = Math.abs(pos.x);
@@ -17715,7 +17749,7 @@
 
         if (absX < minFacialX) {
           pos.x = sideDir * minFacialX;
-          if (pos.z > 0.072) {
+          if (allowPullZ && pos.z > 0.072) {
             pos.z = THREE.MathUtils.lerp(pos.z, 0.064, 0.48 * upperMask);
           }
         }
@@ -17724,7 +17758,7 @@
 
     function enforceCraniumAndEyeClearance(pos, extraMargin = 0.0045, isBang = false, partingSign = 1.0, vFrac = 0.5) {
       // 1. Escudo Facial y Orbital Pre-Proyección
-      applyFacialClearanceShield(pos, isBang, partingSign);
+      applyFacialClearanceShield(pos, isBang, partingSign, true);
 
       // 2. Proyección fuera de la superficie craneal real
       if (pos.y > 0.018) {
@@ -17745,8 +17779,8 @@
         }
       }
 
-      // 3. Re-aplicar Escudo Facial tras la proyección elipsoidal para garantizar que ningún vértice invada jamás la cara
-      applyFacialClearanceShield(pos, isBang, partingSign);
+      // 3. Re-aplicar Escudo Facial lateral sin empujar Z adentro tras la proyección elipsoidal
+      applyFacialClearanceShield(pos, isBang, partingSign, false);
 
       // 4. Colisión suave con cuello y trapecios para melenas largas
       if (pos.y <= 0.042) {
@@ -17948,10 +17982,10 @@
         // La distancia vertical desde el nacimiento frontal (y ~ 0.172-0.194) hasta encima de las cejas (y = 0.159)
         // es de solo 0.014 a 0.035 unidades. Acotamos la longitud total del flequillo a ese espacio exacto
         // para que las puntas terminen con su ahusamiento natural justo sobre las cejas y jamás tapen la cara.
-        const browTargetY = 0.160 - 0.003 * Math.min(1.0, bangsFactor);
-        const foreheadSpan = Math.max(0.015, rootPos.y - browTargetY);
-        const bangLengthFactor = 0.62 + 0.42 * Math.min(1.0, bangsFactor);
-        effectiveLen = THREE.MathUtils.clamp(foreheadSpan * bangLengthFactor * (0.92 + 0.16 * anchor.strandSeed), 0.016, 0.036);
+        const browTargetY = 0.165 - 0.003 * Math.min(1.0, bangsFactor);
+        const foreheadSpan = Math.max(0.012, rootPos.y - browTargetY);
+        const bangLengthFactor = 0.56 + 0.36 * Math.min(1.0, bangsFactor);
+        effectiveLen = THREE.MathUtils.clamp(foreheadSpan * bangLengthFactor * (0.92 + 0.16 * anchor.strandSeed), 0.014, 0.030);
       } else if (cutStyle === 'corto_guerrero') {
         const heightRatio = THREE.MathUtils.clamp((rootPos.y - 0.04) / 0.20, 0.0, 1.0);
         effectiveLen = totalLength * (0.32 + 0.55 * heightRatio);
@@ -17980,8 +18014,8 @@
         backwardBias = -0.58;
         upwardLift = 0.28 * volLift;
       } else if (cutStyle === 'cresta_vikinga' && absX <= 0.058) {
-        backwardBias = -0.18;
-        upwardLift = 0.68 * volLift;
+        backwardBias = -0.05;
+        upwardLift = 1.15 * volLift;
       } else if (cutStyle === 'afro_rizo') {
         backwardBias = rootNorm.z * 0.45 - (isAnteriorScalp ? 0.25 : 0.0);
         upwardLift = (rootNorm.y * 0.55 + 0.22) * volLift;
@@ -18021,7 +18055,7 @@
         let gravityFactor = 2.35;
         if (cutStyle === 'largo_lacio' || cutStyle === 'bob_flequillo') gravityFactor = 2.65;
         else if (cutStyle === 'afro_rizo') gravityFactor = 0.42;
-        else if (cutStyle === 'cresta_vikinga' && absX <= 0.058) gravityFactor = 0.62;
+        else if (cutStyle === 'cresta_vikinga' && absX <= 0.058) gravityFactor = 0.08;
         else if (cutStyle === 'corto_guerrero') gravityFactor = 1.55;
         else if (isBangStrand) gravityFactor = 1.75;
 
@@ -18048,9 +18082,14 @@
           tangentDir.z * rootCarry + curlVec.z
         );
 
+        if (cutStyle === 'cresta_vikinga') {
+          segDir.y += 1.45 * (1.0 - frac * 0.35);
+          segDir.x += (-currentPos.x * 1.4);
+        }
+
         // Apertura automática en cortina (Curtain Parting) en el hemisferio frontal para que jamás caiga sobre la cara
         // Nota: En THREE.MathUtils.smoothstep(x, min, max), 'x' es el primer parámetro
-        if (!isBangStrand && currentPos.z > 0.010 && currentPos.y < 0.202 && currentPos.y > 0.015) {
+        if (cutStyle !== 'cresta_vikinga' && !isBangStrand && currentPos.z > 0.010 && currentPos.y < 0.202 && currentPos.y > 0.015) {
           const vertProx = THREE.MathUtils.smoothstep(0.202 - currentPos.y, 0.0, 0.035);
           const depthProx = THREE.MathUtils.smoothstep(currentPos.z, 0.010, 0.052);
           const centerCloseness = Math.max(0.0, 1.0 - Math.abs(currentPos.x) / 0.102);
@@ -18089,7 +18128,7 @@
         // de la curvatura convexa del cráneo y jamás corte cuerdas a través de la cabeza
         const subSteps = 2;
         const subStepLen = stepLen / subSteps;
-        const clearanceMargin = (isBangStrand ? 0.0036 : 0.0052) + (anchor.isCrownBridge && !isBangStrand ? 0.0020 * Math.sin(Math.min(1.0, frac * 2.2) * Math.PI) : 0.0);
+        const clearanceMargin = (isBangStrand ? 0.0055 : 0.0068) + (anchor.isCrownBridge && !isBangStrand ? 0.0020 * Math.sin(Math.min(1.0, frac * 2.2) * Math.PI) : 0.0);
 
         for (let sub = 0; sub < subSteps; sub++) {
           if (currentPos.y > 0.032) {
@@ -18134,8 +18173,9 @@
       const indices = [];
 
       const craniumCenterY = 0.11;
-      const craniumCenterZ = -0.002;
-      const baseRadius = 0.1256;
+      const craniumCenterZ = 0.0;
+      const baseRadius = 0.1268;
+      const isVikingCrest = (typeof HAIR_CONFIG !== 'undefined' && HAIR_CONFIG.cutStyle === 'cresta_vikinga');
 
       for (let r = 0; r <= rings; r++) {
         const u = r / rings;
@@ -18149,30 +18189,36 @@
           if (sinPhi > 0) {
             const frontMid = Math.pow(Math.max(0, sinPhi), 2.0);
             const templeRecess = Math.pow(Math.abs(cosPhi), 1.8) * Math.sin(phi);
-            thetaRim = 0.365 * Math.PI + frontMid * 0.022 - templeRecess * 0.048;
+            thetaRim = 0.356 * Math.PI + frontMid * 0.018 - templeRecess * 0.052;
           } else {
             const backMid = Math.pow(Math.max(0, -sinPhi), 1.35);
             thetaRim = (0.48 + backMid * 0.14) * Math.PI;
           }
 
-          if (Math.abs(cosPhi) > 0.80 && sinPhi > -0.18 && sinPhi < 0.36) {
+          if (!isVikingCrest && Math.abs(cosPhi) > 0.80 && sinPhi > -0.18 && sinPhi < 0.36) {
             const sideburnFactor = Math.pow((Math.abs(cosPhi) - 0.80) / 0.20, 1.3);
-            thetaRim += sideburnFactor * 0.075 * Math.PI;
+            thetaRim += sideburnFactor * 0.045 * Math.PI;
           }
 
           const theta = u * thetaRim;
           const sinTheta = Math.sin(theta);
           const cosTheta = Math.cos(theta);
 
-          const vx = baseRadius * sinTheta * cosPhi * 0.99;
+          let vx = baseRadius * sinTheta * cosPhi * 0.99;
           const vy = craniumCenterY + baseRadius * cosTheta * 1.18;
           const vz = craniumCenterZ + baseRadius * sinTheta * sinPhi * 1.08;
+          const nxCap = vx / baseRadius;
+          const nyCap = (vy - craniumCenterY) / (baseRadius * 1.18);
+          const capTempleMask = Math.exp(-Math.pow((nyCap - 0.24) / 0.34, 2)) * THREE.MathUtils.smoothstep(Math.abs(nxCap), 0.35, 0.85);
+          vx *= (1.0 - 0.095 * capTempleMask);
 
-          positions.push(vx, vy, vz);
+          const capPt = new THREE.Vector3(vx, vy, vz);
+          enforceCraniumAndEyeClearance(capPt, 0.0008, true, vx >= 0 ? 1 : -1, 0.0);
+          positions.push(capPt.x, capPt.y, capPt.z);
 
-          const nx = vx;
-          const ny = vy - craniumCenterY;
-          const nz = vz - craniumCenterZ;
+          const nx = capPt.x;
+          const ny = capPt.y - craniumCenterY;
+          const nz = capPt.z - craniumCenterZ;
           const nLen = Math.hypot(nx, ny, nz) || 1.0;
           normals.push(nx / nLen, ny / nLen, nz / nLen);
 
@@ -18189,6 +18235,21 @@
           const b = (r + 1) * stride + s;
           const c = (r + 1) * stride + (s + 1);
           const d = r * stride + (s + 1);
+          if (isVikingCrest) {
+            const maxX = Math.max(
+              Math.abs(positions[a * 3]),
+              Math.abs(positions[b * 3]),
+              Math.abs(positions[c * 3]),
+              Math.abs(positions[d * 3])
+            );
+            const maxZ = Math.max(
+              positions[a * 3 + 2],
+              positions[b * 3 + 2],
+              positions[c * 3 + 2],
+              positions[d * 3 + 2]
+            );
+            if (maxX > 0.042 || maxZ > 0.102) continue;
+          }
           indices.push(a, b, d);
           indices.push(b, c, d);
         }
@@ -18202,7 +18263,7 @@
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       geo.setIndex(indices);
 
-      const capMat = createAnisotropicHairShader(false, 0.0);
+      const capMat = createAnisotropicHairShader(false, 0.0, true);
       const capMesh = new THREE.Mesh(geo, capMat);
       capMesh.name = 'HairLab_ScalpCap';
       capMesh.castShadow = false;
@@ -18285,7 +18346,7 @@
         rightVert.set(p.x + sideVec.x * halfW, p.y + sideVec.y * halfW, p.z + sideVec.z * halfW);
 
         // Asegurar a nivel de vértice que ni el borde izquierdo ni el derecho atraviesen el cráneo ni tapen los ojos
-        const edgeMargin = i === 0 ? 0.0012 : 0.0038;
+        const edgeMargin = i === 0 ? 0.0032 : 0.0056;
         enforceCraniumAndEyeClearance(leftVert, edgeMargin, isBangRibbon, ribbonSideSign, vFrac);
         enforceCraniumAndEyeClearance(rightVert, edgeMargin, isBangRibbon, ribbonSideSign, vFrac);
 
@@ -18476,7 +18537,7 @@
       return merged;
     }
 
-    function createAnisotropicHairShader(useAlphaMap = false, alphaCutoff = 0.20) {
+    function createAnisotropicHairShader(useAlphaMap = false, alphaCutoff = 0.20, isScalpCap = false) {
       initHairProceduralTextures();
       return new THREE.ShaderMaterial({
         uniforms: {
@@ -18490,7 +18551,8 @@
           uWindDir: hairUniforms.uWindDir,
           uAlphaMap: { value: proceduralHairCardTex },
           uUseAlpha: { value: useAlphaMap ? 1.0 : 0.0 },
-          uAlphaCutoff: { value: alphaCutoff }
+          uAlphaCutoff: { value: alphaCutoff },
+          uIsScalpCap: { value: isScalpCap ? 1.0 : 0.0 }
         },
         vertexShader: `
           attribute vec3 aTangent;
@@ -18534,6 +18596,7 @@
           uniform sampler2D uAlphaMap;
           uniform float uUseAlpha;
           uniform float uAlphaCutoff;
+          uniform float uIsScalpCap;
 
           float kajiyaKaySpecular(vec3 T, vec3 V, vec3 L, float expPower) {
             vec3 H = normalize(L + V);
@@ -18552,19 +18615,21 @@
               alpha = tex.a;
               strandTexLum = 0.72 + 0.38 * tex.r;
             } else {
-              strandTexLum = 0.80 + 0.20 * sin(vUv.x * 31.4159);
+              strandTexLum = uIsScalpCap > 0.5 ? 0.92 : (0.80 + 0.20 * sin(vUv.x * 31.4159));
             }
 
             // 1. Oclusión Ambiental de Raíz y de Capa Interna (el interior queda sombreado y profundo, nunca brillante)
             float layerOcclusion = clamp(vStrandData.x, 0.20, 1.0);
             float strandSeed = vStrandData.y;
             float rootAO = (smoothstep(0.0, 0.22, vUv.y) * 0.68 + 0.32) * (0.45 + 0.55 * layerOcclusion);
+            if (uIsScalpCap > 0.5) rootAO = 0.78;
 
             // 2. Color base con degradado Raíz -> Punta + Mechas selectivas por mechón (Balayage / Highlights)
-            vec3 gradColor = mix(uColorRoot, uColorTip, pow(clamp(vUv.y, 0.0, 1.0), 0.95));
+            float gradMix = uIsScalpCap > 0.5 ? 0.12 : pow(clamp(vUv.y, 0.0, 1.0), 0.95);
+            vec3 gradColor = mix(uColorRoot, uColorTip, gradMix);
             float isHighlightStrand = smoothstep(1.0 - uHighlightAmount * 0.75, 1.0, strandSeed) * uHighlightAmount;
             float fineRibbonStreak = smoothstep(0.55, 0.92, sin(vUv.x * 18.84 + strandSeed * 12.0)) * uHighlightAmount * 0.65;
-            float highlightMask = clamp(isHighlightStrand + fineRibbonStreak, 0.0, 1.0) * smoothstep(0.08, 0.65, vUv.y);
+            float highlightMask = clamp(isHighlightStrand + fineRibbonStreak, 0.0, 1.0) * smoothstep(0.08, 0.65, vUv.y) * (1.0 - uIsScalpCap);
             vec3 baseColor = mix(gradColor, uColorHighlight, highlightMask) * rootAO * strandTexLum;
 
             // 3. Normal Exterior Garantizada:
@@ -18594,18 +18659,19 @@
             float specPrimary = kajiyaKaySpecular(T1, V, L, 68.0) + kajiyaKaySpecular(T1, V, L2, 76.0) * 0.35;
             float specSecondary = kajiyaKaySpecular(T2, V, L, 22.0) * 0.65 + kajiyaKaySpecular(T2, V, L2, 26.0) * 0.25;
 
-            float crownTipEnvelope = smoothstep(0.03, 0.22, vUv.y) * (1.0 - 0.25 * pow(vUv.y, 3.0));
-            float specMask = exteriorMask * uSpecularIntensity * crownTipEnvelope;
+            float crownTipEnvelope = smoothstep(0.12, 0.36, vUv.y) * (1.0 - 0.25 * pow(vUv.y, 3.0));
+            float specMask = exteriorMask * uSpecularIntensity * crownTipEnvelope * (1.0 - 0.94 * uIsScalpCap);
 
             // Iluminación difusa envolvente (más oscura en el reverso interior para dar volumen 3D)
             float interiorDarken = gl_FrontFacing ? 1.0 : 0.42;
             float wrapDiff = (max(0.0, dot(N, L) * 0.68 + 0.32) * 0.82 + max(0.0, dot(N, L2) * 0.5 + 0.5) * 0.28) * interiorDarken;
 
             // Brillo primario blanco-cálido sedoso + brillo secundario teñido con el color de mechas/puntas
-            vec3 specColor1 = vec3(1.0, 0.97, 0.92) * specPrimary * 0.52;
-            vec3 specColor2 = mix(uColorTip, uColorHighlight, 0.65) * specSecondary * 0.58 * strandTexLum;
+            vec3 specColor1 = vec3(1.0, 0.97, 0.92) * specPrimary * 0.22;
+            vec3 specColor2 = mix(uColorTip, uColorHighlight, 0.65) * specSecondary * 0.26 * strandTexLum;
 
-            vec3 finalRGB = baseColor * wrapDiff + (specColor1 + specColor2) * specMask;
+            vec3 rawRGB = baseColor * wrapDiff + (specColor1 + specColor2) * specMask;
+            vec3 finalRGB = rawRGB / (vec3(1.0) + max(vec3(0.0), rawRGB - vec3(0.62)) * 0.80);
 
             gl_FragColor = vec4(finalRGB, alpha);
           }
@@ -18645,8 +18711,10 @@
       const cardWidth = 0.024 * HAIR_CONFIG.widthScale;
       const cardGeometries = [];
 
+      const isVikingCrest = (HAIR_CONFIG.cutStyle === 'cresta_vikinga');
       for (let i = 0; i < totalRoots; i += stride) {
         const anchor = unifiedScalpRoots[i];
+        if (isVikingCrest && (Math.abs(anchor.pos.x) > 0.042 || anchor.pos.z > 0.102)) continue;
         const len = baseLen * anchor.randScale;
         const segCount = curl > 0.75 ? 11 : 9;
         const pts = generateHairStrandPoints(anchor, len, segCount, curl);
@@ -18655,7 +18723,7 @@
         const cardGeo = buildRibbonBufferFromPoints(
           pts,
           cardWidth * wMult,
-          0.52,
+          0.58,
           anchor.randSpread * 0.35,
           anchor.layerNorm,
           anchor.strandSeed
@@ -21637,30 +21705,34 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const sCol = new THREE.Color(skinHex || '#d99e82');
     const hCol = new THREE.Color(hairHex || '#2c1b12');
     const bCol = new THREE.Color(beardHex || hairHex || '#2c1b12');
-    // Tonos anatómicos muy sutiles para profundidad orbital/mandibular y calidez natural
-    const blushCol = sCol.clone().lerp(new THREE.Color('#c85a52'), 0.08);
-    const shadowCol = sCol.clone().multiplyScalar(0.92);
+    // Tonos anatómicos para profundidad orbital/mandibular y calidez natural
+    const blushCol = sCol.clone().lerp(new THREE.Color('#c85a52'), 0.22);
+    const shadowCol = sCol.clone().multiplyScalar(0.80);
     const bScale = (bStyle === 'sombra') ? 0.24 : 0.72;
+    const isVikingCrest = (typeof HAIR_CONFIG !== 'undefined' && HAIR_CONFIG.cutStyle === 'cresta_vikinga');
     const colAttr = headGeo.attributes.color;
     const tmp = new THREE.Color();
     for (let i = 0; i < vCount; i++) {
-      const sw = scalpWeights[i];
-      const bw = beardWeights[i] * bScale;
       const vx = pos.getX(i);
       const vy = pos.getY(i);
       const vz = pos.getZ(i);
+      const crestMask = isVikingCrest
+        ? (1.0 - THREE.MathUtils.smoothstep(Math.abs(vx), 0.032, 0.040)) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.082, 0.096))
+        : 1.0;
+      const sw = scalpWeights[i] * crestMask;
+      const bw = beardWeights[i] * bScale;
       tmp.copy(sCol);
       if (vz > 0.015) {
         const ax = Math.abs(vx);
-        // Calidez sutil en pómulos y punta nasal
+        // Calidez natural en pómulos y punta nasal
         const cheekWarm = Math.exp(-Math.pow((ax - 0.056) / 0.036, 2)) * Math.exp(-Math.pow((vy + 0.008) / 0.030, 2)) * THREE.MathUtils.smoothstep(vz, 0.04, 0.11);
         const noseWarm = Math.exp(-Math.pow(ax / 0.022, 2)) * Math.exp(-Math.pow((vy + 0.010) / 0.024, 2)) * THREE.MathUtils.smoothstep(vz, 0.08, 0.13);
-        const warmAmt = Math.min(0.11, cheekWarm * 0.10 + noseWarm * 0.09);
+        const warmAmt = Math.min(0.24, cheekWarm * 0.22 + noseWarm * 0.16);
         if (warmAmt > 0.001) tmp.lerp(blushCol, warmAmt);
         // Sombra anatómica suave en cuencas oculares y bajo la mandíbula
         const orbitAO = Math.exp(-Math.pow((ax - 0.036) / 0.022, 2)) * Math.exp(-Math.pow((vy - 0.016) / 0.018, 2)) * THREE.MathUtils.smoothstep(vz, 0.06, 0.115);
         const underJawAO = THREE.MathUtils.smoothstep(vy, -0.075, -0.122) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.085, 0.125));
-        const aoAmt = Math.min(0.12, orbitAO * 0.10 + underJawAO * 0.11);
+        const aoAmt = Math.min(0.26, orbitAO * 0.20 + underJawAO * 0.24);
         if (aoAmt > 0.001) tmp.lerp(shadowCol, aoAmt);
       }
       if (bw > 0.001) tmp.lerp(bCol, bw);
@@ -21697,7 +21769,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     metalness: 0.04
   });
   const lashLineMat = new THREE.MeshStandardMaterial({ color: 0x1c130f, roughness: 0.72, metalness: 0.0 });
-  const eyeLidShadeMat = new THREE.MeshBasicMaterial({ color: 0x261a18, transparent: true, opacity: 0.12, depthWrite: false });
+  const eyeLidShadeMat = new THREE.MeshBasicMaterial({ color: 0x261a18, transparent: true, opacity: 0.18, depthWrite: false });
   const corneaDomeMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, roughness: 0.03, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.04,
     transparent: true, opacity: 0.06, depthWrite: false
@@ -21726,12 +21798,12 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     eyePivot.add(sclera);
 
     // Iris + Pupila nítidos en proporción humana
-    const irisR = eyeTypeData.irisRadius * 1.10;
+    const irisR = eyeTypeData.irisRadius * 0.88;
     const iris = new THREE.Mesh(
       new THREE.CircleGeometry(irisR, isGoku ? 16 : 28),
       humanIrisMat
     );
-    iris.position.set(0, 0, scleraR * eyeTypeData.scleraScale[2] + 0.0006);
+    iris.position.set(0, 0, scleraR * eyeTypeData.scleraScale[2] + 0.0005);
     iris.scale.set(eyeAspect, eyeSquash * (isGoku ? 0.88 : 1.0), 1.0);
     eyePivot.add(iris);
 
@@ -21757,109 +21829,109 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const scY = eyeTypeData.scleraScale[1] * eyeSquash;
     const scZ = scleraR * eyeTypeData.scleraScale[2];
 
-    // Capotas anatómicas de párpado superior e inferior con caída natural (cubre suavemente el borde superior del iris)
+    // Capotas anatómicas de párpado superior e inferior con caída natural (cubre suavemente el cuarto superior del iris sin intersectarlo)
     const upperLidCap = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.08, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.40),
+      new THREE.SphereGeometry(scleraR * 1.15, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.40),
       faceSkinMat
     );
     upperLidCap.scale.copy(sclera.scale);
-    upperLidCap.rotation.x = 0.14 - (eyeOpen - 1.0) * 0.18;
+    upperLidCap.rotation.x = 0.18 - (eyeOpen - 1.0) * 0.16;
     eyePivot.add(upperLidCap);
 
     const lowerLidCap = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.06, 20, 10, 0, Math.PI * 2, Math.PI * 0.62, Math.PI * 0.38),
+      new THREE.SphereGeometry(scleraR * 1.07, 20, 10, 0, Math.PI * 2, Math.PI * 0.57, Math.PI * 0.24),
       faceSkinMat
     );
     lowerLidCap.scale.copy(sclera.scale);
-    lowerLidCap.rotation.x = -0.12 + (eyeOpen - 1.0) * 0.10;
+    lowerLidCap.rotation.x = 0.04 + (eyeOpen - 1.0) * 0.08;
     eyePivot.add(lowerLidCap);
 
     if (isGoku) {
       const upperCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0160 * eyeAspect, -0.0012 * eyeSquash, scZ * 0.54),
-        new THREE.Vector3(-dir * 0.004 * eyeAspect, (0.0058 + (eyeOpen - 1.0) * 0.0025) * eyeSquash, scZ * 0.98),
+        new THREE.Vector3(-dir * 0.004 * eyeAspect, (0.0036 + (eyeOpen - 1.0) * 0.0020) * eyeSquash, scZ * 1.07),
         new THREE.Vector3(dir * 0.0152 * eyeAspect, -0.0006 * eyeSquash, scZ * 0.48),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0020, 8, false), faceSkinMat));
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0009, 6, false), lashLineMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0018, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0008, 6, false), lashLineMat));
 
       const lowerCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0160 * eyeAspect, -0.0012 * eyeSquash, scZ * 0.48),
-        new THREE.Vector3(0, (-0.0048 - (1.0 - eyeOpen) * 0.0018) * eyeSquash, scZ * 0.92),
+        new THREE.Vector3(0, (-0.0044 - (1.0 - eyeOpen) * 0.0016) * eyeSquash, scZ * 1.00),
         new THREE.Vector3(dir * 0.0152 * eyeAspect, -0.0006 * eyeSquash, scZ * 0.44),
       ]);
       eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0015, 8, false), faceSkinMat));
 
       const browCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0185 * eyeAspect, 0.0195, 0.0180),
-        new THREE.Vector3(0, 0.0235, 0.0175),
-        new THREE.Vector3(dir * 0.0205 * eyeAspect, 0.0185, 0.0095),
+        new THREE.Vector3(-dir * 0.0185 * eyeAspect, 0.0175, 0.0182),
+        new THREE.Vector3(0, 0.0218, 0.0182),
+        new THREE.Vector3(dir * 0.0205 * eyeAspect, 0.0170, 0.0102),
       ]);
-      const gBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0025, 8, false), browMat);
-      gBrow.scale.set(1.0, 0.70, 0.52);
+      const gBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0028, 8, false), browMat);
+      gBrow.scale.set(1.0, 0.78, 0.48);
       eyePivot.add(gBrow);
     } else if (isFish) {
       const upperCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0162 * eyeAspect, 0.0, scZ * 0.50),
-        new THREE.Vector3(0, (0.0060 + (eyeOpen - 1.0) * 0.0025) * eyeSquash, scZ * 0.98),
+        new THREE.Vector3(0, (0.0036 + (eyeOpen - 1.0) * 0.0020) * eyeSquash, scZ * 1.07),
         new THREE.Vector3(dir * 0.0155 * eyeAspect, 0.0, scZ * 0.46),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0020, 8, false), faceSkinMat));
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0009, 6, false), lashLineMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0018, 8, false), faceSkinMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0008, 6, false), lashLineMat));
 
       const lowerCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0162 * eyeAspect, 0.0, scZ * 0.46),
-        new THREE.Vector3(0, (-0.0050 - (1.0 - eyeOpen) * 0.0018) * eyeSquash, scZ * 0.92),
+        new THREE.Vector3(0, (-0.0046 - (1.0 - eyeOpen) * 0.0016) * eyeSquash, scZ * 1.00),
         new THREE.Vector3(dir * 0.0155 * eyeAspect, 0.0, scZ * 0.42),
       ]);
       eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0015, 8, false), faceSkinMat));
 
       const browCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0170 * eyeAspect, 0.0210, 0.0180),
-        new THREE.Vector3(0, 0.0255, 0.0175),
-        new THREE.Vector3(dir * 0.0205 * eyeAspect, 0.0205, 0.0095),
+        new THREE.Vector3(-dir * 0.0170 * eyeAspect, 0.0180, 0.0182),
+        new THREE.Vector3(0, 0.0226, 0.0182),
+        new THREE.Vector3(dir * 0.0205 * eyeAspect, 0.0175, 0.0102),
       ]);
-      const fBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0023, 8, false), browMat);
-      fBrow.scale.set(1.0, 0.70, 0.52);
+      const fBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0028, 8, false), browMat);
+      fBrow.scale.set(1.0, 0.78, 0.48);
       eyePivot.add(fBrow);
     } else {
-      // Borde anatómico de párpados y línea sutil de pestañas
-      const lidH = (0.0056 + (eyeOpen - 1.0) * 0.0022) * scY;
+      // Borde anatómico de párpados y línea sutil de pestañas ceñidos al borde inferior de upperLidCap
+      const lidH = (0.0034 + (eyeOpen - 1.0) * 0.0018) * scY;
       const upperCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0138 * scX, -0.0008 * scY, scZ * 0.58),
-        new THREE.Vector3(-dir * 0.0045 * scX, lidH, scZ * 1.01),
-        new THREE.Vector3(dir * 0.0045 * scX, lidH * 0.92, scZ * 0.99),
+        new THREE.Vector3(-dir * 0.0045 * scX, lidH, scZ * 1.07),
+        new THREE.Vector3(dir * 0.0045 * scX, lidH * 0.92, scZ * 1.05),
         new THREE.Vector3(dir * 0.0140 * scX, -0.0010 * scY, scZ * 0.52),
       ]);
-      const upperLid = new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 20, 0.0018, 10, false), faceSkinMat);
+      const upperLid = new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 20, 0.0017, 10, false), faceSkinMat);
       upperLid.castShadow = false;
       eyePivot.add(upperLid);
 
       const lashCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0135 * scX, -0.0007 * scY, scZ * 0.62),
-        new THREE.Vector3(-dir * 0.004 * scX, lidH * 0.84, scZ * 1.05),
-        new THREE.Vector3(dir * 0.0045 * scX, lidH * 0.78, scZ * 1.03),
-        new THREE.Vector3(dir * 0.0138 * scX, -0.0009 * scY, scZ * 0.56),
+        new THREE.Vector3(-dir * 0.0135 * scX, -0.0007 * scY, scZ * 0.60),
+        new THREE.Vector3(-dir * 0.004 * scX, lidH * 0.80, scZ * 1.08),
+        new THREE.Vector3(dir * 0.0045 * scX, lidH * 0.74, scZ * 1.06),
+        new THREE.Vector3(dir * 0.0138 * scX, -0.0009 * scY, scZ * 0.54),
       ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 18, 0.00085, 6, false), lashLineMat));
+      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 18, 0.00075, 6, false), lashLineMat));
 
-      const lowLidH = (-0.0046 - (1.0 - eyeOpen) * 0.0016) * scY;
+      const lowLidH = (-0.0044 - (1.0 - eyeOpen) * 0.0016) * scY;
       const lowerCurve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(-dir * 0.0135 * scX, -0.0009 * scY, scZ * 0.54),
-        new THREE.Vector3(0, lowLidH, scZ * 0.96),
+        new THREE.Vector3(0, lowLidH, scZ * 0.98),
         new THREE.Vector3(dir * 0.0138 * scX, -0.0010 * scY, scZ * 0.48),
       ]);
       eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0014, 8, false), faceSkinMat));
 
-      // Ceja arqueada claramente separada sobre el arco superciliar (y_rel ~ +0.021..+0.0255, Z sobre la frente)
+      // Ceja arqueada claramente separada sobre el arco superciliar
       const browYOffset = eyeTypeData.browOffset;
       const browCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0165 * eyeAspect, 0.0205 + browYOffset, 0.0185),
-        new THREE.Vector3(-dir * 0.0020 * eyeAspect, 0.0252 + browYOffset * 1.2, 0.0180),
-        new THREE.Vector3(dir * 0.0210 * eyeAspect, 0.0200 + browYOffset * 0.5, 0.0095),
+        new THREE.Vector3(-dir * 0.0165 * eyeAspect, 0.0180 + browYOffset, 0.0182),
+        new THREE.Vector3(-dir * 0.0015 * eyeAspect, 0.0226 + browYOffset * 1.1, 0.0184),
+        new THREE.Vector3(dir * 0.0210 * eyeAspect, 0.0172 + browYOffset * 0.5, 0.0102),
       ]);
-      const browMesh = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 18, 0.0024, 8, false), browMat);
-      browMesh.scale.set(1.0, 0.70, 0.52);
+      const browMesh = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 18, 0.0028, 8, false), browMat);
+      browMesh.scale.set(1.0, 0.78, 0.48);
       browMesh.castShadow = false;
       eyePivot.add(browMesh);
     }
@@ -21893,17 +21965,17 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const bridgeGeo = createAnatomicalLathe(bridgeProfile, 0.036, {
     radialSegments: 22,
     heightSegments: 14,
-    scaleX: (t) => THREE.MathUtils.lerp(0.95, 0.52, t),
-    scaleZ: (t) => THREE.MathUtils.lerp(1.08, 0.68, t),
-    offsetZ: (t) => THREE.MathUtils.lerp(0.0114, -0.0085, t),
+    scaleX: (t) => THREE.MathUtils.lerp(1.05, 0.62, t),
+    scaleZ: (t) => THREE.MathUtils.lerp(1.25, 0.85, t),
+    offsetZ: (t) => THREE.MathUtils.lerp(0.0195, 0.0095, t),
   });
   const bridgeMesh = new THREE.Mesh(bridgeGeo, faceSkinMat);
   bridgeMesh.position.set(0, -0.011, 0.0);
   bridgeMesh.castShadow = false;
   noseGroup.add(bridgeMesh);
 
-  const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.0074, 20, 20), faceSkinMat);
-  noseTip.position.set(0, -0.0108, 0.0118);
+  const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.0068, 20, 20), faceSkinMat);
+  noseTip.position.set(0, -0.0108, 0.0175);
   noseTip.scale.set(0.96, 0.84, 1.04);
   noseGroup.add(noseTip);
 
@@ -21911,13 +21983,13 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   for (let i = 0; i < 2; i++) {
     const dir = i === 0 ? 1 : -1;
     const nostrilWing = new THREE.Mesh(new THREE.SphereGeometry(0.0054, 16, 16), faceSkinMat);
-    nostrilWing.position.set(dir * 0.0070, -0.0124, 0.0068);
+    nostrilWing.position.set(dir * 0.0070, -0.0124, 0.0115);
     nostrilWing.scale.set(0.88, 0.74, 1.05);
     noseGroup.add(nostrilWing);
 
     // Orificio nasal (narina oscura) bajo cada aleta
     const nostrilHole = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 10, 10), nostrilInnerMat);
-    nostrilHole.position.set(dir * 0.0044, -0.0147, 0.0084);
+    nostrilHole.position.set(dir * 0.0044, -0.0147, 0.0128);
     nostrilHole.scale.set(0.92, 0.52, 1.18);
     noseGroup.add(nostrilHole);
   }
@@ -21931,7 +22003,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   // 4. Labios Esculpidos proporcionados con arco de Cupido suave y comisura envolvente
   const mouthGroup = new THREE.Group();
   mouthGroup.name = 'mouth';
-  mouthGroup.position.set(0, 0.048 + (chinY - 1.0) * 0.009, 0.115);
+  mouthGroup.position.set(0, 0.048 + (chinY - 1.0) * 0.009, 0.1195);
 
   const upperLipCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.020, -0.0014, -0.0085),
@@ -22455,20 +22527,19 @@ function buildProceduralHairGroup(peloCfg, mats, caraCfg = {}, colors = {}) {
   const skinColor = colors.skin || '#e8b49a';
   const hairColor = colors.hair || '#2c1b12';
 
-  // 1. Casquete anatómico de transición con difuminado suave hacia el tono de piel
+  // Cuando el motor HairLabEngine (Technique 1: Hair Cards) está activo,
+  // HairLab_ScalpCap y Head_Cranium_Mesh gestionan el cuero cabelludo sin casquete legado saliente
+  if (typeof HAIR_CONFIG !== "undefined" && HAIR_CONFIG.technique !== "legacy") {
+    return hairGroup;
+  }
+
+  // 1. Casquete anatómico de transición con difuminado suave hacia el tono de piel (solo técnica legacy)
   const scalpGeo = createScalpTransitionGeometry(skinColor, hairColor, hairline);
   const scalpMesh = new THREE.Mesh(scalpGeo, scalpMat);
   scalpMesh.name = 'hairScalpTransition';
   scalpMesh.castShadow = true;
   scalpMesh.receiveShadow = true;
   hairGroup.add(scalpMesh);
-
-  // Cuando el motor HairLabEngine (Technique 1: Hair Cards) está activo,
-  // conservamos el casquete anatómico para oclusión y dejamos que las Hair Cards
-  // generen la melena continua con sombreado Kajiya-Kay
-  if (typeof HAIR_CONFIG !== "undefined" && HAIR_CONFIG.technique !== "legacy") {
-    return hairGroup;
-  }
 
   // Micro-stubble para peinado rapado (Fade barbershop duplicado en densidad)
   if (style === 'rapado') {
@@ -25249,7 +25320,7 @@ function syncMaterialColors() {
     }
   }
   if (MAT.brow) {
-    MAT.brow.color.copy(hairCol).multiplyScalar(0.45);
+    MAT.brow.color.copy(hairCol).multiplyScalar(0.55).lerp(new THREE.Color('#2a1d17'), 0.35);
     MAT.brow.roughness = 0.86;
   }
 
@@ -25260,9 +25331,9 @@ function syncMaterialColors() {
   }
 
   const rawLip = new THREE.Color(CONFIG.colors.lips || '#b86e68');
-  const naturalLipBase = skinCol.clone().lerp(new THREE.Color('#7a2f2e'), 0.36).multiplyScalar(0.86);
-  MAT.lips.color.copy(naturalLipBase.lerp(rawLip, 0.12));
-  MAT.lips.roughness = 0.72;
+  const naturalLipBase = skinCol.clone().lerp(new THREE.Color('#96403e'), 0.48).multiplyScalar(0.90);
+  MAT.lips.color.copy(naturalLipBase.lerp(rawLip, 0.48));
+  MAT.lips.roughness = 0.56;
   MAT.cloth.color.set(CONFIG.colors.cloth);
 
   // Sincronizar colores de vértice en el cuero cabelludo y la barba del cráneo
@@ -25457,7 +25528,11 @@ function rebuildCharacter() {
       o.scale.set(c.cara.noseWidth, c.cara.noseLength, 0.5 + c.cara.noseLength * 0.5);
     }
     if (o.name === 'mouth') {
-      o.scale.set(c.cara.lipWidth, c.cara.lipThickness, c.cara.lipThickness);
+      o.scale.set(
+        c.cara.lipWidth,
+        Math.max(0.76, c.cara.lipThickness * 1.35),
+        Math.max(0.92, c.cara.lipThickness * 1.45)
+      );
     }
     if (o.name === 'philtrum') {
       o.scale.set(c.cara.lipWidth, 1.0, 1.0);
@@ -25757,10 +25832,9 @@ const STANDARD_HAIR_TONES = [
 ];
 
 const EYE_TONES = [
-  '#3b82f6', '#2563eb', '#1d4ed8', '#0284c7',
-  '#10b981', '#059669', '#0d9488', '#047857',
-  '#d97706', '#b45309', '#ca8a04', '#854d0e',
-  '#713f12', '#451a03', '#2a1104', '#64748b', '#78716c'
+  '#451a03', '#5c3317', '#713f12', '#3d2210', '#2a1104', '#854d0e',
+  '#6b4423', '#523418', '#78350f', '#92400e',
+  '#4b647d', '#5c768d', '#64748b', '#78716c'
 ];
 
 const FEMININE_LIP_TONES = [
