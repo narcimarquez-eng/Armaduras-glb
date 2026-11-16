@@ -17593,54 +17593,50 @@
     function initHairProceduralTextures() {
       if (proceduralHairCardTex && proceduralShellTex) return;
 
-      // 1. Textura de Hair Cards de Alta Densidad (512x1024 máscara multi-fibra alfa con micro-fibras cruzadas)
+      // 1. Textura de Hair Cards: mechones sobre fondo TRANSPARENTE (la tarjeta deja de ser un rectángulo):
+      //    cada fibra nace en la raíz y termina en punta a una longitud distinta, con menos fibras hacia los bordes
+      //    laterales para que las tarjetas se fundan entre sí. R = luminancia de la fibra, A = cobertura.
       const c = document.createElement('canvas');
       c.width = 512;
       c.height = 1024;
       const ctx = c.getContext('2d');
-
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(0, 0, c.width, c.height);
-
-      const numStrands = 1350;
+      ctx.clearRect(0, 0, c.width, c.height);
+      let tSeed = 9137;
+      const trand = () => { tSeed = (tSeed * 16807) % 2147483647; return (tSeed - 1) / 2147483646; };
+      const numStrands = 1100;
+      ctx.lineCap = 'round';
       for (let i = 0; i < numStrands; i++) {
-        // Distribución más densa en el núcleo pero cubriendo bordes para solapar tiras sin huecos
-        const uRand = 0.5 + (Math.random() - 0.5) * 0.92;
-        const x = 14 + uRand * (c.width - 28);
-        const width = 0.75 + Math.random() * 2.2;
-        const brightness = 155 + Math.floor(Math.random() * 100);
-        const alpha = 0.42 + Math.random() * 0.58;
-
-        ctx.strokeStyle = `rgba(${brightness}, ${brightness}, ${brightness}, ${alpha})`;
-        ctx.lineWidth = width;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-
-        let curX = x;
-        const steps = 18;
-        const stepY = c.height / steps;
-        const wavePhase = Math.random() * Math.PI * 2;
-        // Ligero cruce interno entre fibras dentro de cada Hair Card
-        const crossDrift = (Math.random() - 0.5) * 2.2;
-        for (let s = 1; s <= steps; s++) {
-          const y = s * stepY;
-          curX += crossDrift + Math.sin(s * 0.55 + wavePhase) * 3.2 + (Math.random() - 0.5) * 3.5;
-          ctx.lineTo(curX, y);
+        // Densidad máxima en el centro de la tarjeta y decreciente hacia los bordes
+        const g = (trand() + trand() + trand()) / 3;
+        const x = 8 + g * (c.width - 16);
+        const lengthFrac = 0.62 + Math.pow(trand(), 0.55) * 0.38;   // puntas desiguales
+        const endY = c.height * lengthFrac;
+        const width = 1.1 + trand() * 2.6;
+        const lum = 150 + Math.floor(trand() * 105);
+        const steps = 22;
+        const wavePhase = trand() * Math.PI * 2;
+        const drift = (trand() - 0.5) * 1.6;
+        let curX = x, prevX = x, prevY = 0;
+        for (let st = 1; st <= steps; st++) {
+          const y = (st / steps) * endY;
+          curX += drift + Math.sin(st * 0.5 + wavePhase) * 1.6 + (trand() - 0.5) * 1.4;
+          const t = st / steps;
+          // La fibra se afina y se aclara (menos opaca) en su último tramo
+          const taper = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3 * 0.85;
+          ctx.strokeStyle = `rgba(${lum},${lum},${lum},${(0.55 + 0.45 * taper).toFixed(3)})`;
+          ctx.lineWidth = width * taper;
+          ctx.beginPath(); ctx.moveTo(prevX, prevY); ctx.lineTo(curX, y); ctx.stroke();
+          prevX = curX; prevY = y;
         }
-        ctx.stroke();
       }
-
-      // Gradiente suave de raíz a punta con ahusamiento alfa orgánico
-      const grad = ctx.createLinearGradient(0, 0, 0, c.height);
-      grad.addColorStop(0.0, 'rgba(255,255,255,0.0)');
-      grad.addColorStop(0.03, 'rgba(255,255,255,0.98)');
-      grad.addColorStop(0.72, 'rgba(255,255,255,0.95)');
-      grad.addColorStop(0.90, 'rgba(255,255,255,0.42)');
-      grad.addColorStop(1.0, 'rgba(255,255,255,0.0)');
-
-      ctx.globalCompositeOperation = 'destination-in';
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, c.width, c.height);
+      // Raíz: base algo más tupida y oscura para tapar el cuero cabelludo
+      const rootGrad = ctx.createLinearGradient(0, 0, 0, c.height * 0.18);
+      rootGrad.addColorStop(0, 'rgba(120,120,120,0.85)');
+      rootGrad.addColorStop(1, 'rgba(120,120,120,0.0)');
+      ctx.globalCompositeOperation = 'destination-over';
+      ctx.fillStyle = rootGrad;
+      ctx.fillRect(c.width * 0.12, 0, c.width * 0.76, c.height * 0.18);
+      ctx.globalCompositeOperation = 'source-over';
 
       proceduralHairCardTex = new THREE.CanvasTexture(c);
       proceduralHairCardTex.wrapS = THREE.ClampToEdgeWrapping;
@@ -18630,24 +18626,30 @@
 
             if (uUseAlpha > 0.5) {
               vec4 tex = texture2D(uAlphaMap, vUv);
-              if (tex.a < uAlphaCutoff) discard;
-              alpha = tex.a;
-              strandTexLum = 0.72 + 0.38 * tex.r;
+              if (tex.a < uAlphaCutoff * 0.35) discard;
+              alpha = smoothstep(uAlphaCutoff * 0.35, 0.75, tex.a);
+              strandTexLum = 0.66 + 0.40 * tex.r;
             } else {
               strandTexLum = uIsScalpCap > 0.5 ? 0.92 : (0.80 + 0.20 * sin(vUv.x * 31.4159));
+            }
+            // Borde del casquete difuminado: nacimiento del pelo suave sobre la frente y las sienes
+            if (uIsScalpCap > 0.5) {
+              alpha = 1.0 - smoothstep(0.36, 0.45, vUv.y);
+              if (alpha < 0.04) discard;
             }
 
             // 1. Oclusión Ambiental de Raíz y de Capa Interna (el interior queda sombreado y profundo, nunca brillante)
             float layerOcclusion = clamp(vStrandData.x, 0.20, 1.0);
             float strandSeed = vStrandData.y;
-            float rootAO = (smoothstep(0.0, 0.22, vUv.y) * 0.68 + 0.32) * (0.45 + 0.55 * layerOcclusion);
+            float rootAO = (smoothstep(0.0, 0.30, vUv.y) * 0.62 + 0.38) * (0.35 + 0.65 * layerOcclusion);
             if (uIsScalpCap > 0.5) rootAO = 0.78;
 
             // 2. Color base con degradado Raíz -> Punta + Mechas selectivas por mechón (Balayage / Highlights)
-            float gradMix = uIsScalpCap > 0.5 ? 0.12 : pow(clamp(vUv.y, 0.0, 1.0), 0.95);
+            float gradMix = uIsScalpCap > 0.5 ? 0.12 : pow(clamp(vUv.y, 0.0, 1.0), 1.35);   // raíz oscura más extendida: profundidad
             vec3 gradColor = mix(uColorRoot, uColorTip, gradMix);
-            float isHighlightStrand = smoothstep(1.0 - uHighlightAmount * 0.75, 1.0, strandSeed) * uHighlightAmount;
-            float fineRibbonStreak = smoothstep(0.55, 0.92, sin(vUv.x * 18.84 + strandSeed * 12.0)) * uHighlightAmount * 0.65;
+            // Mechas suaves y continuas (antes: mechones sueltos muy claros que se veían como destellos)
+            float isHighlightStrand = smoothstep(0.55, 1.0, strandSeed) * uHighlightAmount * 0.38;
+            float fineRibbonStreak = smoothstep(0.35, 0.95, sin(vUv.x * 9.42 + strandSeed * 6.0)) * uHighlightAmount * 0.28;
             float highlightMask = clamp(isHighlightStrand + fineRibbonStreak, 0.0, 1.0) * smoothstep(0.08, 0.65, vUv.y) * (1.0 - uIsScalpCap);
             vec3 baseColor = mix(gradColor, uColorHighlight, highlightMask) * rootAO * strandTexLum;
 
@@ -18675,29 +18677,35 @@
             vec3 T1 = normalize(T - N * (0.18 + shiftNoise)); // Lóbulo primario (cutícula superficial)
             vec3 T2 = normalize(T + N * (0.24 + shiftNoise)); // Lóbulo secundario (reflexión interna coloreada)
 
-            float specPrimary = kajiyaKaySpecular(T1, V, L, 68.0) + kajiyaKaySpecular(T1, V, L2, 76.0) * 0.35;
-            float specSecondary = kajiyaKaySpecular(T2, V, L, 22.0) * 0.65 + kajiyaKaySpecular(T2, V, L2, 26.0) * 0.25;
+            // Lóbulos más anchos: el brillo forma una banda continua sobre la melena en vez de puntos sueltos
+            float specPrimary = kajiyaKaySpecular(T1, V, L, 44.0) + kajiyaKaySpecular(T1, V, L2, 50.0) * 0.30;
+            float specSecondary = kajiyaKaySpecular(T2, V, L, 16.0) * 0.55 + kajiyaKaySpecular(T2, V, L2, 18.0) * 0.20;
 
             float crownTipEnvelope = smoothstep(0.12, 0.36, vUv.y) * (1.0 - 0.25 * pow(vUv.y, 3.0));
             float specMask = exteriorMask * uSpecularIntensity * crownTipEnvelope * (1.0 - 0.94 * uIsScalpCap);
 
             // Iluminación difusa envolvente (más oscura en el reverso interior para dar volumen 3D)
             float interiorDarken = gl_FrontFacing ? 1.0 : 0.42;
-            float wrapDiff = (max(0.0, dot(N, L) * 0.68 + 0.32) * 0.82 + max(0.0, dot(N, L2) * 0.5 + 0.5) * 0.28) * interiorDarken;
+            // + luz ambiental: la nuca y los laterales no quedan negros con las luces frontales
+            float wrapDiff = (max(0.0, dot(N, L) * 0.68 + 0.32) * 0.82 + max(0.0, dot(N, L2) * 0.5 + 0.5) * 0.28 + 0.13) * interiorDarken;
 
             // Brillo primario blanco-cálido sedoso + brillo secundario teñido con el color de mechas/puntas
-            vec3 specColor1 = vec3(1.0, 0.97, 0.92) * specPrimary * 0.22;
-            vec3 specColor2 = mix(uColorTip, uColorHighlight, 0.65) * specSecondary * 0.26 * strandTexLum;
+            vec3 specColor1 = mix(vec3(1.0, 0.97, 0.92), uColorHighlight, 0.35) * specPrimary * 0.15;
+            vec3 specColor2 = mix(uColorTip, uColorHighlight, 0.55) * specSecondary * 0.20 * strandTexLum;
 
             vec3 rawRGB = baseColor * wrapDiff + (specColor1 + specColor2) * specMask;
             vec3 finalRGB = rawRGB / (vec3(1.0) + max(vec3(0.0), rawRGB - vec3(0.62)) * 0.80);
 
             gl_FragColor = vec4(finalRGB, alpha);
+            // Los colores uniformes están en espacio lineal: convertir al espacio de salida (sRGB) para que el
+            // pelo muestre el tono elegido (antes salía mucho más oscuro)
+            #include <colorspace_fragment>
           }
         `,
         side: THREE.DoubleSide,
         transparent: false,
-        depthWrite: true
+        depthWrite: true,
+        alphaToCoverage: true   // bordes de mechón suaves con el antialiasing (sin ordenar transparencias)
       });
     }
 
@@ -19907,8 +19915,19 @@
       // ===== Texturas de rostro: selector, carga con alineación por 3 clics y plantilla del canon =====
       const faceTexSel = document.getElementById('face-texture-select');
       const applyFaceTextureKey = (key) => {
-        if (!window.CreadorHumano) return;
-        window.CreadorHumano.CONFIG.cara.faceTexture = key || null;
+        const CH = window.CreadorHumano;
+        if (!CH) return;
+        CH.CONFIG.cara.faceTexture = key || null;
+        // Colores reales de la imagen: piel, labios, ojos y pelo (raíz, punta y reflejos)
+        const def = key ? CH.getFaceTextureDef(key, CH.CONFIG.cara) : null;
+        const col = def && def.colors;
+        if (col) {
+          if (col.skin) CH.CONFIG.colors.skin = col.skin;
+          if (col.lips) CH.CONFIG.colors.lips = col.lips;
+          if (col.eyes) CH.CONFIG.colors.eyes = col.eyes;
+          if (col.hairRoot && col.hairTip) setHairPresetColor(col.hairRoot, col.hairTip, col.hairHigh || col.hairTip, true);
+          if (CH.syncMaterialColors) CH.syncMaterialColors();
+        }
         generateCreador3DHumanoGLB('keep', false);
       };
       if (faceTexSel) faceTexSel.addEventListener('change', (e) => applyFaceTextureKey(e.target.value));
@@ -21880,6 +21899,7 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
     eyeL: tr(eL), eyeR: tr(eR), chinY: tr(chin)[1],
     eyeWidth: 0.46 * Math.hypot(eR[0] - eL[0], eR[1] - eL[1]) * scale,
   };
+  try { FACE_TEXTURES[key].colors = sampleFaceColors(img, anchors, Fpx); } catch (e) { /* imagen sin acceso a píxeles */ }
   if (full) {
     FACE_TEXTURES[key].browY = tr(anchors[2])[1];
     FACE_TEXTURES[key].noseY = tr(anchors[3])[1];
@@ -21887,6 +21907,57 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
     FACE_TEXTURES[key].mouthR = tr(anchors[5]);
   }
   return key;
+}
+
+/**
+ * Mide en la imagen los colores reales: pelo (sienes y coronilla; raíz = tono oscuro, punta = medio,
+ * reflejos = claro), piel (mejillas y frente), labio inferior e iris (anillo alrededor de la pupila).
+ */
+function sampleFaceColors(img, anchors, Fpx) {
+  const full = anchors.length >= 7;
+  const eL = anchors[0], eR = anchors[1];
+  const ex = (eL[0] + eR[0]) * 0.5, ey = (eL[1] + eR[1]) * 0.5;
+  const sc = Math.min(1, 60 / Fpx);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.naturalWidth * sc)); c.height = Math.max(1, Math.round(img.naturalHeight * sc));
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  const data = ctx.getImageData(0, 0, c.width, c.height).data;
+  const px = (x, y) => {
+    const xi = Math.round(x * sc), yi = Math.round(y * sc);
+    if (xi < 0 || yi < 0 || xi >= c.width || yi >= c.height) return null;
+    const k = (yi * c.width + xi) * 4;
+    return [data[k], data[k + 1], data[k + 2]];
+  };
+  const patch = (fx, fy, r = 0.06) => {
+    const out = [];
+    for (let dy = -r; dy <= r; dy += r / 3) for (let dx = -r; dx <= r; dx += r / 3) {
+      const p = px(ex + (fx + dx) * Fpx, ey + (fy + dy) * Fpx); if (p) out.push(p);
+    }
+    return out;
+  };
+  const lum = (p) => p[0] * 0.3 + p[1] * 0.59 + p[2] * 0.11;
+  const pick = (arr, q) => {
+    if (!arr.length) return null;
+    const s = arr.slice().sort((a, b) => lum(a) - lum(b));
+    return s[Math.min(s.length - 1, Math.floor(q * (s.length - 1)))];
+  };
+  const hex = (p) => p ? '#' + p.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('') : null;
+  const hair = [].concat(patch(-1.32, -0.95), patch(1.32, -0.95), patch(0, -1.78), patch(-0.85, -1.5), patch(0.85, -1.5));
+  const skin = [].concat(patch(-0.55, 0.55), patch(0.55, 0.55), patch(0, -0.62));
+  let lips = [];
+  if (full) {
+    const mx = (anchors[4][0] + anchors[5][0]) * 0.5, my = (anchors[4][1] + anchors[5][1]) * 0.5;
+    lips = patch((mx - ex) / Fpx, (my - ey) / Fpx + 0.07, 0.03);
+  }
+  const iris = [];
+  for (const e of [eL, eR]) for (let a = 0; a < Math.PI * 2; a += Math.PI / 10) for (const rr of [0.065, 0.085]) {
+    const p = px(e[0] + Math.cos(a) * rr * Fpx, e[1] + Math.sin(a) * rr * Fpx); if (p) iris.push(p);
+  }
+  return {
+    hairRoot: hex(pick(hair, 0.2)), hairTip: hex(pick(hair, 0.5)), hairHigh: hex(pick(hair, 0.88)),
+    skin: hex(pick(skin, 0.6)), lips: lips.length ? hex(pick(lips, 0.5)) : null, eyes: hex(pick(iris, 0.4)),
+  };
 }
 
 const FACE_TEXTURES = {
@@ -21901,6 +21972,8 @@ const FACE_TEXTURES = {
     eyeWidth: 64,
     browY: 137, noseY: 252,
     mouthL: [152, 297], mouthR: [236, 297],
+    // Colores medidos en la ilustración original (pelo raíz/medio/reflejos, piel, labios, iris)
+    colors: { hairRoot: '#644d3d', hairTip: '#99806f', hairHigh: '#d6bfaa', skin: '#f4d9c2', lips: '#e2998c', eyes: '#4c372d' },
   },
 };
 const _FACE_TEX_CACHE = {};
@@ -27304,7 +27377,9 @@ function resetCharacter() {
         proporcional: ['ondulado_volumen', 'corto_guerrero', 'rizado_3d', 'largo_lacio']
       };
 
-      if (archetype === 'random') {
+      if (archetype === 'keep') {
+        // Mantener peinado y color actuales
+      } else if (archetype === 'random') {
         randomizeHairStyleAndColor(true);
       } else {
         const candidateCuts = archetypeHairMap[archetype] || Object.keys(HAIR_CUT_PRESETS);
