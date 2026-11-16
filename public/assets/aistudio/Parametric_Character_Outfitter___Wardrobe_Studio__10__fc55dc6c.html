@@ -21308,7 +21308,9 @@ function getFaceCanon(caraCfg = {}) {
   const noseDev = clamp(dev('noseLength') / 0.2, 1.0) * C.maxDev.noseLength_F * F;
 
   // Globo ocular (r ≈ 0,2F) dimensionado para que la abertura palpebral mida ≈ 0,42F (canon: ojo = F/2 entre cantos)
-  const eyeR = 0.213 * F * (1 + 0.6 * clamp(dev('eyeSize'), C.maxDev.eyeSize));
+  // eyeSize escala el globo directamente respecto al neutro: de ×0,9 hasta ×1,5 (ojos grandes en el aleatorio)
+  const eyeSizeK = Math.max(0.9, Math.min(1.5, (caraCfg.eyeSize ?? C.neutral.eyeSize) / C.neutral.eyeSize));
+  const eyeR = 0.213 * F * eyeSizeK;
   const eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
   const eyeY = lv('D') + eyeYDev;
   const noseBaseY = lv('E') - noseDev;
@@ -21318,7 +21320,7 @@ function getFaceCanon(caraCfg = {}) {
     F,
     topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY, noseBaseY, noseRootY,
     mouthY: lv('stomion'), lowerLipY: lv('F'), chinY: lv('G'),
-    eyeX, eyeR,
+    eyeX, eyeR, eyeSizeK,
     noseAlaHalf: 0.5 * C.widths.nose * F * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
     noseWidthScale: 1 + clamp(dev('noseWidth'), C.maxDev.noseWidth),
     mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
@@ -21707,7 +21709,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
       // Cuencas oculares: se abre hueco justo detrás de los párpados para que asome el globo ocular
       // (cuenco suave y amplio: sin escalón visible alrededor de los párpados)
-      const qx = (X - canon.eyeX) / 0.027, qy = (y - canon.eyeY) / 0.021;
+      const qx = (X - canon.eyeX) / (0.027 * canon.eyeSizeK), qy = (y - canon.eyeY) / (0.021 * canon.eyeSizeK);
       const q = qx * qx + qy * qy;
       if (q < 1.0) {
         const zCav = eyeCZ + eyeR * 1.06 * Math.sqrt(Math.max(0, 1 - q * 1.6)) + 0.004 * q;
@@ -22064,102 +22066,119 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     headGroup.add(browMesh);
   }
 
-  // 3. Nariz: volumen en cuña que nace de la raíz entre los ojos y llega a la base E (canon);
-  //    dorso recto, punta redondeada, aletas a la anchura de la separación entre ojos y narinas bajo la punta.
+  // 3. Nariz: un único volumen en relieve sobre la piel (dorso + lóbulo de la punta + aletas fusionados con
+  //    unión suave). Nace en la raíz entre los ojos y termina en la base E (canon); por debajo de la punta el
+  //    relieve cae inclinado hacia el subnasal, formando la base (columela y narinas) como en una nariz real.
   const noseGroup = new THREE.Group();
   noseGroup.name = 'nose';
   {
     const F = canon.F;
     const wS = canon.noseWidthScale;
     const rootY = canon.noseRootY, baseY = canon.noseBaseY;
-    const sRoot = surfaceFrontZ(0, rootY, 0.125);
-    const sBase = surfaceFrontZ(0, baseY, 0.115);
-    const tipProj = 0.30 * F;
-    const tipY = baseY + 0.17 * (rootY - baseY);
-    const zTip = sBase + tipProj;
-    const zSub = sBase + 0.0045;
-    const rows = [];
-    const ROWS1 = 18, ROWS2 = 9;
-    for (let k = 0; k <= ROWS1; k++) {
-      const t = k / ROWS1;
-      const y = THREE.MathUtils.lerp(rootY + 0.003, tipY, t);
-      const zf = THREE.MathUtils.lerp(sRoot + 0.0012, zTip, Math.pow(t, 1.08)) + 0.0010 * Math.sin(t * Math.PI) ;
-      const w = THREE.MathUtils.lerp(0.0048, 0.0100, Math.pow(t, 2.2)) * wS;
-      rows.push([y, zf, w]);
-    }
-    for (let k = 1; k <= ROWS2; k++) {
-      const t = k / ROWS2;
-      const a = t * Math.PI * 0.5;
-      const y = tipY - (tipY - baseY) * Math.sin(a);
-      const zf = zTip - (zTip - zSub) * (1 - Math.cos(a));
-      const w = THREE.MathUtils.lerp(0.0100, 0.0120, t) * wS;
-      rows.push([y, zf, w]);
-    }
-    const M = 16;
-    const nPos = [];
-    rows.forEach(([y, zf, w]) => {
-      for (let j = 0; j <= M; j++) {
-        const ph = -Math.PI / 2 + (j / M) * Math.PI;
-        const x = w * Math.sin(ph);
-        const zBack = surfaceFrontZ(x, y, zf - 0.01) - 0.0035;
-        const c = Math.pow(Math.max(0, Math.cos(ph)), 0.75);
-        nPos.push(x, y, zBack + (Math.max(zf, zBack + 0.001) - zBack) * c);
+    const L = rootY - baseY;
+    const proj = 0.30 * F;                       // proyección de la punta (≈ F/3 en el perfil del canon)
+    const tipY = baseY + 0.20 * L;
+    const tTip = (rootY - tipY) / L;
+    const alaHalf = canon.noseAlaHalf;
+    const alaRx = 0.0068 * wS, alaRy = 0.0072, alaX = alaHalf - alaRx * 0.95, alaY = baseY + 0.0052;
+    const tipRx = 0.0090 * wS, tipRy = 0.0082;
+    const smax = (a, b, k) => { const h = clampV(0.5 + 0.5 * (a - b) / k, 0, 1); return b + (a - b) * h + k * h * (1 - h); };
+
+    const smaxBase = smax(smax(0, 0, 0.0035), 0, 0.0030);
+    const heightAt = (x, y) => {
+      const t = (rootY - y) / L;
+      const ax = Math.abs(x);
+      // Dorso: cresta estrecha en la raíz que se ensancha hacia la punta
+      let hd = 0;
+      if (t >= -0.30 && t <= 1.0) {
+        const tc = clampV(t, 0, 1);
+        let ridge;
+        if (tc <= tTip) ridge = proj * (0.13 + 0.83 * Math.pow(tc / tTip, 1.15));
+        else ridge = proj * 0.96 * Math.pow(Math.cos(((tc - tTip) / (1 - tTip)) * Math.PI * 0.5), 0.8);
+        const wb = THREE.MathUtils.lerp(0.0060, 0.0094, Math.pow(tc, 1.6)) * wS;
+        const cx = Math.max(0, 1 - Math.pow(ax / wb, 2));
+        // La raíz se desvanece en el entrecejo (sin remate redondeado)
+        hd = ridge * Math.pow(cx, 0.55) * sstep(t, -0.28, 0.16);
       }
-    });
-    const nIdx = [];
-    for (let r = 0; r < rows.length - 1; r++) {
-      for (let j = 0; j < M; j++) {
-        const a = r * (M + 1) + j, b = a + 1, c = a + (M + 1) + 1, d = a + (M + 1);
-        nIdx.push(a, d, b, b, d, c);
+      // Lóbulo de la punta
+      const qt = Math.pow(x / tipRx, 2) + Math.pow((y - tipY) / tipRy, 2);
+      const ht = proj * Math.sqrt(Math.max(0, 1 - qt));
+      // Aletas nasales a ambos lados de la punta, más bajas y hacia atrás
+      const qa = Math.pow((ax - alaX) / alaRx, 2) + Math.pow((y - alaY) / alaRy, 2);
+      const ha = proj * 0.38 * Math.pow(Math.max(0, 1 - qa), 0.65);
+      // Surco alar: ligera hendidura entre aleta y punta
+      const groove = 0.0012 * Math.exp(-Math.pow((ax - (alaX - alaRx * 0.75)) / 0.0018, 2)) * sstep(y, alaY + alaRy, alaY - alaRy * 0.2);
+      // (la unión suave suma un pequeño desfase incluso con relieve nulo: se descuenta)
+      return Math.max(0, smax(smax(hd, ht, 0.0035), ha, 0.0030) - smaxBase - groove);
+    };
+
+    // Piel bajo la nariz muestreada en una rejilla gruesa e interpolada (evita miles de raycasts)
+    const x0 = -(alaHalf + 0.004), x1 = alaHalf + 0.004;
+    const y0 = baseY - 0.004, y1 = rootY + 0.012;
+    const SG = 14;
+    const skinGrid = [];
+    for (let j = 0; j <= SG; j++) {
+      const row = [];
+      for (let i = 0; i <= SG; i++) {
+        const sx = x0 + (x1 - x0) * i / SG, sy = y0 + (y1 - y0) * j / SG;
+        row.push(surfaceFrontZ(sx, sy, 0.115));
+      }
+      skinGrid.push(row);
+    }
+    const skinAt = (x, y) => {
+      const fi = clampV((x - x0) / (x1 - x0) * SG, 0, SG - 1e-6), fj = clampV((y - y0) / (y1 - y0) * SG, 0, SG - 1e-6);
+      const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j;
+      return (skinGrid[j][i] * (1 - u) + skinGrid[j][i + 1] * u) * (1 - v) + (skinGrid[j + 1][i] * (1 - u) + skinGrid[j + 1][i + 1] * u) * v;
+    };
+
+    const NX = 44, NY = 64;
+    const nPos = [], nUv = [], nIdx = [];
+    for (let j = 0; j <= NY; j++) {
+      // Más densidad cerca de la base y la punta
+      const s = j / NY;
+      const y = y0 + (y1 - y0) * (s < 0.45 ? Math.pow(s / 0.45, 1.0) * 0.45 : s);
+      for (let i = 0; i <= NX; i++) {
+        const x = x0 + (x1 - x0) * i / NX;
+        const h = heightAt(x, y);
+        // Fuera del relieve la malla se hunde bajo la piel (sin bordes de la rejilla visibles)
+        const sink = 0.0030 * (1.0 - sstep(h, 0.0, 0.0015));
+        nPos.push(x, y, skinAt(x, y) + h - 0.0009 - sink);
+        nUv.push(i / NX * 0.15, s * 0.25);
       }
     }
-    // Tapa inferior (columela) en abanico
-    const last = (rows.length - 1) * (M + 1);
-    const cIdx = nPos.length / 3;
-    const lr = rows[rows.length - 1];
-    nPos.push(0, lr[0] - 0.0004, (lr[1] + surfaceFrontZ(0, lr[0], lr[1])) * 0.5);
-    for (let j = 0; j < M; j++) nIdx.push(last + j, cIdx, last + j + 1);
+    for (let j = 0; j < NY; j++) {
+      for (let i = 0; i < NX; i++) {
+        const a = j * (NX + 1) + i, b = a + 1, c = a + NX + 2, d = a + NX + 1;
+        nIdx.push(a, b, d, b, c, d);
+      }
+    }
     const nGeo = new THREE.BufferGeometry();
     nGeo.setAttribute('position', new THREE.Float32BufferAttribute(nPos, 3));
-    const nUv = [];
-    rows.forEach((row, r) => { for (let j = 0; j <= M; j++) nUv.push((j / M) * 0.12, (r / (rows.length - 1)) * 0.2); });
-    nUv.push(0.06, 0.2);
     nGeo.setAttribute('uv', new THREE.Float32BufferAttribute(nUv, 2));
     nGeo.setIndex(nIdx);
     nGeo.computeVertexNormals();
-    // Asegurar normales hacia fuera (la cara frontal de la fila media mira a +Z)
-    const mid = Math.round(ROWS1 * 0.6) * (M + 1) + M / 2;
+    const mid = Math.round(NY * 0.6) * (NX + 1) + NX / 2;
     if (nGeo.attributes.normal.getZ(mid) < 0) {
       for (let t = 0; t < nIdx.length; t += 3) { const tmp = nIdx[t + 1]; nIdx[t + 1] = nIdx[t + 2]; nIdx[t + 2] = tmp; }
       nGeo.setIndex(nIdx);
       nGeo.computeVertexNormals();
     }
-    const dorsum = new THREE.Mesh(nGeo, faceSkinMat);
-    dorsum.castShadow = true;
-    noseGroup.add(dorsum);
+    const noseMesh = new THREE.Mesh(nGeo, faceSkinMat);
+    noseMesh.name = 'nose_volume';
+    noseMesh.castShadow = true;
+    noseGroup.add(noseMesh);
 
-    // Punta (lóbulo) redondeada
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0068 * wS, 20, 16), faceSkinMat);
-    tip.position.set(0, tipY - 0.0012, zTip - 0.0060);
-    tip.scale.set(1.0, 0.92, 0.95);
-    noseGroup.add(tip);
-
-    // Aletas nasales: el ancho total ≈ separación entre ojos (F/2·0,84)
-    const nostrilInnerMat = new THREE.MeshStandardMaterial({ color: 0x381917, roughness: 0.85, metalness: 0.0 });
+    // Narinas: aberturas oscuras encajadas en la base inclinada, a cada lado de la columela
+    const nostrilInnerMat = new THREE.MeshStandardMaterial({ color: 0x2e1412, roughness: 0.9, metalness: 0.0 });
     for (let k = 0; k < 2; k++) {
       const d = k === 0 ? 1 : -1;
-      const alaR = 0.0062;
-      const ala = new THREE.Mesh(new THREE.SphereGeometry(alaR, 18, 14), faceSkinMat);
-      const ax = d * (canon.noseAlaHalf - alaR * 0.80);
-      ala.position.set(ax, baseY + 0.0050, surfaceFrontZ(ax, baseY + 0.005, sBase) + 0.0020);
-      ala.scale.set(0.72, 0.70, 1.55);
-      ala.rotation.y = d * 0.60;
-      noseGroup.add(ala);
-
-      const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.0026, 12, 10), nostrilInnerMat);
-      nostril.position.set(d * 0.0046 * wS, baseY + 0.0020, zSub + 0.0045);
-      nostril.scale.set(1.0, 0.42, 1.45);
-      nostril.rotation.y = d * 0.35;
+      const nx = d * (0.0042 * wS), ny = baseY + 0.0030;
+      const hz = skinAt(nx, ny) + heightAt(nx, ny) - 0.0009;
+      const nostril = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), nostrilInnerMat);
+      nostril.name = `nose_nostril_${k}`;
+      nostril.position.set(nx, ny - 0.0002, hz - 0.0006);
+      nostril.scale.set(0.0026 * wS, 0.0010, 0.0036);
+      nostril.rotation.set(-0.55, d * 0.30, 0);
       noseGroup.add(nostril);
     }
   }
@@ -26102,7 +26121,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.eyeType = pick(['caido', 'profundo', 'almendrado']);
     CONFIG.cara.eyeOpen = rVal(0.75, 0.88);
     CONFIG.cara.eyeSlant = rVal(-0.14, -0.02);
-    CONFIG.cara.eyeSize = rVal(0.92, 1.02);
+    CONFIG.cara.eyeSize = rVal(0.92, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeSpacing = rVal(1.04, 1.14);
     CONFIG.cara.eyeSquash = rVal(0.78, 0.88);
     CONFIG.cara.eyeAspect = rVal(0.95, 1.08);
@@ -26155,7 +26174,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.eyeType = pick(['caido', 'profundo', 'almendrado', 'redondo']);
     CONFIG.cara.eyeOpen = rVal(0.78, 0.90);
     CONFIG.cara.eyeSlant = rVal(-0.12, 0.00);
-    CONFIG.cara.eyeSize = rVal(0.94, 1.04);
+    CONFIG.cara.eyeSize = rVal(0.94, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeSpacing = rVal(1.04, 1.12);
     CONFIG.cara.eyeSquash = rVal(0.82, 0.92);
     CONFIG.cara.eyeAspect = rVal(0.95, 1.05);
@@ -26203,7 +26222,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.lipWidth = rVal(0.88, 0.98);
     CONFIG.cara.lipThickness = rVal(0.55, 0.68);
     CONFIG.cara.eyeType = pick(['redondo', 'almendrado', 'anime']);
-    CONFIG.cara.eyeSize = rVal(1.22, 1.34);
+    CONFIG.cara.eyeSize = rVal(1.22, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeSpacing = rVal(1.08, 1.18);
     CONFIG.cara.eyeOpen = rVal(1.05, 1.18);
     CONFIG.cara.eyeSlant = rVal(-0.04, 0.04);
@@ -26259,7 +26278,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.lipWidth = rVal(0.88, 0.98);
     CONFIG.cara.lipThickness = rVal(0.58, 0.72);
     CONFIG.cara.eyeType = pick(['redondo', 'almendrado', 'anime', 'felino']);
-    CONFIG.cara.eyeSize = rVal(1.24, 1.36);
+    CONFIG.cara.eyeSize = rVal(1.24, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeSpacing = rVal(1.08, 1.18);
     CONFIG.cara.eyeOpen = rVal(1.06, 1.20);
     CONFIG.cara.eyeSlant = rVal(-0.02, 0.08);
@@ -26314,7 +26333,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.lipWidth = rVal(0.96, 1.10);
     CONFIG.cara.lipThickness = rVal(0.68, 0.84);
     CONFIG.cara.eyeType = pick(['almendrado', 'rasgado', 'felino', 'redondo', 'profundo']);
-    CONFIG.cara.eyeSize = rVal(1.08, 1.22);
+    CONFIG.cara.eyeSize = rVal(1.08, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeOpen = rVal(1.02, 1.15);
     CONFIG.cara.eyeSlant = rVal(0.04, 0.16);
     CONFIG.cara.eyeSpacing = rVal(1.02, 1.12);
@@ -26370,7 +26389,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.lipWidth = rVal(0.94, 1.06);
     CONFIG.cara.lipThickness = rVal(0.46, 0.58);
     CONFIG.cara.eyeType = pick(['almendrado', 'profundo', 'rasgado', 'almendrado']);
-    CONFIG.cara.eyeSize = rVal(0.96, 1.08);
+    CONFIG.cara.eyeSize = rVal(0.96, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeOpen = rVal(0.92, 1.05);
     CONFIG.cara.eyeSlant = rVal(-0.04, 0.08);
     CONFIG.cara.eyeSquash = rVal(0.90, 1.02);
@@ -26421,7 +26440,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.lipThickness = rVal(0.50, 0.62);
     CONFIG.cara.earSize = rVal(1.00, 1.10);
     CONFIG.cara.eyeType = pick(['almendrado', 'rasgado', 'profundo', 'redondo', 'felino']);
-    CONFIG.cara.eyeSize = rVal(1.08, 1.16);
+    CONFIG.cara.eyeSize = rVal(1.08, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeSpacing = rVal(1.06, 1.14);
     CONFIG.cara.eyeY = rVal(0.70, 0.75);
     CONFIG.cara.eyeOpen = rVal(0.95, 1.05);
@@ -26614,7 +26633,7 @@ function randomizeCharacter() {
   CONFIG.cara.chinLength = rRange(0.88, 1.14);
   CONFIG.cara.chinY = rRange(0.85, 1.20);
   CONFIG.cara.browRidge = rRange(0.85, 1.20);
-  CONFIG.cara.eyeSize = rRange(0.85, 1.22);
+  CONFIG.cara.eyeSize = rRange(0.99, 1.65); // ojos de tamaño canon hasta +50 %
   CONFIG.cara.eyeSpacing = rRange(0.88, 1.15);
   CONFIG.cara.noseLength = rRange(0.85, 1.20);
   CONFIG.cara.noseWidth = rRange(0.85, 1.20);
