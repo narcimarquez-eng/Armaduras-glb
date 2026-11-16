@@ -21667,12 +21667,12 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     // Borde inferior de la mandíbula: recto desde el ángulo goníaco (a la altura de la boca, bajo la oreja)
     // hasta la barbilla (G). Lo que queda por debajo en la cara y los lados se pliega como suelo submentoniano;
     // sólo la nuca sigue bajando hacia el cuello.
-    let yS = y;
+    // La nuca termina en una base corta que queda dentro del cuello (sin remate colgando bajo la barbilla).
     const yJaw = THREE.MathUtils.lerp(gonionY - 0.010, chinLowY - 0.002, sstep(cPhi, 0.0, 0.9));
-    if (y < yJaw) {
-      const fw = sstep(cPhi, -0.85, 0.15);
-      yS = THREE.MathUtils.lerp(y, yJaw - 0.006 * (yJaw - y) / Math.max(1e-4, yJaw - Y_BOT), fw);
-    }
+    const yNape = chinLowY + 0.006;
+    const yFront = y < yJaw ? yJaw - 0.006 * (yJaw - y) / Math.max(1e-4, yJaw - Y_BOT) : y;
+    const yBack = y < yNape ? yNape - 0.010 * (yNape - y) / Math.max(1e-4, yNape - Y_BOT) : y;
+    const yS = THREE.MathUtils.lerp(yBack, yFront, sstep(cPhi, -0.85, 0.15));
     let x = sh.W * Math.sign(sPhi) * Math.pow(Math.abs(sPhi), ex);
     let z = cPhi >= 0 ? sh.Zf * Math.pow(cPhi, ex) : -sh.Zb * Math.pow(-cPhi, ex);
 
@@ -22170,46 +22170,96 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   philtrumGroup.name = 'philtrum';
   headGroup.add(philtrumGroup);
 
-  // 4. Labios Esculpidos proporcionados con arco de Cupido suave y comisura envolvente
+  // 4. Labios esculpidos con volumen: dos láminas que nacen de la piel (borde bermellón) y se abomban
+  //    hacia delante hasta encontrarse en la línea de la boca (estomion).
+  //    Labio superior: arco de Cupido (dos picos y depresión central bajo el filtrum) y tubérculo central.
+  //    Labio inferior: más grueso y redondeado. Comisuras fundidas con la mejilla.
   const mouthGroup = new THREE.Group();
   mouthGroup.name = 'mouth';
-  // Canon: línea de la boca a 1/3 entre la base de la nariz (E) y la barbilla (G); base del labio inferior ≈ F
-  const lipThick = caraCfg.lipThickness ?? 1.0;
-  mouthGroup.position.set(0, canon.mouthY + 0.0015, surfaceFrontZ(0, canon.mouthY, 0.1142) + 0.0022);
-  mouthGroup.scale.set(canon.mouthScaleX, Math.max(0.76, lipThick * 1.35), Math.max(0.92, lipThick * 1.45));
-
-  const upperLipCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.020, -0.0014, -0.0085),
-    new THREE.Vector3(-0.007, 0.0026, 0.0038),
-    new THREE.Vector3(0.0, 0.0012, 0.0050),
-    new THREE.Vector3(0.007, 0.0026, 0.0038),
-    new THREE.Vector3(0.020, -0.0014, -0.0085),
-  ]);
-  const upperLip = new THREE.Mesh(new THREE.TubeGeometry(upperLipCurve, 24, 0.0034, 12, false), mats.lips);
-  upperLip.scale.set(1, 0.76, 0.90);
-  mouthGroup.add(upperLip);
-
-  const lowerLipCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.0185, -0.0018, -0.0085),
-    new THREE.Vector3(-0.0085, -0.0044, 0.0040),
-    new THREE.Vector3(0.0, -0.0050, 0.0052),
-    new THREE.Vector3(0.0085, -0.0044, 0.0040),
-    new THREE.Vector3(0.0185, -0.0018, -0.0085),
-  ]);
-  const lowerLip = new THREE.Mesh(new THREE.TubeGeometry(lowerLipCurve, 24, 0.0038, 12, false), mats.lips);
-  lowerLip.scale.set(1, 0.84, 0.92);
-  mouthGroup.add(lowerLip);
-
-  // Comisura y línea de separación labial sutil para dar expresión humana
-  const lipPartCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.0195, -0.0016, -0.0075),
-    new THREE.Vector3(-0.007, -0.0010, 0.0054),
-    new THREE.Vector3(0.0, -0.0015, 0.0060),
-    new THREE.Vector3(0.007, -0.0010, 0.0054),
-    new THREE.Vector3(0.0195, -0.0016, -0.0075),
-  ]);
-  const lipPartMat = new THREE.MeshStandardMaterial({ color: 0x5c2c29, roughness: 0.75, metalness: 0.0 });
-  mouthGroup.add(new THREE.Mesh(new THREE.TubeGeometry(lipPartCurve, 20, 0.0008, 6, false), lipPartMat));
+  {
+    const F = canon.F;
+    const lipThickRaw = caraCfg.lipThickness ?? 0.55;
+    const tk = clampV(1.0 + (lipThickRaw - 0.55) * 0.6, 0.85, 1.2);
+    const halfW = 0.5 * canon.mouthScaleX * FACE_CANON.base.mouth;   // ≈ 0,35F (boca ≈ 0,7F)
+    const y0 = canon.mouthY;
+    const Hu = 0.105 * F * tk, Hl = 0.13 * F * tk;   // altura del bermellón superior / inferior
+    const Pu = 0.050 * F * tk, Pl = 0.046 * F * tk;  // proyección del volumen labial
+    const U = 40, VS = 12;
+    const stomionY = (u) => y0 - 0.0006 * u * u - 0.0007 * Math.exp(-Math.pow(u / 0.16, 2));
+    const upperH = (u) => {
+      const a = Math.abs(u);
+      const base = Math.pow(Math.max(0, 1 - Math.pow(a, 1.7)), 0.75);
+      const peaks = 1 + 0.20 * Math.exp(-Math.pow((a - 0.24) / 0.11, 2));
+      const dip = 0.16 * Math.exp(-Math.pow(u / 0.085, 2));
+      return Hu * Math.max(0, base * peaks - dip);
+    };
+    const lowerH = (u) => Hl * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(u), 1.9)), 0.62);
+    const widthShape = (u, k) => Math.pow(Math.max(0, 1 - Math.pow(Math.abs(u), 2.4)), k);
+    // Rodete: volumen máximo hacia el tercio del labio más cercano a la boca, cero en el borde con la piel
+    const roll = (v) => Math.sin(Math.PI * (0.22 + 0.78 * v));
+    const lipMeshes = [];
+    for (const side of ['upper', 'lower']) {
+      const isUp = side === 'upper';
+      const vRows = [-0.35, -0.15];
+      for (let k = 0; k <= VS; k++) vRows.push(k / VS);
+      const P = [], UV = [], IDX = [];
+      vRows.forEach((v, r) => {
+        for (let j = 0; j <= U; j++) {
+          const u = -1 + 2 * j / U;
+          const ys = stomionY(u);
+          const h = isUp ? upperH(u) : lowerH(u);
+          const vv = Math.max(0, v);
+          const x = halfW * u * (1 - 0.05 * vv);
+          const y = isUp ? ys + vv * h : ys - vv * h;
+          const skin = surfaceFrontZ(x, y, 0.11);
+          const prj = (isUp ? Pu : Pl) * widthShape(u, isUp ? 0.55 : 0.5);
+          let z = skin + prj * roll(vv);
+          // Filas interiores: el labio se enrolla hacia dentro de la boca
+          if (v < 0) z = skin + prj * roll(0) + (v / 0.35) * (0.0035 + prj * 0.6);
+          // Ligero reborde (línea blanca) en el borde superior del arco de Cupido
+          if (isUp) z += 0.00035 * Math.exp(-Math.pow((vv - 0.93) / 0.05, 2)) * widthShape(u, 1);
+          P.push(x, y, z);
+          UV.push(j / U * 0.15, (r / (vRows.length - 1)) * 0.05);
+        }
+      });
+      for (let r = 0; r < vRows.length - 1; r++) {
+        for (let j = 0; j < U; j++) {
+          const a = r * (U + 1) + j, b = a + 1, c = a + U + 2, d = a + U + 1;
+          IDX.push(a, b, d, b, c, d);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));
+      g.setIndex(IDX);
+      g.computeVertexNormals();
+      // Normal del centro del labio hacia delante
+      const probe = (2 + Math.round(VS * 0.5)) * (U + 1) + U / 2;
+      if (g.attributes.normal.getZ(probe) < 0) {
+        for (let t = 0; t < IDX.length; t += 3) { const tmp = IDX[t + 1]; IDX[t + 1] = IDX[t + 2]; IDX[t + 2] = tmp; }
+        g.setIndex(IDX);
+        g.computeVertexNormals();
+      }
+      const m = new THREE.Mesh(g, mats.lips);
+      m.name = isUp ? 'mouth_upper_lip' : 'mouth_lower_lip';
+      m.castShadow = false;
+      mouthGroup.add(m);
+      lipMeshes.push(m);
+    }
+    // Línea de cierre labial (sombra fina entre ambos labios)
+    const partPts = [];
+    for (let j = 0; j <= 16; j++) {
+      const u = -0.93 + 1.86 * j / 16;
+      const x = halfW * u;
+      const ys = stomionY(u);
+      const z = surfaceFrontZ(x, ys, 0.11) + Math.min(Pu, Pl) * widthShape(u, 0.5) * roll(0) - 0.0002;
+      partPts.push(new THREE.Vector3(x, ys, z));
+    }
+    const lipPartMat = new THREE.MeshStandardMaterial({ color: 0x4a2321, roughness: 0.8, metalness: 0.0 });
+    const part = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(partPts), 32, 0.00045, 6, false), lipPartMat);
+    part.name = 'mouth_part_line';
+    mouthGroup.add(part);
+  }
   headGroup.add(mouthGroup);
 
   // 5. Orejas Anatómicas (Pabellón auricular con hélix y lóbulo)
