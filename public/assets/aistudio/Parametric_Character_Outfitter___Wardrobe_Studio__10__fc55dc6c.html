@@ -76,6 +76,19 @@
         <option value="combat">Pose Guardia Combate</option>
         <option value="heroic">Pose Heroica</option>
       </select>
+      <div class="flex items-center gap-1 px-0.5">
+        <span class="text-[9px] text-slate-400 uppercase tracking-wider whitespace-nowrap">Nariz</span>
+        <select id="nose-type-select" class="flex-1 min-w-0 bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer">
+          <option value="recta">Recta</option>
+          <option value="ancha">Ancha / Chata</option>
+          <option value="carnosa">Carnosa</option>
+          <option value="aguilena">Aguileña</option>
+          <option value="romana">Romana</option>
+          <option value="respingona">Respingona</option>
+          <option value="boton">Botón</option>
+          <option value="fina">Fina</option>
+        </select>
+      </div>
       <div class="flex flex-col gap-1 rounded-xl border border-slate-700/60 p-1.5">
         <span class="text-[9px] text-slate-400 uppercase tracking-wider px-0.5">Textura de rostro</span>
         <select id="face-texture-select" class="bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer">
@@ -20209,6 +20222,12 @@
         generateCreador3DHumanoGLB('keep', false);
       };
       if (faceTexSel) faceTexSel.addEventListener('change', (e) => applyFaceTextureKey(e.target.value));
+      const noseSel = document.getElementById('nose-type-select');
+      if (noseSel) noseSel.addEventListener('change', (e) => {
+        if (!window.CreadorHumano) return;
+        window.CreadorHumano.CONFIG.cara.noseType = e.target.value;
+        generateCreador3DHumanoGLB('keep', false);
+      });
 
       const btnFaceTpl = document.getElementById('btn-face-tex-template');
       if (btnFaceTpl) btnFaceTpl.addEventListener('click', () => {
@@ -21710,7 +21729,7 @@ const FACE_CANON = {
   topY: 0.2575,
   chinY: -0.016,
   levels: { A: 0.0, B: 0.5, C: 1.5, D: 1.75, E: 2.5, stomion: 2.87, F: 3.0, G: 3.5 },
-  widths: { eyeCenter: 0.475, eyeFissure: 0.44, nose: 0.42, mouth: 0.70 },
+  widths: { eyeCenter: 0.475, eyeFissure: 0.44, nose: 0.50, mouth: 0.70 },
   // Valor de cada parámetro de CONFIG.cara que reproduce exactamente el canon,
   // y desviación máxima permitida (fracción relativa o múltiplos de F)
   neutral: { eyeY: 0.72, eyeSpacing: 1.08, eyeSize: 1.10, noseLength: 1.15, noseWidth: 0.98, lipWidth: 1.0, earSize: 1.05, chinY: 1.05 },
@@ -21779,12 +21798,29 @@ function getFaceCanon(caraCfg = {}) {
     res.earY = (res.browY + res.noseBaseY) * 0.5;
     // Nariz: aletas ≈ 85 % de la separación entre lagrimales de la imagen (canon: ancho nariz ≈ espacio entre ojos)
     const innerGap = Math.max(0, (ftDef.eyeR[0] - ftDef.eyeL[0]) - ftDef.eyeWidth) / Fpx;
-    res.noseAlaHalf = rng(0.5 * 0.85 * innerGap, 0.16, 0.30) * F;
+    res.noseAlaHalf = rng(0.5 * 0.95 * innerGap, 0.20, 0.34) * F;
     // Párpados algo más cerrados: el párpado superior cubre el borde alto del iris como en las ilustraciones
     res.lidOpen = 0.84;
   }
   return res;
 }
+
+/**
+ * TIPOS DE NARIZ (multiplicadores sobre la nariz base del canon):
+ *  alaW = anchura entre aletas, alaSize = tamaño de las aletas, flare = cuánto sobresalen las aletas,
+ *  bridgeW = anchura del dorso, tipW = anchura/volumen de la punta, proj = proyección de la punta,
+ *  tipUp = altura de la punta (+ respingona / − caída), hump = giba en el dorso, scoop = dorso cóncavo
+ */
+const NOSE_TYPES = {
+  recta:     { label: 'Recta',               alaW: 1.00, alaSize: 1.00, flare: 0.40, bridgeW: 1.00, tipW: 1.00, proj: 1.00, tipUp: 0.00, hump: 0.00, scoop: 0.00 },
+  ancha:     { label: 'Ancha / Chata',       alaW: 1.28, alaSize: 1.25, flare: 0.52, bridgeW: 1.35, tipW: 1.30, proj: 0.80, tipUp: 0.02, hump: 0.00, scoop: 0.03 },
+  carnosa:   { label: 'Carnosa (punta redonda)', alaW: 1.18, alaSize: 1.15, flare: 0.46, bridgeW: 1.15, tipW: 1.45, proj: 0.95, tipUp: 0.00, hump: 0.00, scoop: 0.00 },
+  aguilena:  { label: 'Aguileña',            alaW: 1.02, alaSize: 0.95, flare: 0.36, bridgeW: 1.05, tipW: 0.95, proj: 1.12, tipUp: -0.05, hump: 0.13, scoop: 0.00 },
+  romana:    { label: 'Romana',              alaW: 1.10, alaSize: 1.05, flare: 0.40, bridgeW: 1.20, tipW: 1.05, proj: 1.08, tipUp: -0.02, hump: 0.07, scoop: 0.00 },
+  respingona:{ label: 'Respingona',          alaW: 0.98, alaSize: 0.95, flare: 0.40, bridgeW: 0.95, tipW: 0.98, proj: 0.92, tipUp: 0.09, hump: 0.00, scoop: 0.09 },
+  boton:     { label: 'Botón (pequeña)',     alaW: 1.00, alaSize: 1.00, flare: 0.44, bridgeW: 0.92, tipW: 1.25, proj: 0.78, tipUp: 0.04, hump: 0.00, scoop: 0.05 },
+  fina:      { label: 'Fina / Estrecha',     alaW: 0.86, alaSize: 0.88, flare: 0.34, bridgeW: 0.85, tipW: 0.85, proj: 1.02, tipUp: 0.01, hump: 0.02, scoop: 0.00 },
+};
 
 /**
  * Definición anatómica y morfología paramétrica de diferentes tipos de ojos
@@ -22879,18 +22915,19 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   noseGroup.name = 'nose';
   {
     const F = canon.F;
-    const wS = canon.noseWidthScale * (1 - 0.08 * canon.fem);
+    const NT = NOSE_TYPES[caraCfg.noseType] || NOSE_TYPES.recta;
+    const wS = canon.noseWidthScale * (1 - 0.05 * canon.fem);
     const rootY = canon.noseRootY, baseY = canon.noseBaseY;
     const L = rootY - baseY;
-    const proj = 0.30 * F * (1 - 0.08 * canon.fem);   // proyección de la punta (≈ F/3 en el perfil del canon)
-    const tipY = baseY + (0.20 + 0.05 * canon.fem) * L; // punta algo respingona en rostros femeninos
+    const proj = 0.30 * F * (1 - 0.06 * canon.fem) * NT.proj;   // proyección de la punta (≈ F/3 en el perfil del canon)
+    const tipY = baseY + (0.20 + 0.04 * canon.fem + NT.tipUp) * L; // punta algo respingona en rostros femeninos
     const tTip = (rootY - tipY) / L;
-    const alaHalf = canon.noseAlaHalf * (1 - 0.07 * canon.fem);
-    const alaRx = 0.0068 * wS, alaRy = 0.0072, alaX = alaHalf - alaRx * 0.95, alaY = baseY + 0.0052;
-    const tipRx = 0.0090 * wS, tipRy = 0.0082;
+    const alaHalf = canon.noseAlaHalf * (1 - 0.05 * canon.fem) * NT.alaW;
+    const alaRx = 0.0076 * wS * NT.alaSize, alaRy = 0.0078 * NT.alaSize, alaX = alaHalf - alaRx * 0.92, alaY = baseY + 0.0054 * NT.alaSize;
+    const tipRx = 0.0102 * wS * NT.tipW, tipRy = 0.0088 * (0.6 + 0.4 * NT.tipW);
     const smax = (a, b, k) => { const h = clampV(0.5 + 0.5 * (a - b) / k, 0, 1); return b + (a - b) * h + k * h * (1 - h); };
 
-    const smaxBase = smax(smax(0, 0, 0.0035), 0, 0.0030);
+    const smaxBase = smax(smax(0, 0, 0.0045), 0, 0.0045);
     const heightAt = (x, y) => {
       const t = (rootY - y) / L;
       const ax = Math.abs(x);
@@ -22901,27 +22938,34 @@ function buildSculptedHeadGroup(caraCfg, mats) {
         let ridge;
         if (tc <= tTip) ridge = proj * (0.13 + 0.83 * Math.pow(tc / tTip, 1.15));
         else ridge = proj * 0.96 * Math.pow(Math.cos(((tc - tTip) / (1 - tTip)) * Math.PI * 0.5), 0.8);
-        const wb = THREE.MathUtils.lerp(0.0060, 0.0094, Math.pow(tc, 1.6)) * wS;
+        // Giba (aguileña/romana) y dorso cóncavo (respingona)
+        ridge += proj * NT.hump * Math.exp(-Math.pow((tc - 0.42) / 0.16, 2));
+        ridge -= proj * NT.scoop * Math.exp(-Math.pow((tc - 0.55) / 0.18, 2));
+        // Sección del dorso redondeada con laterales en pendiente que se funden con la mejilla (sin paredes verticales)
+        const wb = THREE.MathUtils.lerp(0.0095, 0.0150, Math.pow(tc, 1.4)) * wS * NT.bridgeW;
         const cx = Math.max(0, 1 - Math.pow(ax / wb, 2));
         // La raíz se desvanece en el entrecejo (sin remate redondeado)
-        hd = ridge * Math.pow(cx, 0.55) * sstep(t, -0.28, 0.16);
+        hd = ridge * Math.pow(cx, 1.05) * sstep(t, -0.28, 0.16);
       }
       // Lóbulo de la punta
-      const qt = Math.pow(x / tipRx, 2) + Math.pow((y - tipY) / tipRy, 2);
-      const ht = proj * Math.sqrt(Math.max(0, 1 - qt));
+      const qt = Math.pow(x / (tipRx * 1.25), 2) + Math.pow((y - tipY) / (tipRy * 1.2), 2);
+      const ht = proj * Math.pow(Math.max(0, 1 - qt), 0.85);
       // Aletas nasales a ambos lados de la punta, más bajas y hacia atrás
-      const qa = Math.pow((ax - alaX) / alaRx, 2) + Math.pow((y - alaY) / alaRy, 2);
-      const ha = proj * 0.38 * Math.pow(Math.max(0, 1 - qa), 0.65);
+      // Aleta como ala alargada que va de la punta hacia la mejilla (inclinada hacia arriba y atrás), no una esfera
+      const dxa = ax - alaX, dya = y - alaY;
+      const ua = (dxa * 0.92 + dya * 0.40) / (alaRx * 1.25), va = (-dxa * 0.40 + dya * 0.92) / (alaRy * 0.95);
+      const qa = ua * ua + va * va;
+      const ha = (proj / NT.proj) * NT.flare * Math.pow(Math.max(0, 1 - qa), 1.35);
       // Surco alar: ligera hendidura entre aleta y punta
       const groove = 0.0012 * Math.exp(-Math.pow((ax - (alaX - alaRx * 0.75)) / 0.0018, 2)) * sstep(y, alaY + alaRy, alaY - alaRy * 0.2);
       // (la unión suave suma un pequeño desfase incluso con relieve nulo: se descuenta)
-      return Math.max(0, smax(smax(hd, ht, 0.0035), ha, 0.0030) - smaxBase - groove);
+      return Math.max(0, smax(smax(hd, ht, 0.0045), ha, 0.0045) - smaxBase - groove);
     };
 
     // Piel bajo la nariz muestreada en una rejilla gruesa e interpolada (evita miles de raycasts)
-    const x0 = -(alaHalf + 0.004), x1 = alaHalf + 0.004;
+    const x0 = -(alaHalf + 0.008), x1 = alaHalf + 0.008;
     const y0 = baseY - 0.004, y1 = rootY + 0.012;
-    const SG = 14;
+    const SG = 32;
     const skinGrid = [];
     for (let j = 0; j <= SG; j++) {
       const row = [];
@@ -22931,13 +22975,22 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       }
       skinGrid.push(row);
     }
+    // Suavizado de la piel muestreada: la nariz no copia las facetas de la malla del cráneo (sin ondulaciones)
+    for (let pass = 0; pass < 3; pass++) {
+      const src = skinGrid.map(r => r.slice());
+      for (let j = 1; j < SG; j++) for (let i = 1; i < SG; i++) {
+        let acc = 0;
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) acc += src[j + dj][i + di];
+        skinGrid[j][i] = Math.max(src[j][i], acc / 9);
+      }
+    }
     const skinAt = (x, y) => {
       const fi = clampV((x - x0) / (x1 - x0) * SG, 0, SG - 1e-6), fj = clampV((y - y0) / (y1 - y0) * SG, 0, SG - 1e-6);
       const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j;
       return (skinGrid[j][i] * (1 - u) + skinGrid[j][i + 1] * u) * (1 - v) + (skinGrid[j + 1][i] * (1 - u) + skinGrid[j + 1][i + 1] * u) * v;
     };
 
-    const NX = 44, NY = 64;
+    const NX = 72, NY = 84;
     const nPos = [], nUv = [], nIdx = [];
     for (let j = 0; j <= NY; j++) {
       // Más densidad cerca de la base y la punta
@@ -22947,8 +23000,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
         const x = x0 + (x1 - x0) * i / NX;
         const h = heightAt(x, y);
         // Fuera del relieve la malla se hunde bajo la piel (sin bordes de la rejilla visibles)
-        const sink = 0.0030 * (1.0 - sstep(h, 0.0, 0.0015));
-        nPos.push(x, y, skinAt(x, y) + h - 0.0009 - sink);
+        const sink = 0.0030 * (1.0 - sstep(h, 0.0, 0.0006));
+        // ligeramente por encima de la piel interpolada (que queda por debajo de la superficie convexa real)
+        nPos.push(x, y, skinAt(x, y) + h + 0.0004 * sstep(h, 0.0, 0.0006) - sink);
         nUv.push(i / NX * 0.15, s * 0.25);
       }
     }
@@ -22978,12 +23032,12 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const nostrilInnerMat = new THREE.MeshStandardMaterial({ color: 0x2e1412, roughness: 0.9, metalness: 0.0 });
     for (let k = 0; k < 2; k++) {
       const d = k === 0 ? 1 : -1;
-      const nx = d * (0.0042 * wS), ny = baseY + 0.0030;
-      const hz = skinAt(nx, ny) + heightAt(nx, ny) - 0.0009;
+      const nx = d * (0.0046 * wS * (0.5 + 0.5 * NT.alaW)), ny = baseY + 0.0030;
+      const hz = skinAt(nx, ny) + heightAt(nx, ny) - 0.0003;
       const nostril = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), nostrilInnerMat);
       nostril.name = `nose_nostril_${k}`;
       nostril.position.set(nx, ny - 0.0002, hz - 0.0006);
-      nostril.scale.set(0.0026 * wS, 0.0010, 0.0036);
+      nostril.scale.set(0.0030 * wS * NT.alaSize, 0.0011, 0.0038 * NT.alaSize);
       nostril.rotation.set(-0.55, d * 0.30, 0);
       noseGroup.add(nostril);
     }
@@ -25898,6 +25952,7 @@ const CONFIG = {
   },
   cara: {
     feminine: 0.0,
+    noseType: 'recta',
     headWidth: 0.98,
     headHeight: 0.96,
     jawWidth: 1.00,
@@ -25973,7 +26028,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.14, waistWidth: 0.94, hipWidth: 0.96, chestDepth: 1.08, height: 1.02, neckWidth: 1.06, muscleDef: 0.62 },
     brazos: { length: 1.02, thickness: 1.06, bicepSize: 1.12, forearmSize: 1.06, handSize: 1.02 },
     piernas: { length: 1.02, thickness: 1.05, calfSize: 1.06, gluteSize: 1.0, footSize: 1.02 },
-    cara: { feminine: 0.0,
+    cara: { feminine: 0.0, noseType: 'recta',
       headWidth: 0.98,
       headHeight: 0.96,
       jawWidth: 1.04,
@@ -26027,6 +26082,7 @@ const ARCHETYPES = {
       lipThickness: 0.74,
       earSize: 0.92,
       feminine: 1.0,
+      noseType: 'recta',
       beardStyle: 'ninguna',
       beardLength: 0.0,
     },
@@ -26038,7 +26094,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.02, waistWidth: 1.02, hipWidth: 0.96, chestDepth: 0.98, height: 0.96, neckWidth: 0.95, muscleDef: 0.22 },
     brazos: { length: 0.98, thickness: 0.92, bicepSize: 0.86, forearmSize: 0.90, handSize: 1.02 },
     piernas: { length: 0.96, thickness: 0.92, calfSize: 0.90, gluteSize: 0.88, footSize: 1.0 },
-    cara: { feminine: 0.0,
+    cara: { feminine: 0.0, noseType: 'aguilena',
       headWidth: 0.96,
       headHeight: 0.94,
       jawWidth: 0.98,
@@ -26092,6 +26148,7 @@ const ARCHETYPES = {
       lipThickness: 0.42,
       earSize: 1.16,
       feminine: 0.75,
+      noseType: 'carnosa',
       beardStyle: 'ninguna',
       beardLength: 0.0,
     },
@@ -26103,7 +26160,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 0.82, waistWidth: 0.82, hipWidth: 0.84, chestDepth: 0.84, height: 0.76, neckWidth: 0.80, muscleDef: 0.04 },
     brazos: { length: 0.82, thickness: 0.78, bicepSize: 0.76, forearmSize: 0.76, handSize: 0.82 },
     piernas: { length: 0.78, thickness: 0.80, calfSize: 0.80, gluteSize: 0.85, footSize: 0.82 },
-    cara: { feminine: 0.0,
+    cara: { feminine: 0.0, noseType: 'boton',
       headWidth: 1.18,
       headHeight: 1.14,
       jawWidth: 0.74,
@@ -26157,6 +26214,7 @@ const ARCHETYPES = {
       lipThickness: 0.65,
       earSize: 0.94,
       feminine: 0.6,
+      noseType: 'boton',
       beardStyle: 'ninguna',
       beardLength: 0.0,
     },
@@ -26168,7 +26226,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.04, waistWidth: 0.92, hipWidth: 0.96, chestDepth: 1.00, height: 1.0, neckWidth: 0.98, muscleDef: 0.55 },
     brazos: { length: 1.0, thickness: 1.0, bicepSize: 1.05, forearmSize: 1.0, handSize: 1.0 },
     piernas: { length: 1.0, thickness: 1.02, calfSize: 1.02, gluteSize: 1.0, footSize: 1.0 },
-    cara: { feminine: 0.0,
+    cara: { feminine: 0.0, noseType: 'recta',
       headWidth: 0.94,
       headHeight: 0.78,
       jawWidth: 0.84,
@@ -26198,28 +26256,28 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.08, waistWidth: 0.92, hipWidth: 0.96, chestDepth: 1.04, height: 1.02, neckWidth: 1.02, muscleDef: 0.68 },
     brazos: { length: 1.0, thickness: 1.05, bicepSize: 1.12, forearmSize: 1.04, handSize: 1.0 },
     piernas: { length: 1.02, thickness: 1.06, calfSize: 1.08, gluteSize: 1.04, footSize: 1.0 },
-    cara: { feminine: 0.0, jawWidth: 1.04, chinLength: 1.0, chinY: 1.02, browRidge: 1.05, headWidth: 1.0, headHeight: 1.0 },
+    cara: { feminine: 0.0, noseType: 'recta', jawWidth: 1.04, chinLength: 1.0, chinY: 1.02, browRidge: 1.05, headWidth: 1.0, headHeight: 1.0 },
   },
   culturista: {
     label: 'Culturista',
     torso: { chestWidth: 1.32, waistWidth: 0.88, hipWidth: 0.98, chestDepth: 1.24, height: 1.0, neckWidth: 1.22, muscleDef: 0.96 },
     brazos: { length: 1.0, thickness: 1.32, bicepSize: 1.42, forearmSize: 1.25, handSize: 1.05 },
     piernas: { length: 1.0, thickness: 1.30, calfSize: 1.34, gluteSize: 1.22, footSize: 1.04 },
-    cara: { feminine: 0.0, jawWidth: 1.14, chinLength: 1.08, chinY: 1.05, browRidge: 1.15, headWidth: 1.04, headHeight: 0.98 },
+    cara: { feminine: 0.0, noseType: 'recta', jawWidth: 1.14, chinLength: 1.08, chinY: 1.05, browRidge: 1.15, headWidth: 1.04, headHeight: 0.98 },
   },
   esbelto: {
     label: 'Esbelto',
     torso: { chestWidth: 0.90, waistWidth: 0.82, hipWidth: 0.90, chestDepth: 0.88, height: 1.06, neckWidth: 0.88, muscleDef: 0.32 },
     brazos: { length: 1.05, thickness: 0.82, bicepSize: 0.85, forearmSize: 0.84, handSize: 0.95 },
     piernas: { length: 1.08, thickness: 0.86, calfSize: 0.88, gluteSize: 0.90, footSize: 0.96 },
-    cara: { feminine: 0.0, jawWidth: 0.90, chinLength: 0.96, chinY: 0.98, browRidge: 0.85, headWidth: 0.95, headHeight: 1.04 },
+    cara: { feminine: 0.0, noseType: 'recta', jawWidth: 0.90, chinLength: 0.96, chinY: 0.98, browRidge: 0.85, headWidth: 0.95, headHeight: 1.04 },
   },
   robusto: {
     label: 'Robusto',
     torso: { chestWidth: 1.26, waistWidth: 1.22, hipWidth: 1.18, chestDepth: 1.26, height: 0.96, neckWidth: 1.20, muscleDef: 0.48 },
     brazos: { length: 0.95, thickness: 1.26, bicepSize: 1.20, forearmSize: 1.22, handSize: 1.08 },
     piernas: { length: 0.94, thickness: 1.25, calfSize: 1.22, gluteSize: 1.18, footSize: 1.06 },
-    cara: { feminine: 0.0, jawWidth: 1.16, chinLength: 1.02, chinY: 0.96, browRidge: 1.10, headWidth: 1.08, headHeight: 0.96 },
+    cara: { feminine: 0.0, noseType: 'recta', jawWidth: 1.16, chinLength: 1.02, chinY: 0.96, browRidge: 1.10, headWidth: 1.08, headHeight: 0.96 },
   },
 };
 
@@ -26930,6 +26988,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.10, 1.24);
     CONFIG.cara.browRidge = rVal(1.10, 1.28);
     CONFIG.cara.noseLength = rVal(1.15, 1.32);
+    CONFIG.cara.noseType = pick(['aguilena','romana','carnosa','recta','ancha']);
     CONFIG.cara.noseWidth = rVal(1.04, 1.18);
     CONFIG.cara.earSize = rVal(1.18, 1.35);
     CONFIG.cara.lipWidth = rVal(0.88, 0.98);
@@ -26983,6 +27042,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.10, 1.20);
     CONFIG.cara.browRidge = rVal(0.70, 0.85);
     CONFIG.cara.noseLength = rVal(1.06, 1.22);
+    CONFIG.cara.noseType = pick(['carnosa','recta','aguilena','ancha']);
     CONFIG.cara.noseWidth = rVal(0.92, 1.04);
     CONFIG.cara.earSize = rVal(1.12, 1.26);
     CONFIG.cara.lipWidth = rVal(0.86, 0.96);
@@ -27033,6 +27093,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.05, 1.15);
     CONFIG.cara.browRidge = rVal(0.55, 0.68);
     CONFIG.cara.noseLength = rVal(0.76, 0.86);
+    CONFIG.cara.noseType = pick(['boton','respingona','ancha','recta']);
     CONFIG.cara.noseWidth = rVal(0.80, 0.90);
     CONFIG.cara.earSize = rVal(0.92, 1.04);
     CONFIG.cara.lipWidth = rVal(0.88, 0.98);
@@ -27089,6 +27150,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.06, 1.16);
     CONFIG.cara.browRidge = rVal(0.52, 0.65);
     CONFIG.cara.noseLength = rVal(0.74, 0.84);
+    CONFIG.cara.noseType = pick(['boton','respingona','recta']);
     CONFIG.cara.noseWidth = rVal(0.78, 0.88);
     CONFIG.cara.earSize = rVal(0.90, 1.02);
     CONFIG.cara.lipWidth = rVal(0.88, 0.98);
@@ -27144,6 +27206,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.14, 1.24);
     CONFIG.cara.browRidge = rVal(0.65, 0.78);
     CONFIG.cara.noseLength = rVal(0.88, 1.02);
+    CONFIG.cara.noseType = pick(['recta','respingona','fina','boton','ancha','carnosa']);
     CONFIG.cara.noseWidth = rVal(0.82, 0.94);
     CONFIG.cara.earSize = rVal(0.88, 0.98);
     CONFIG.cara.lipWidth = rVal(0.96, 1.10);
@@ -27200,6 +27263,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.02, 1.14);
     CONFIG.cara.browRidge = rVal(0.95, 1.18);
     CONFIG.cara.noseLength = rVal(1.08, 1.22);
+    CONFIG.cara.noseType = pick(['recta','ancha','romana','aguilena','carnosa']);
     CONFIG.cara.noseWidth = rVal(0.98, 1.12);
     CONFIG.cara.earSize = rVal(0.96, 1.08);
     CONFIG.cara.lipWidth = rVal(0.94, 1.06);
@@ -27251,6 +27315,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.chinY = rVal(1.00, 1.10);
     CONFIG.cara.browRidge = rVal(0.94, 1.06);
     CONFIG.cara.noseLength = rVal(1.28, 1.42);
+    CONFIG.cara.noseType = pick(['recta','ancha','romana','carnosa','respingona']);
     CONFIG.cara.noseWidth = rVal(0.94, 1.04);
     CONFIG.cara.lipWidth = rVal(0.95, 1.05);
     CONFIG.cara.lipThickness = rVal(0.50, 0.62);
@@ -27453,6 +27518,7 @@ function randomizeCharacter() {
   CONFIG.cara.eyeSpacing = rRange(0.88, 1.15);
   CONFIG.cara.noseLength = rRange(0.85, 1.20);
   CONFIG.cara.noseWidth = rRange(0.85, 1.20);
+  CONFIG.cara.noseType = Object.keys(NOSE_TYPES)[Math.floor(Math.random() * Object.keys(NOSE_TYPES).length)];
   CONFIG.cara.lipWidth = rRange(0.88, 1.18);
   CONFIG.cara.lipThickness = rRange(0.82, 1.25);
   CONFIG.cara.earSize = rRange(0.88, 1.16);
@@ -27592,6 +27658,8 @@ function resetCharacter() {
         labelName = labels[archetype] || archetype;
       }
 
+      const noseSelSync = document.getElementById('nose-type-select');
+      if (noseSelSync) noseSelSync.value = CH.CONFIG.cara.noseType || 'recta';
       mannequinRoot = CH.characterGroup;
       mannequinRoot.name = `CreadorHumano_${archetype}`;
       mannequinRoot.userData.isCreadorNative = true;
