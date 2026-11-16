@@ -19918,7 +19918,8 @@
         const CH = window.CreadorHumano; if (!CH) return;
         const a = document.createElement('a');
         a.download = 'plantilla_rostro_canon.png';
-        a.href = CH.drawFaceTemplateCanvas(true).toDataURL('image/png');
+        a.href = CH.drawFaceTemplateCanvas(true, CH.CONFIG.cara.feminine || 0).toDataURL('image/png');
+        a.download = (CH.CONFIG.cara.feminine || 0) > 0.5 ? 'plantilla_rostro_canon_mujer.png' : 'plantilla_rostro_canon_hombre.png';
         a.click();
         showToast('Plantilla descargada: pinta o alinea tu rostro sobre ella (512×600) y cárgala');
       });
@@ -19945,12 +19946,14 @@
         const isTemplate = img.naturalWidth === T.W && img.naturalHeight === T.H;
         // Anclajes iniciales: los de la plantilla, o una estimación centrada
         const iw = img.naturalWidth, ih = img.naturalHeight;
+        const NP = 7;
         let pts = isTemplate
-          ? [T.eyeL.slice(), T.eyeR.slice(), [T.cx, T.chinY]]
-          : [[iw * 0.40, ih * 0.42], [iw * 0.60, ih * 0.42], [iw * 0.5, ih * 0.78]];
-        const names = ['ojo izquierdo de la imagen', 'ojo derecho de la imagen', 'punta de la barbilla'];
-        const colors = ['#22d3ee', '#a78bfa', '#f59e0b'];
-        let step = isTemplate ? 3 : 0;
+          ? [T.eyeL.slice(), T.eyeR.slice(), [T.cx - 0.475 * T.Fpx, T.browY], [T.cx, T.noseY], T.mouthL.slice(), T.mouthR.slice(), [T.cx, T.chinY]]
+          : [[iw * 0.40, ih * 0.42], [iw * 0.60, ih * 0.42], [iw * 0.40, ih * 0.37], [iw * 0.5, ih * 0.58], [iw * 0.44, ih * 0.66], [iw * 0.56, ih * 0.66], [iw * 0.5, ih * 0.78]];
+        const names = ['centro del ojo izquierdo de la imagen', 'centro del ojo derecho de la imagen', 'centro de la ceja izquierda',
+          'base de la nariz (donde la nariz se une al labio)', 'comisura izquierda de la boca', 'comisura derecha de la boca', 'punta de la barbilla'];
+        const colors = ['#22d3ee', '#a78bfa', '#a3e635', '#f472b6', '#fb923c', '#facc15', '#f59e0b'];
+        let step = isTemplate ? NP : 0;
 
         const overlay = document.createElement('div');
         overlay.className = 'fixed inset-0 z-[100] bg-slate-950/80 flex items-center justify-center p-4';
@@ -19975,26 +19978,26 @@
         const draw = () => {
           ctx.drawImage(img, 0, 0, cv.width, cv.height);
           pts.forEach((p, i) => {
-            if (i >= step && step < 3) return;
+            if (i >= step && step < NP) return;
             ctx.strokeStyle = colors[i]; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(p[0] * sc, p[1] * sc, 7, 0, Math.PI * 2); ctx.stroke();
             ctx.beginPath(); ctx.moveTo(p[0] * sc - 11, p[1] * sc); ctx.lineTo(p[0] * sc + 11, p[1] * sc);
             ctx.moveTo(p[0] * sc, p[1] * sc - 11); ctx.lineTo(p[0] * sc, p[1] * sc + 11); ctx.stroke();
           });
-          if (step >= 3) {
-            // Vista previa de las guías del canon que resultarán
-            const ey = (pts[0][1] + pts[1][1]) / 2, F = (pts[2][1] - ey) / 1.75, cx = (pts[0][0] + pts[1][0]) / 2;
+          if (step >= NP) {
+            // Líneas de los rasgos marcados: el modelo 3D colocará cejas, ojos, nariz, boca y barbilla a esas alturas
+            const cx = (pts[0][0] + pts[1][0]) / 2, F = (pts[6][1] - (pts[0][1] + pts[1][1]) / 2) / 1.75;
             ctx.strokeStyle = 'rgba(239,68,68,0.7)'; ctx.lineWidth = 1;
-            for (const k of [-1.75, -1.25, -0.25, 0, 0.75, 1.25, 1.75]) {
-              ctx.beginPath(); ctx.moveTo((cx - 1.4 * F) * sc, (ey + k * F) * sc); ctx.lineTo((cx + 1.4 * F) * sc, (ey + k * F) * sc); ctx.stroke();
+            for (const y of [pts[2][1], (pts[0][1] + pts[1][1]) / 2, pts[3][1], (pts[4][1] + pts[5][1]) / 2, pts[6][1]]) {
+              ctx.beginPath(); ctx.moveTo((cx - 1.4 * F) * sc, y * sc); ctx.lineTo((cx + 1.4 * F) * sc, y * sc); ctx.stroke();
             }
           }
-          msg.innerHTML = step < 3
-            ? `Paso ${step + 1}/3: haz clic en el <b style="color:${colors[step]}">${names[step]}</b> (centro de la pupila${step === 2 ? '; aquí, el punto más bajo del mentón' : ''}).`
-            : (isTemplate ? 'Imagen con el tamaño de la plantilla: anclajes colocados automáticamente. ' : '') + 'Revisa las líneas rojas (cejas, ojos, nariz, boca, barbilla) y pulsa <b>Aplicar</b>.';
+          msg.innerHTML = step < NP
+            ? `Paso ${step + 1}/${NP}: haz clic en: <b style="color:${colors[step]}">${names[step]}</b>.`
+            : (isTemplate ? 'Imagen con el tamaño de la plantilla: puntos colocados automáticamente. ' : '') + 'Las cejas, ojos, nariz, boca y barbilla del modelo se colocarán en estas líneas. Pulsa <b>Aplicar</b>.';
         };
         cv.addEventListener('click', (ev) => {
-          if (step >= 3) return;
+          if (step >= NP) return;
           const r = cv.getBoundingClientRect();
           pts[step] = [(ev.clientX - r.left) * (cv.width / r.width) / sc, (ev.clientY - r.top) * (cv.height / r.height) / sc];
           step++; draw();
@@ -20002,8 +20005,8 @@
         overlay.querySelector('#fa-reset').onclick = () => { step = 0; draw(); };
         overlay.querySelector('#fa-cancel').onclick = () => overlay.remove();
         overlay.querySelector('#fa-apply').onclick = () => {
-          if (step < 3) { showToast('Marca primero los 3 puntos'); return; }
-          if (pts[2][1] <= (pts[0][1] + pts[1][1]) / 2 + 4) { showToast('La barbilla debe estar por debajo de los ojos'); return; }
+          if (step < NP) { showToast('Marca primero los ' + NP + ' puntos'); return; }
+          if (pts[6][1] <= (pts[0][1] + pts[1][1]) / 2 + 4) { showToast('La barbilla debe estar por debajo de los ojos'); return; }
           const key = CH.createFaceTextureFromImage(img, pts, label || 'Textura cargada');
           if (faceTexSel) {
             const opt = document.createElement('option');
@@ -21439,26 +21442,14 @@ function getFaceCanon(caraCfg = {}) {
   // Rasgo femenino (0 = neutro, 1 = rostro femenino estilizado): ojos algo mayores, mandíbula en V, nariz pequeña…
   const fem = Math.max(0, Math.min(1, caraCfg.feminine ?? 0));
   const eyeR = 0.213 * F * eyeSizeK * (1 + 0.08 * fem);
-  let eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
-  let eyeRf = eyeR, eyeSizeKf = eyeSizeK;
-  // Con una textura de rostro activa, los ojos 3D toman la separación y el tamaño de los ojos de la imagen
-  const ftDef = (caraCfg.faceTexture && typeof getFaceTextureDef === 'function') ? getFaceTextureDef(caraCfg.faceTexture) : null;
-  if (ftDef) {
-    const ePx = (ftDef.eyeL[1] + ftDef.eyeR[1]) * 0.5;
-    const Fpx = (ftDef.chinY - ePx) / (C.levels.G - C.levels.D);
-    eyeX = ((ftDef.eyeR[0] - ftDef.eyeL[0]) * 0.5 / Fpx) * F;
-    eyeRf = (ftDef.eyeWidth / Fpx) * F / (2 * 1.075 * Math.sin(1.10));
-    eyeSizeKf = eyeRf / (0.213 * F);
-  }
   const eyeY = lv('D') + eyeYDev;
-  const noseBaseY = lv('E') - noseDev;
-  const noseRootY = eyeY + 0.04 * F;
-
-  return {
+  const res = {
     F,
-    topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY, noseBaseY, noseRootY,
+    topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY,
+    noseBaseY: lv('E') - noseDev, noseRootY: eyeY + 0.04 * F,
     mouthY: lv('stomion'), lowerLipY: lv('F'), chinY: lv('G'),
-    eyeX, eyeR: eyeRf, eyeSizeK: eyeSizeKf, fem,
+    eyeX: C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing)),
+    eyeR, eyeSizeK, fem,
     noseAlaHalf: 0.5 * C.widths.nose * F * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
     noseWidthScale: 1 + clamp(dev('noseWidth'), C.maxDev.noseWidth),
     mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
@@ -21467,6 +21458,35 @@ function getFaceCanon(caraCfg = {}) {
     earZ: -0.026,
     chinElev: clamp((caraCfg.chinY ?? C.neutral.chinY) - 1.0, C.maxDev.chinY),
   };
+
+  // Con una textura de rostro activa, los rasgos 3D se colocan donde están en la imagen: ojos (separación y
+  // tamaño), cejas, base de la nariz, boca (altura y anchura entre comisuras). La línea de los ojos (D) y la
+  // barbilla (G) son los anclajes de la proyección; el resto se mide en módulos F de la imagen (acotado).
+  const ftDef = (caraCfg.faceTexture && typeof getFaceTextureDef === 'function') ? getFaceTextureDef(caraCfg.faceTexture, caraCfg) : null;
+  if (ftDef) {
+    const rng = (v, a, b) => Math.max(a, Math.min(b, v));
+    const ePx = (ftDef.eyeL[1] + ftDef.eyeR[1]) * 0.5;
+    const Fpx = (ftDef.chinY - ePx) / (C.levels.G - C.levels.D);
+    const below = (py) => (py - ePx) / Fpx;   // distancia bajo la línea de los ojos, en F
+    res.eyeX = rng((ftDef.eyeR[0] - ftDef.eyeL[0]) * 0.5 / Fpx, 0.38, 0.70) * F;
+    res.eyeR = rng((ftDef.eyeWidth / Fpx) / (2 * 1.075 * Math.sin(1.10)), 0.17, 0.36) * F;
+    res.eyeSizeK = res.eyeR / (0.213 * F);
+    if (ftDef.browY != null) res.browY = eyeY + rng(-below(ftDef.browY), 0.12, 0.45) * F;
+    if (ftDef.noseY != null) res.noseBaseY = eyeY - rng(below(ftDef.noseY), 0.55, 0.98) * F;
+    if (ftDef.mouthL && ftDef.mouthR) {
+      res.mouthY = eyeY - rng(below((ftDef.mouthL[1] + ftDef.mouthR[1]) * 0.5), res.noseBaseY < eyeY ? (eyeY - res.noseBaseY) / F + 0.22 : 0.95, 1.50) * F;
+      res.lowerLipY = res.mouthY - 0.13 * F;
+      const mw = rng(Math.hypot(ftDef.mouthR[0] - ftDef.mouthL[0], ftDef.mouthR[1] - ftDef.mouthL[1]) / Fpx, 0.5, 1.05);
+      res.mouthScaleX = mw * F / C.base.mouth;
+    }
+    res.earY = (res.browY + res.noseBaseY) * 0.5;
+    // Nariz: aletas ≈ 85 % de la separación entre lagrimales de la imagen (canon: ancho nariz ≈ espacio entre ojos)
+    const innerGap = Math.max(0, (ftDef.eyeR[0] - ftDef.eyeL[0]) - ftDef.eyeWidth) / Fpx;
+    res.noseAlaHalf = rng(0.5 * 0.85 * innerGap, 0.16, 0.30) * F;
+    // Párpados algo más cerrados: el párpado superior cubre el borde alto del iris como en las ilustraciones
+    res.lidOpen = 0.84;
+  }
+  return res;
 }
 
 /**
@@ -21709,10 +21729,13 @@ function createProceduralFaceSkinMaterial(skinColorHex = "#d99e82") {
 const FACE_TEMPLATE = (() => {
   const W = 512, H = 600, Fpx = 120, cx = 256, topY = 40;
   const eyeY = topY + 1.75 * Fpx, chinY = topY + 3.5 * Fpx;
+  const lv = (k) => topY + k * Fpx;
   return {
     W, H, Fpx, cx, topY, eyeY, chinY,
     eyeL: [cx - 0.475 * Fpx, eyeY], eyeR: [cx + 0.475 * Fpx, eyeY],
     eyeWidth: 0.44 * Fpx,
+    browY: lv(1.5), noseY: lv(2.5),
+    mouthL: [cx - 0.35 * Fpx, lv(2.87)], mouthR: [cx + 0.35 * Fpx, lv(2.87)],
   };
 })();
 
@@ -21722,17 +21745,18 @@ const FACE_MASK_POLY_F = (() => {
   return half.concat(half.slice(1, -1).reverse().map(([x, y]) => [-x, y]));
 })();
 
-function _traceFaceMask(ctx, cx, cy, Fpx) {
+function _traceFaceMask(ctx, cx, cy, Fpx, fem = 0) {
   ctx.beginPath();
   FACE_MASK_POLY_F.forEach(([x, y], i) => {
-    const px = cx + x * Fpx, py = cy + y * Fpx;
+    const jaw = Math.max(0, Math.min(1, (y - 0.4) / 1.2));
+    const px = cx + x * (1 - 0.06 * fem * jaw) * Fpx, py = cy + y * Fpx;
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   });
   ctx.closePath();
 }
 
 /** Dibuja el maniquí/plantilla del canon. withBackground=false deja transparente fuera de la cara. */
-function drawFaceTemplateCanvas(withBackground = true) {
+function drawFaceTemplateCanvas(withBackground = true, fem = 0) {
   const T = FACE_TEMPLATE;
   const c = document.createElement('canvas'); c.width = T.W; c.height = T.H;
   const ctx = c.getContext('2d');
@@ -21741,9 +21765,9 @@ function drawFaceTemplateCanvas(withBackground = true) {
   if (withBackground) { ctx.fillStyle = '#f4efe6'; ctx.fillRect(0, 0, T.W, T.H); }
   // Piel neutra del maniquí
   ctx.save();
-  _traceFaceMask(ctx, cx, ey, F);
+  _traceFaceMask(ctx, cx, ey, F, fem);
   const g = ctx.createRadialGradient(cx, ey + 0.3 * F, 0.2 * F, cx, ey + 0.3 * F, 1.9 * F);
-  g.addColorStop(0, '#e2cdb9'); g.addColorStop(1, '#c9ae97');
+  g.addColorStop(0, fem > 0.5 ? '#ecd6c6' : '#e2cdb9'); g.addColorStop(1, fem > 0.5 ? '#d6b6a2' : '#c9ae97');
   ctx.fillStyle = g; ctx.fill();
   ctx.restore();
   // Guías del canon
@@ -21761,30 +21785,62 @@ function drawFaceTemplateCanvas(withBackground = true) {
     ctx.beginPath(); ctx.moveTo(cx + fx * F, lv(0.3)); ctx.lineTo(cx + fx * F, lv(3.6)); ctx.stroke();
   }
   ctx.setLineDash([]);
-  // Rasgos: cejas, ojos, nariz y boca en sus posiciones canónicas
-  ctx.strokeStyle = '#5b4334'; ctx.lineWidth = 2.5;
-  for (const s of [-1, 1]) {
-    const ex = cx + s * 0.475 * F, w = 0.22 * F;
-    ctx.beginPath(); ctx.moveTo(ex - s * 0.24 * F, lv(1.52)); ctx.quadraticCurveTo(ex + s * 0.02 * F, lv(1.36), ex + s * 0.30 * F, lv(1.50)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ex - w, ey); ctx.quadraticCurveTo(ex, ey - 0.17 * F, ex + w, ey); ctx.quadraticCurveTo(ex, ey + 0.14 * F, ex - w, ey); ctx.stroke();
-    ctx.beginPath(); ctx.arc(ex, ey, 0.085 * F, 0, Math.PI * 2); ctx.stroke();
+  // Rasgos: cejas, ojos, nariz y boca en sus posiciones canónicas (masculinos o femeninos)
+  const ink = '#5b4334';
+  for (const sd of [-1, 1]) {
+    const ex = cx + sd * 0.475 * F, w = 0.22 * F;
+    // Cejas: rectas y gruesas (hombre) / finas y arqueadas (mujer)
+    ctx.strokeStyle = ink; ctx.lineCap = 'round';
+    ctx.lineWidth = fem > 0.5 ? 2.5 : 5.5;
+    ctx.beginPath();
+    ctx.moveTo(ex - sd * 0.24 * F, lv(1.53));
+    ctx.quadraticCurveTo(ex + sd * 0.05 * F, lv(fem > 0.5 ? 1.30 : 1.42), ex + sd * 0.31 * F, lv(fem > 0.5 ? 1.50 : 1.47));
+    ctx.stroke();
+    // Ojo almendrado (canto externo elevado y delineado en ala en la mujer)
+    const lift = fem * 0.05 * F;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(ex - sd * w, ey + lift * 0.3);
+    ctx.quadraticCurveTo(ex - sd * 0.05 * F, ey - 0.17 * F, ex + sd * w, ey - lift);
+    ctx.quadraticCurveTo(ex, ey + 0.14 * F, ex - sd * w, ey + lift * 0.3); ctx.stroke();
+    if (fem > 0.5) {
+      ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.moveTo(ex - sd * 0.12 * F, ey - 0.12 * F); ctx.quadraticCurveTo(ex + sd * 0.12 * F, ey - 0.12 * F, ex + sd * w, ey - lift);
+      ctx.lineTo(ex + sd * (w + 0.08 * F), ey - lift - 0.05 * F); ctx.stroke();
+    }
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(ex, ey, (fem > 0.5 ? 0.095 : 0.085) * F, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(70,50,40,0.85)'; ctx.beginPath(); ctx.arc(ex, ey, 0.035 * F, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(cx - 0.08 * F, lv(1.85)); ctx.lineTo(cx - 0.12 * F, lv(2.38)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx - 0.21 * F, lv(2.42)); ctx.quadraticCurveTo(cx, lv(2.6), cx + 0.21 * F, lv(2.42)); ctx.stroke();
-  const my = lv(2.87);
-  ctx.beginPath(); ctx.moveTo(cx - 0.35 * F, my); ctx.quadraticCurveTo(cx, my + 0.03 * F, cx + 0.35 * F, my); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx - 0.35 * F, my); ctx.quadraticCurveTo(cx - 0.12 * F, my - 0.16 * F, cx, my - 0.1 * F); ctx.quadraticCurveTo(cx + 0.12 * F, my - 0.16 * F, cx + 0.35 * F, my); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx - 0.33 * F, my + 0.01 * F); ctx.quadraticCurveTo(cx, my + 0.24 * F, cx + 0.33 * F, my + 0.01 * F); ctx.stroke();
+  // Nariz (más ancha y marcada en el hombre)
+  const nW = (fem > 0.5 ? 0.19 : 0.23) * F;
+  ctx.lineWidth = 2; ctx.strokeStyle = ink;
+  ctx.beginPath(); ctx.moveTo(cx - 0.08 * F, lv(1.85)); ctx.lineTo(cx - 0.11 * F, lv(2.36)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - nW, lv(2.42)); ctx.quadraticCurveTo(cx - nW * 0.5, lv(2.56), cx, lv(2.5));
+  ctx.quadraticCurveTo(cx + nW * 0.5, lv(2.56), cx + nW, lv(2.42)); ctx.stroke();
+  // Boca: labios más carnosos y arco de Cupido marcado en la mujer
+  const my = lv(2.87), mw = 0.35 * F, up = (fem > 0.5 ? 0.17 : 0.11) * F, lo = (fem > 0.5 ? 0.25 : 0.17) * F;
+  if (fem > 0.5) { ctx.fillStyle = 'rgba(196,96,104,0.35)'; }
+  ctx.beginPath(); ctx.moveTo(cx - mw, my);
+  ctx.quadraticCurveTo(cx - 0.14 * F, my - up, cx - 0.05 * F, my - up * 0.95); ctx.quadraticCurveTo(cx, my - up * 0.6, cx + 0.05 * F, my - up * 0.95);
+  ctx.quadraticCurveTo(cx + 0.14 * F, my - up, cx + mw, my);
+  ctx.quadraticCurveTo(cx, my + lo, cx - mw, my);
+  if (fem > 0.5) ctx.fill();
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - mw, my); ctx.quadraticCurveTo(cx, my + 0.03 * F, cx + mw, my); ctx.stroke();
+  // Hombre: sombra de la mandíbula y del mentón
+  if (fem <= 0.5) {
+    ctx.strokeStyle = 'rgba(91,67,52,0.45)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - 0.2 * F, lv(3.32)); ctx.quadraticCurveTo(cx, lv(3.4), cx + 0.2 * F, lv(3.32)); ctx.stroke();
+  }
   // Contorno
   ctx.strokeStyle = 'rgba(90,60,45,0.8)'; ctx.lineWidth = 2;
-  _traceFaceMask(ctx, cx, ey, F); ctx.stroke();
+  _traceFaceMask(ctx, cx, ey, F, fem); ctx.stroke();
   if (!withBackground) {
     // Borde suave hacia la piel del modelo
     ctx.globalCompositeOperation = 'destination-in';
     const m = document.createElement('canvas'); m.width = T.W; m.height = T.H;
     const mc = m.getContext('2d');
-    mc.filter = 'blur(6px)'; mc.fillStyle = '#fff'; _traceFaceMask(mc, cx, ey, F * 0.97); mc.fill();
+    mc.filter = 'blur(6px)'; mc.fillStyle = '#fff'; _traceFaceMask(mc, cx, ey, F * 0.97, fem); mc.fill();
     ctx.drawImage(m, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -21796,7 +21852,9 @@ function drawFaceTemplateCanvas(withBackground = true) {
  * recorta alrededor de la cara, aplica la máscara facial con borde suave y la registra.
  */
 function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
-  const [eL, eR, chin] = anchors;
+  // anclajes: [ojoIzq, ojoDer, ceja, baseNariz, comisuraIzq, comisuraDer, barbilla] (o [ojoIzq, ojoDer, barbilla])
+  const full = anchors.length >= 7;
+  const eL = anchors[0], eR = anchors[1], chin = anchors[full ? 6 : 2];
   const eyeYpx = (eL[1] + eR[1]) * 0.5;
   const Fpx = Math.max(4, (chin[1] - eyeYpx) / 1.75);
   const cxPx = (eL[0] + eR[0]) * 0.5;
@@ -21822,6 +21880,12 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
     eyeL: tr(eL), eyeR: tr(eR), chinY: tr(chin)[1],
     eyeWidth: 0.46 * Math.hypot(eR[0] - eL[0], eR[1] - eL[1]) * scale,
   };
+  if (full) {
+    FACE_TEXTURES[key].browY = tr(anchors[2])[1];
+    FACE_TEXTURES[key].noseY = tr(anchors[3])[1];
+    FACE_TEXTURES[key].mouthL = tr(anchors[4]);
+    FACE_TEXTURES[key].mouthR = tr(anchors[5]);
+  }
   return key;
 }
 
@@ -21835,18 +21899,27 @@ const FACE_TEXTURES = {
     eyeR: [262, 166],
     chinY: 369.5,
     eyeWidth: 64,
+    browY: 137, noseY: 252,
+    mouthL: [152, 297], mouthR: [236, 297],
   },
 };
 const _FACE_TEX_CACHE = {};
 
-function getFaceTextureDef(key) {
+function getFaceTextureDef(key, caraCfg = null) {
   if (!key) return null;
-  if (key === 'maniqui' && !FACE_TEXTURES.maniqui) {
-    const T = FACE_TEMPLATE;
-    FACE_TEXTURES.maniqui = {
-      label: 'Maniquí (guía del canon)', url: drawFaceTemplateCanvas(false).toDataURL('image/png'),
-      size: [T.W, T.H], eyeL: T.eyeL, eyeR: T.eyeR, chinY: T.chinY, eyeWidth: T.eyeWidth,
-    };
+  if (key === 'maniqui') {
+    // El maniquí se dibuja con rasgos masculinos o femeninos según el personaje
+    const fem = Math.round(Math.max(0, Math.min(1, (caraCfg && caraCfg.feminine) || 0)) * 4) / 4;
+    const mk = 'maniqui_' + fem;
+    if (!FACE_TEXTURES[mk]) {
+      const T = FACE_TEMPLATE;
+      FACE_TEXTURES[mk] = {
+        label: 'Maniquí (guía del canon)', url: drawFaceTemplateCanvas(false, fem).toDataURL('image/png'),
+        size: [T.W, T.H], eyeL: T.eyeL, eyeR: T.eyeR, chinY: T.chinY, eyeWidth: T.eyeWidth,
+        browY: T.browY, noseY: T.noseY, mouthL: T.mouthL, mouthR: T.mouthR,
+      };
+    }
+    return FACE_TEXTURES[mk];
   }
   return FACE_TEXTURES[key] || null;
 }
@@ -21959,12 +22032,12 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const fem = canon.fem;
   const faceW = makeProfile([
     [CY, 1.0],
-    [canon.noseBaseY, 0.93 - 0.025 * fem],
-    [gonionY, (0.83 - 0.085 * fem) * jwF],
-    [canon.lowerLipY, (0.72 - 0.11 * fem) * jwF],
-    [(canon.lowerLipY + chinLowY) * 0.5, 0.56 - 0.09 * fem],
-    [chinLowY + 0.004, 0.36 - 0.06 * fem],
-    [chinLowY, 0.30 - 0.04 * fem],
+    [canon.noseBaseY, 0.93 - 0.015 * fem],
+    [gonionY, (0.83 - 0.045 * fem) * jwF],
+    [canon.lowerLipY, (0.72 - 0.055 * fem) * jwF],
+    [(canon.lowerLipY + chinLowY) * 0.5, 0.56 - 0.04 * fem],
+    [chinLowY + 0.004, 0.36 - 0.02 * fem],
+    [chinLowY, 0.30 - 0.01 * fem],
   ]);
   // Perfil frontal (profundidad relativa a la máxima del cráneo)
   const faceZ = makeProfile([
@@ -22261,8 +22334,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const openF = clampV(0.55 + 0.45 * eyeOpen, 0.4, 1.25);
   const lidAw = clampV(1.10 * Math.sqrt(scW) * (0.88 + 0.12 * eyeAspect), 1.0, 1.40);
   const lidHScale = (scH / 0.92) * clampV(eyeSquash, 0.7, 1.3) * openF;
-  const lidHu = 0.42 * lidHScale * (1 - 0.06 * canon.fem);           // el párpado superior tapa el borde alto del iris
-  const lidHl = 0.47 * lidHScale * (1 - 0.06 * canon.fem);           // el inferior roza el borde bajo del iris
+  const lidHu = 0.42 * lidHScale * (1 - 0.06 * canon.fem) * (canon.lidOpen || 1);           // el párpado superior tapa el borde alto del iris
+  const lidHl = 0.47 * lidHScale * (1 - 0.06 * canon.fem) * (0.5 + 0.5 * (canon.lidOpen || 1));           // el inferior roza el borde bajo del iris
   const lidPu = isGoku ? 0.22 : (isFish ? 0.9 : 0.55);
   const lidPl = isFish ? 0.9 : (isGoku ? 0.6 : 0.78);
   const irisAng = clampV(0.47 * (eyeTypeData.irisRadius / 0.0095) * (1 + 0.14 * canon.fem), 0.36, 0.62);
@@ -22452,13 +22525,13 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   noseGroup.name = 'nose';
   {
     const F = canon.F;
-    const wS = canon.noseWidthScale * (1 - 0.16 * canon.fem);
+    const wS = canon.noseWidthScale * (1 - 0.08 * canon.fem);
     const rootY = canon.noseRootY, baseY = canon.noseBaseY;
     const L = rootY - baseY;
-    const proj = 0.30 * F * (1 - 0.14 * canon.fem);   // proyección de la punta (≈ F/3 en el perfil del canon)
+    const proj = 0.30 * F * (1 - 0.08 * canon.fem);   // proyección de la punta (≈ F/3 en el perfil del canon)
     const tipY = baseY + (0.20 + 0.05 * canon.fem) * L; // punta algo respingona en rostros femeninos
     const tTip = (rootY - tipY) / L;
-    const alaHalf = canon.noseAlaHalf * (1 - 0.14 * canon.fem);
+    const alaHalf = canon.noseAlaHalf * (1 - 0.07 * canon.fem);
     const alaRx = 0.0068 * wS, alaRy = 0.0072, alaX = alaHalf - alaRx * 0.95, alaY = baseY + 0.0052;
     const tipRx = 0.0090 * wS, tipRy = 0.0082;
     const smax = (a, b, k) => { const h = clampV(0.5 + 0.5 * (a - b) / k, 0, 1); return b + (a - b) * h + k * h * (1 - h); };
@@ -22698,7 +22771,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   headGroup.add(beardGroup);
 
   // 7. Textura de rostro de referencia (prueba), proyectada en frontal y alineada con el canon
-  const faceTexDef = getFaceTextureDef(caraCfg.faceTexture);
+  const faceTexDef = getFaceTextureDef(caraCfg.faceTexture, caraCfg);
   if (faceTexDef) applyFaceReferenceTexture(headGroup, canon, faceTexDef);
 
   return headGroup;
