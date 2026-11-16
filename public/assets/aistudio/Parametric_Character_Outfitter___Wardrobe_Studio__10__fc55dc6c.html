@@ -477,6 +477,14 @@
               <span>🎀 Coleta Alta Heroica</span>
               <span class="text-[8px] text-slate-400 font-normal">Recogido + Mechones Sienes</span>
             </button>
+            <button data-cut="raya_medio_lisa" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>〰️ Raya al Medio Lisa</span>
+              <span class="text-[8px] text-slate-400 font-normal">Melena Enmarcando el Rostro</span>
+            </button>
+            <button data-cut="trenzas_laterales" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🪢 Trenzas Laterales</span>
+              <span class="text-[8px] text-slate-400 font-normal">Raya al Medio + Corona Trenzada</span>
+            </button>
           </div>
         </div>
 
@@ -17530,6 +17538,30 @@
         widthScale: 1.10,
         helical3D: 0.35,
         inwardTip: 0.15
+      },
+      raya_medio_lisa: {
+        name: 'Melena Lisa con Raya al Medio',
+        length: 2.10,
+        curl: 0.06,
+        crossCenter: 0.0,
+        volume: 1.0,
+        bangs: 0.0,
+        density: 1.60,
+        widthScale: 1.12,
+        helical3D: 0.05,
+        inwardTip: 0.08
+      },
+      trenzas_laterales: {
+        name: 'Trenzas Laterales + Raya al Medio',
+        length: 2.00,
+        curl: 0.08,
+        crossCenter: 0.0,
+        volume: 1.0,
+        bangs: 0.0,
+        density: 1.55,
+        widthScale: 1.12,
+        helical3D: 0.05,
+        inwardTip: 0.08
       }
     };
 
@@ -17953,7 +17985,9 @@
       // controladas por bangsFactor, y NUNCA incluye los mechones largos de la coronilla superior
       const maxBangHalfWidth = 0.054 * Math.min(1.0, 0.35 + bangsFactor * 0.65);
       const bangSeedQuota = 0.32 + 0.52 * Math.min(1.0, bangsFactor);
-      const allowBangsForCut = (cutStyle !== 'cresta_vikinga') && (cutStyle !== 'coleta_alta' || bangsFactor > 0.25);
+      // Peinados con raya al medio: sin flequillo y cada mechón peinado hacia su lado, sin cruzar la línea central
+      const isPartStyle = (cutStyle === 'raya_medio_lisa' || cutStyle === 'trenzas_laterales');
+      const allowBangsForCut = !isPartStyle && (cutStyle !== 'cresta_vikinga') && (cutStyle !== 'coleta_alta' || bangsFactor > 0.25);
       const isBangStrand = isFrontHairlineRim &&
         allowBangsForCut &&
         (bangsFactor > 0.06) &&
@@ -17965,13 +17999,20 @@
       if (anchor.isCrownBridge && !isFrontHairlineRim && absX < 0.010) {
         partingSign = anchor.crossDir;
       }
+      if (isPartStyle) partingSign = absX > 0.0015 ? Math.sign(rootPos.x) : anchor.crossDir;
 
       // Raíz anclada limpiamente sobre la superficie del cuero cabelludo
       const startPt = rootPos.clone().addScaledVector(rootNorm, 0.0010);
       points.push(startPt);
 
       let lateralDirX = 0;
-      if (cutStyle === 'cresta_vikinga') {
+      if (isPartStyle && !isAnteriorScalp && rootPos.z < -0.03) {
+        // Nuca: la raya no continúa por detrás; el pelo cae cerrado hacia abajo
+        lateralDirX = rootNorm.x * 0.22 + anchor.weaveAngle * 0.04;
+      } else if (isPartStyle && (isAnteriorScalp || anchor.isCrownBridge || absX < 0.060)) {
+        // Desde la raya hacia su lado: más lateral cuanto más cerca de la raya, para dejarla limpia y visible
+        lateralDirX = partingSign * (0.70 + 0.55 * (1.0 - Math.min(1.0, absX / 0.090)));
+      } else if (cutStyle === 'cresta_vikinga') {
         lateralDirX = -rootPos.x * 2.6 * crossStrength + anchor.crossDir * 0.28 * crossStrength;
       } else if (isBangStrand) {
         // El flequillo cae sobre la frente con un suave barrido asimétrico / desfilado en cortina ligera
@@ -18040,6 +18081,10 @@
         backwardBias = -0.28;
       }
 
+      // Trenzas laterales: el pelo suelto de los lados se recoge por detrás de las orejas (las trenzas quedan delante)
+      const tuckBehindEars = (cutStyle === 'trenzas_laterales') && !isBangStrand && absX > 0.055 && rootPos.y < 0.215;
+      if (tuckBehindEars) backwardBias = -0.70;
+
       // Vector de flujo inicial proyectado sobre el semiespacio EXTERIOR de la normal folicular
       const zNormalWeight = isBangStrand ? 0.26 : (isAnteriorScalp ? 0.08 : 0.34);
       const rawExitDir = new THREE.Vector3(
@@ -18068,7 +18113,7 @@
 
         // Caída rápida por gravedad en cuanto el pelo ha salido limpiamente del folículo
         let gravityFactor = 2.35;
-        if (cutStyle === 'largo_lacio' || cutStyle === 'bob_flequillo') gravityFactor = 2.65;
+        if (cutStyle === 'largo_lacio' || cutStyle === 'bob_flequillo' || isPartStyle) gravityFactor = 2.65;
         else if (cutStyle === 'afro_rizo') gravityFactor = 0.42;
         else if (cutStyle === 'cresta_vikinga' && absX <= 0.058) gravityFactor = 0.08;
         else if (cutStyle === 'corto_guerrero') gravityFactor = 1.55;
@@ -18100,6 +18145,9 @@
         if (cutStyle === 'cresta_vikinga') {
           segDir.y += 1.45 * (1.0 - frac * 0.35);
           segDir.x += (-currentPos.x * 1.4);
+        }
+        if (tuckBehindEars && currentPos.z > -0.07) {
+          segDir.z -= 1.10 * Math.min(1.0, frac * 2.2);
         }
 
         // Apertura automática en cortina (Curtain Parting) en el hemisferio frontal para que jamás caiga sobre la cara
@@ -18175,6 +18223,146 @@
       points.isBangStrand = isBangStrand;
       points.partingSign = partingSign;
       return points;
+    }
+
+    /* =========================================================================
+       TRENZAS: tres cabos entrelazados a lo largo de una curva (patrón clásico de trenza de 3:
+       desplazamiento lateral sin(t+φ) y en profundidad sin(2(t+φ))/2), con el mismo shader anisótropo
+       y color del pelo. Se usan para las trenzas colgantes laterales y las de corona.
+       ========================================================================= */
+    function buildBraidGroup(pathPts, opts = {}) {
+      const group = new THREE.Group();
+      const curve = new THREE.CatmullRomCurve3(pathPts, false, 'centripetal');
+      const L = curve.getLength();
+      const n = Math.max(48, Math.round(L / 0.0018));
+      const width = opts.width || 0.026;            // anchura total de la trenza
+      const r = opts.strandRadius || width * 0.30;  // radio de cada cabo
+      const A = width * 0.5 - r * 0.35;
+      const turns = opts.turns || Math.max(3, Math.round(L / (width * 0.62)));
+      const outAt = opts.outFn || ((p) => new THREE.Vector3(p.x, 0, p.z + 0.01).normalize());
+      const taperEnd = opts.taperEnd ?? 0.30;
+      const seed = opts.seed || 0.5;
+      const mat = createAnisotropicHairShader(false, 0.0);
+      const P = new THREE.Vector3(), T = new THREE.Vector3();
+      for (let k = 0; k < 3; k++) {
+        const phi = k * Math.PI * 2 / 3;
+        const pts = [], ts = [];
+        for (let i = 0; i <= n; i++) {
+          const u = i / n;
+          curve.getPointAt(u, P); curve.getTangentAt(u, T);
+          const out = outAt(P);
+          const side = new THREE.Vector3().crossVectors(T, out).normalize();
+          const outO = new THREE.Vector3().crossVectors(side, T).normalize();
+          const t = u * turns * Math.PI * 2 + phi;
+          const taper = 1.0 - taperEnd * THREE.MathUtils.smoothstep(u, 0.55, 1.0);
+          pts.push(P.clone().addScaledVector(side, Math.sin(t) * A * taper).addScaledVector(outO, Math.sin(2 * t) * A * 0.42 * taper));
+          ts.push(t);
+        }
+        const strandCurve = new THREE.CatmullRomCurve3(pts);
+        const radial = 8;
+        const geo = new THREE.TubeGeometry(strandCurve, n, r, radial, false);
+        const pos = geo.attributes.position;
+        const uvs = new Float32Array(pos.count * 2), tan = new Float32Array(pos.count * 3), sd = new Float32Array(pos.count * 2);
+        const c = new THREE.Vector3(), tg = new THREE.Vector3();
+        for (let i = 0; i <= n; i++) {
+          const u = i / n;
+          strandCurve.getPointAt(u, c); strandCurve.getTangentAt(u, tg);
+          // Lóbulos de la trenza: cada cabo se ensancha donde queda por encima y se estrecha al cruzar
+          const lobe = (0.86 + 0.20 * Math.max(0, Math.sin(2 * ts[i]))) * (1.0 - 0.30 * THREE.MathUtils.smoothstep(u, 0.6, 1.0));
+          for (let j = 0; j <= radial; j++) {
+            const vi = i * (radial + 1) + j;
+            pos.setXYZ(vi, c.x + (pos.getX(vi) - c.x) * lobe, c.y + (pos.getY(vi) - c.y) * lobe, c.z + (pos.getZ(vi) - c.z) * lobe);
+            uvs[vi * 2] = j / radial; uvs[vi * 2 + 1] = 0.22 + 0.55 * u;
+            tan[vi * 3] = tg.x; tan[vi * 3 + 1] = tg.y; tan[vi * 3 + 2] = tg.z;
+            sd[vi * 2] = 0.92; sd[vi * 2 + 1] = (seed + k * 0.31) % 1;
+          }
+        }
+        geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        geo.setAttribute('aTangent', new THREE.BufferAttribute(tan, 3));
+        geo.setAttribute('aStrandData', new THREE.BufferAttribute(sd, 2));
+        geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, mat);
+        m.name = 'HairBraid_Strand';
+        m.castShadow = false;
+        group.add(m);
+      }
+      // Remate: anilla metálica y borla de mechones sueltos
+      if (opts.tie) {
+        curve.getPointAt(1, P); curve.getTangentAt(1, T);
+        const tieMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, metalness: 0.85, roughness: 0.28 });
+        const tie = new THREE.Mesh(new THREE.CylinderGeometry(width * 0.36, width * 0.36, width * 0.42, 16), tieMat);
+        tie.position.copy(P);
+        tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), T.clone().normalize());
+        tie.name = 'HairBraid_Tie';
+        group.add(tie);
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(width * 0.10, 0), new THREE.MeshStandardMaterial({ color: 0x2f5bd3, metalness: 0.3, roughness: 0.15, emissive: 0x0b1a4a }));
+        const outE = outAt(P);
+        gem.position.copy(P).addScaledVector(outE, width * 0.37);
+        gem.name = 'HairBraid_Gem';
+        group.add(gem);
+        const tufts = [];
+        const side0 = new THREE.Vector3().crossVectors(T, outE).normalize();
+        for (let q = 0; q < 12; q++) {
+          const a = (q / 12) * Math.PI * 2;
+          const spread = new THREE.Vector3().addScaledVector(side0, Math.cos(a)).addScaledVector(outE, Math.sin(a) * 0.6);
+          const start = P.clone().addScaledVector(T, width * 0.15).addScaledVector(spread, width * 0.12);
+          const tl = width * (1.7 + 0.5 * Math.sin(q * 2.3));
+          const tp = [start];
+          for (let st = 1; st <= 6; st++) {
+            const f = st / 6;
+            tp.push(start.clone().addScaledVector(T, tl * f).addScaledVector(spread, width * 0.28 * Math.sin(f * Math.PI * 0.6)));
+          }
+          tufts.push(buildRibbonBufferFromPoints(tp, width * 0.30, 0.75, 0.0, 0.9, (seed + q * 0.13) % 1));
+        }
+        const tuftMesh = new THREE.Mesh(mergeIndexedGeometries(tufts), createAnisotropicHairShader(true, 0.20));
+        tuftMesh.name = 'HairBraid_Tassel';
+        group.add(tuftMesh);
+      }
+      return group;
+    }
+
+    // Punto sobre el casco craneal del pelo (espacio del elipsoide original) a una altura y ángulo dados
+    function hairHullPoint(theta, y, clearance) {
+      const p = new THREE.Vector3(Math.sin(theta) * 0.12, y, Math.cos(theta) * 0.13);
+      for (let it = 0; it < 4; it++) {
+        const h = getAnatomicalCraniumHull(p.x, p.y, p.z, clearance);
+        const d = Math.hypot((p.x - h.cx) / h.rx, (p.y - h.cy) / h.ry, (p.z - h.cz) / h.rz) || 1;
+        p.set(h.cx + (p.x - h.cx) / d, h.cy + (p.y - h.cy) / d, h.cz + (p.z - h.cz) / d);
+      }
+      return p;
+    }
+
+    /** Trenzas del peinado 'trenzas_laterales': dos de corona (sien → nuca) y dos colgantes delante de los hombros */
+    function addBraidsForCurrentStyle() {
+      if (!hairMeshGroup || HAIR_CONFIG.cutStyle !== 'trenzas_laterales') return;
+      const L = THREE.MathUtils.clamp(HAIR_CONFIG.length / 2.0, 0.7, 1.3);
+      for (const sd of [-1, 1]) {
+        // Trenza de corona: nace en la sien, rodea la cabeza por encima de la oreja y termina en la nuca
+        const crown = [];
+        for (let i = 0; i <= 10; i++) {
+          const f = i / 10;
+          const th = sd * THREE.MathUtils.lerp(0.70, 2.85, f);
+          const y = 0.110 + THREE.MathUtils.lerp(0.092, 0.050, Math.pow(f, 0.8));
+          crown.push(hairHullPoint(th, y, 0.0175));
+        }
+        hairMeshGroup.add(buildBraidGroup(crown, {
+          width: 0.024, turns: 9, taperEnd: 0.15, seed: 0.3 + sd * 0.1,
+          outFn: (p) => getCraniumOutwardNormal(p, new THREE.Vector3()),
+        }));
+        // Trenza colgante: desde detrás de la oreja, por el lado del cuello, hasta delante del hombro
+        const hang = [
+          new THREE.Vector3(sd * 0.128, 0.104, -0.030),
+          new THREE.Vector3(sd * 0.136, 0.046, -0.012),
+          new THREE.Vector3(sd * 0.133, -0.012, 0.008),
+          new THREE.Vector3(sd * 0.128, -0.070 * L, 0.030),
+          new THREE.Vector3(sd * 0.124, -0.150 * L, 0.070),
+          new THREE.Vector3(sd * 0.120, -0.215 * L, 0.090),
+        ];
+        hairMeshGroup.add(buildBraidGroup(hang, {
+          width: 0.030, taperEnd: 0.32, seed: 0.6 + sd * 0.1, tie: true,
+          outFn: (p) => new THREE.Vector3(p.x, 0, p.z + 0.02).normalize(),
+        }));
+      }
     }
 
     function buildHairLabScalpCapMesh() {
@@ -18742,6 +18930,7 @@
       for (let i = 0; i < totalRoots; i += stride) {
         const anchor = unifiedScalpRoots[i];
         if (isVikingCrest && (Math.abs(anchor.pos.x) > 0.042 || anchor.pos.z > 0.102)) continue;
+        if ((HAIR_CONFIG.cutStyle === 'raya_medio_lisa' || HAIR_CONFIG.cutStyle === 'trenzas_laterales') && Math.abs(anchor.pos.x) < 0.0035 && anchor.pos.z > -0.02) continue;
         const len = baseLen * anchor.randScale;
         const segCount = curl > 0.75 ? 11 : 9;
         const pts = generateHairStrandPoints(anchor, len, segCount, curl);
@@ -19069,6 +19258,7 @@
       // Añadir el cuero cabelludo 3D del mismo color y shader que el cabello debajo de los mechones
       if (hairMeshGroup && HAIR_CONFIG.visible) {
         hairMeshGroup.add(buildHairLabScalpCapMesh());
+        addBraidsForCurrentStyle();
       }
     }
 
@@ -27366,13 +27556,13 @@ function resetCharacter() {
       // Adaptar también el corte, longitud, rizado y paleta multicapa de cabello según el arquetipo generado
       const archetypeHairMap = {
         hombre: ['ondulado_volumen', 'corto_guerrero', 'cresta_vikinga', 'rizado_3d'],
-        mujer: ['largo_lacio', 'ondulado_volumen', 'rizado_3d', 'bob_flequillo', 'coleta_alta'],
+        mujer: ['trenzas_laterales', 'raya_medio_lisa', 'largo_lacio', 'ondulado_volumen', 'rizado_3d', 'bob_flequillo', 'coleta_alta'],
         anciano: ['corto_guerrero', 'ondulado_volumen', 'cresta_vikinga'],
         anciana: ['bob_flequillo', 'coleta_alta', 'ondulado_volumen'],
         nino: ['corto_guerrero', 'rizado_3d', 'afro_rizo', 'ondulado_volumen'],
-        nina: ['coleta_alta', 'bob_flequillo', 'rizado_3d', 'largo_lacio'],
+        nina: ['trenzas_laterales', 'coleta_alta', 'bob_flequillo', 'rizado_3d', 'largo_lacio'],
         culturista: ['cresta_vikinga', 'corto_guerrero', 'afro_rizo'],
-        esbelto: ['largo_lacio', 'ondulado_volumen', 'bob_flequillo'],
+        esbelto: ['raya_medio_lisa', 'largo_lacio', 'ondulado_volumen', 'bob_flequillo'],
         robusto: ['cresta_vikinga', 'corto_guerrero', 'ondulado_volumen'],
         proporcional: ['ondulado_volumen', 'corto_guerrero', 'rizado_3d', 'largo_lacio']
       };
