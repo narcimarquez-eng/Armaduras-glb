@@ -440,6 +440,10 @@
             <span class="text-[10px] font-semibold text-cyan-300 uppercase tracking-wider flex items-center gap-1">
               <i data-lucide="scissors" class="w-3 h-3 text-cyan-400"></i> Cortes y Tipos de Cabello
             </span>
+            <button id="btn-hair-atlas-load" title="Carga un atlas de pelo propio: 4 columnas (tupido, normal, suelto, fino), escala de grises con transparencia, raíz arriba" class="px-2 py-0.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-[9px] font-bold text-slate-200 flex items-center gap-1 transition">
+              <i data-lucide="image" class="w-2.5 h-2.5"></i> Atlas…
+            </button>
+            <input id="hair-atlas-file" type="file" accept="image/*" class="hidden" />
             <button id="btn-hair-random-style" class="px-2 py-0.5 rounded-lg bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-[9px] font-bold text-white shadow flex items-center gap-1 transition active:scale-95">
               <i data-lucide="shuffle" class="w-2.5 h-2.5"></i> Peinado Random
             </button>
@@ -17625,52 +17629,71 @@
     function initHairProceduralTextures() {
       if (proceduralHairCardTex && proceduralShellTex) return;
 
-      // 1. Textura de Hair Cards: mechones sobre fondo TRANSPARENTE (la tarjeta deja de ser un rectángulo):
-      //    cada fibra nace en la raíz y termina en punta a una longitud distinta, con menos fibras hacia los bordes
-      //    laterales para que las tarjetas se fundan entre sí. R = luminancia de la fibra, A = cobertura.
+      // 1. ATLAS DE HAIR CARDS (1024×1024, 4 columnas de 256 px), mechones sobre fondo TRANSPARENTE, raíz arriba:
+      //    0 = mechón tupido (volumen interior), 1 = mechón normal, 2 = mechón con pelos sueltos (contorno),
+      //    3 = mechón fino y ralo (bordes y nacimiento). R = luminancia de la fibra, A = cobertura.
+      //    Un atlas propio con este mismo formato se puede cargar desde el panel de pelo (loadHairAtlasFromImage).
       const c = document.createElement('canvas');
-      c.width = 512;
+      c.width = 1024;
       c.height = 1024;
       const ctx = c.getContext('2d');
       ctx.clearRect(0, 0, c.width, c.height);
       let tSeed = 9137;
       const trand = () => { tSeed = (tSeed * 16807) % 2147483647; return (tSeed - 1) / 2147483646; };
-      const numStrands = 1100;
       ctx.lineCap = 'round';
-      for (let i = 0; i < numStrands; i++) {
-        // Densidad máxima en el centro de la tarjeta y decreciente hacia los bordes
-        const g = (trand() + trand() + trand()) / 3;
-        const x = 8 + g * (c.width - 16);
-        const lengthFrac = 0.62 + Math.pow(trand(), 0.55) * 0.38;   // puntas desiguales
-        const endY = c.height * lengthFrac;
-        const width = 1.1 + trand() * 2.6;
-        const lum = 150 + Math.floor(trand() * 105);
-        const steps = 22;
-        const wavePhase = trand() * Math.PI * 2;
-        const drift = (trand() - 0.5) * 1.6;
-        let curX = x, prevX = x, prevY = 0;
-        for (let st = 1; st <= steps; st++) {
-          const y = (st / steps) * endY;
-          curX += drift + Math.sin(st * 0.5 + wavePhase) * 1.6 + (trand() - 0.5) * 1.4;
-          const t = st / steps;
-          // La fibra se afina y se aclara (menos opaca) en su último tramo
-          const taper = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3 * 0.85;
-          ctx.strokeStyle = `rgba(${lum},${lum},${lum},${(0.55 + 0.45 * taper).toFixed(3)})`;
-          ctx.lineWidth = width * taper;
-          ctx.beginPath(); ctx.moveTo(prevX, prevY); ctx.lineTo(curX, y); ctx.stroke();
-          prevX = curX; prevY = y;
+      const COL = 256, PAD = 6;
+      const VARIANTS = [
+        { n: 300, w: [1.3, 3.0], len: [0.80, 1.0], spread: 3, drift: 1.0, lum: [180, 245], fly: 0 },
+        { n: 270, w: [1.1, 2.8], len: [0.66, 1.0], spread: 3, drift: 1.5, lum: [180, 250], fly: 0 },
+        { n: 230, w: [1.0, 2.4], len: [0.52, 1.0], spread: 2, drift: 2.2, lum: [185, 255], fly: 10 },
+        { n: 190, w: [0.9, 2.0], len: [0.55, 0.95], spread: 2, drift: 1.8, lum: [185, 255], fly: 5 },
+      ];
+      VARIANTS.forEach((V, col) => {
+        const x0 = col * COL + PAD, wCol = COL - PAD * 2;
+        const drawStrand = (x, endY, width, lum, drift, wobble) => {
+          const steps = 26;
+          let curX = x, prevX = x, prevY = 0;
+          const wavePhase = trand() * Math.PI * 2;
+          for (let st = 1; st <= steps; st++) {
+            const t = st / steps;
+            const y = t * endY;
+            curX += drift + Math.sin(st * 0.5 + wavePhase) * wobble + (trand() - 0.5) * 0.9;
+            curX = Math.max(x0, Math.min(x0 + wCol, curX));
+            const taper = t < 0.7 ? 1.0 : 1.0 - (t - 0.7) / 0.3 * 0.85;
+            ctx.strokeStyle = `rgba(${lum},${lum},${lum},${(0.55 + 0.45 * taper).toFixed(3)})`;
+            ctx.lineWidth = width * taper;
+            ctx.beginPath(); ctx.moveTo(prevX, prevY); ctx.lineTo(curX, y); ctx.stroke();
+            prevX = curX; prevY = y;
+          }
+        };
+        for (let i = 0; i < V.n; i++) {
+          let g = 0; for (let k = 0; k < V.spread; k++) g += trand(); g /= V.spread;
+          drawStrand(
+            x0 + g * wCol,
+            c.height * (V.len[0] + Math.pow(trand(), 0.55) * (V.len[1] - V.len[0])),
+            V.w[0] + trand() * (V.w[1] - V.w[0]),
+            Math.floor(V.lum[0] + trand() * (V.lum[1] - V.lum[0])),
+            (trand() - 0.5) * V.drift, 1.6
+          );
         }
-      }
-      // Raíz: base algo más tupida y oscura para tapar el cuero cabelludo
-      const rootGrad = ctx.createLinearGradient(0, 0, 0, c.height * 0.18);
-      rootGrad.addColorStop(0, 'rgba(120,120,120,0.85)');
-      rootGrad.addColorStop(1, 'rgba(120,120,120,0.0)');
-      ctx.globalCompositeOperation = 'destination-over';
-      ctx.fillStyle = rootGrad;
-      ctx.fillRect(c.width * 0.12, 0, c.width * 0.76, c.height * 0.18);
-      ctx.globalCompositeOperation = 'source-over';
+        // Pelos sueltos que se separan del mechón (contornos más naturales)
+        for (let i = 0; i < V.fly; i++) {
+          drawStrand(x0 + (0.3 + trand() * 0.4) * wCol, c.height * (0.5 + trand() * 0.5), 0.7 + trand() * 0.6, 200, (trand() - 0.5) * 6.0, 3.0);
+        }
+        // Raíz: base fina algo más tupida (sólo el primer 5 %)
+        const rootGrad = ctx.createLinearGradient(0, 0, 0, c.height * 0.05);
+        rootGrad.addColorStop(0, 'rgba(130,130,130,0.75)');
+        rootGrad.addColorStop(1, 'rgba(130,130,130,0.0)');
+        ctx.globalCompositeOperation = 'destination-over';
+        ctx.fillStyle = rootGrad;
+        ctx.fillRect(x0 + wCol * 0.12, 0, wCol * 0.76, c.height * 0.05);
+        ctx.globalCompositeOperation = 'source-over';
+      });
 
       proceduralHairCardTex = new THREE.CanvasTexture(c);
+      // Sin volteo vertical: v=0 (raíz de la tarjeta) debe leer la parte alta del canvas, donde nacen las fibras.
+      // Con flipY las raíces leían las puntas (casi transparentes) y la raya/coronilla dejaba ver el cuero cabelludo.
+      proceduralHairCardTex.flipY = false;
       proceduralHairCardTex.wrapS = THREE.ClampToEdgeWrapping;
       proceduralHairCardTex.wrapT = THREE.ClampToEdgeWrapping;
       hairUniforms.uAlphaMap.value = proceduralHairCardTex;
@@ -17697,6 +17720,28 @@
       proceduralShellTex = new THREE.CanvasTexture(cs);
       proceduralShellTex.wrapS = THREE.RepeatWrapping;
       proceduralShellTex.wrapT = THREE.RepeatWrapping;
+    }
+
+    // Coloca la coordenada u de una tarjeta (0..1) dentro de la columna 'variant' del atlas de 4 columnas
+    function remapCardUvToAtlas(geo, variant) {
+      const uv = geo.attributes.uv;
+      const PADU = 6 / 1024;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setX(i, (variant + PADU * 4 + uv.getX(i) * (1 - PADU * 8)) / 4);
+      }
+      uv.needsUpdate = true;
+      return geo;
+    }
+
+    // Atlas de pelo propio (imagen 4 columnas, escala de grises + alfa, raíz arriba). Sin atlas: el generado por código
+    function loadHairAtlasFromImage(img) {
+      const tex = new THREE.Texture(img);
+      tex.flipY = false;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.anisotropy = 4;
+      tex.needsUpdate = true;
+      hairUniforms.uAlphaMap.value = tex;
+      return tex;
     }
 
     function isPointOnScalp(rawX, rawY, rawZ) {
@@ -18093,9 +18138,18 @@
         rootNorm.z * zNormalWeight + backwardBias
       ).normalize();
 
+      // Raya al medio: los mechones nacidos junto a la raya salen TUMBADOS sobre el cráneo hacia su lado
+      // (sin levantarse), de modo que la raya es una línea fina y no una franja de cuero cabelludo
+      const nearPart = isPartStyle && absX < 0.050 && rootPos.z > -0.03;
+      if (nearPart) {
+        rawExitDir.set(partingSign * 1.0, -0.08 + rootNorm.y * 0.04, backwardBias * 0.35).normalize();
+        // proyectar sobre el plano tangente del cráneo y dejar sólo una salida mínima hacia fuera
+        rawExitDir.addScaledVector(rootNorm, -rawExitDir.dot(rootNorm) + 0.05).normalize();
+      }
+      const minExit = nearPart ? 0.05 : 0.20;
       const exitDot = rawExitDir.dot(rootNorm);
-      if (exitDot < 0.20) {
-        rawExitDir.addScaledVector(rootNorm, 0.20 - exitDot).normalize();
+      if (exitDot < minExit) {
+        rawExitDir.addScaledVector(rootNorm, minExit - exitDot).normalize();
       }
       const tangentDir = rawExitDir;
 
@@ -18205,7 +18259,7 @@
 
             // Mientras el pelo está cerca del cráneo, prohibir que el vector velocidad apunte hacia el interior craneal
             if (ellipDist < 1.075) {
-              const minOutwardDot = (s === 1) ? 0.22 : (s <= 3 ? 0.07 : 0.02);
+              const minOutwardDot = nearPart ? 0.01 : ((s === 1) ? 0.22 : (s <= 3 ? 0.07 : 0.02));
               const nDot = segDir.dot(surfNormal);
               if (nDot < minOutwardDot) {
                 segDir.addScaledVector(surfNormal, minOutwardDot - nDot).normalize();
@@ -18222,6 +18276,8 @@
 
       points.isBangStrand = isBangStrand;
       points.partingSign = partingSign;
+      // Mechones de la raya: la tarjeta nace con su anchura completa para tapar el cuero cabelludo hasta la raya
+      points.flatRoot = nearPart;
       return points;
     }
 
@@ -18312,7 +18368,7 @@
             const f = st / 6;
             tp.push(start.clone().addScaledVector(T, tl * f).addScaledVector(spread, width * 0.28 * Math.sin(f * Math.PI * 0.6)));
           }
-          tufts.push(buildRibbonBufferFromPoints(tp, width * 0.30, 0.75, 0.0, 0.9, (seed + q * 0.13) % 1));
+          tufts.push(remapCardUvToAtlas(buildRibbonBufferFromPoints(tp, width * 0.30, 0.75, 0.0, 0.9, (seed + q * 0.13) % 1), q % 2 ? 2 : 1));
         }
         const tuftMesh = new THREE.Mesh(mergeIndexedGeometries(tufts), createAnisotropicHairShader(true, 0.20));
         tuftMesh.name = 'HairBraid_Tassel';
@@ -18542,7 +18598,7 @@
           outwardNormal.copy(radialOut);
         }
 
-        const rootFade = Math.min(1.0, 0.48 + vFrac * 2.1);
+        const rootFade = points.flatRoot ? 1.0 : Math.min(1.0, 0.48 + vFrac * 2.1);
         const halfW = (baseWidth * 0.5) * rootFade * (1.0 - vFrac * tipTaper);
 
         leftVert.set(p.x - sideVec.x * halfW, p.y - sideVec.y * halfW, p.z - sideVec.z * halfW);
@@ -18752,7 +18808,7 @@
           uSpecularIntensity: hairUniforms.uSpecularIntensity,
           uWindStrength: hairUniforms.uWindStrength,
           uWindDir: hairUniforms.uWindDir,
-          uAlphaMap: { value: proceduralHairCardTex },
+          uAlphaMap: hairUniforms.uAlphaMap,
           uUseAlpha: { value: useAlphaMap ? 1.0 : 0.0 },
           uAlphaCutoff: { value: alphaCutoff },
           uIsScalpCap: { value: isScalpCap ? 1.0 : 0.0 }
@@ -18816,28 +18872,37 @@
               vec4 tex = texture2D(uAlphaMap, vUv);
               if (tex.a < uAlphaCutoff * 0.35) discard;
               alpha = smoothstep(uAlphaCutoff * 0.35, 0.75, tex.a);
-              strandTexLum = 0.66 + 0.40 * tex.r;
+              strandTexLum = 0.78 + 0.28 * tex.r;
+            } else if (uIsScalpCap > 0.5) {
+              // Casquete con fibras del atlas peinadas de la coronilla al borde: lo que asoma entre mechones parece pelo
+              vec4 capTex = texture2D(uAlphaMap, vec2(0.25 + fract(vUv.x * 28.0) * 0.25, clamp(0.08 + vUv.y * 1.9, 0.0, 0.97)));
+              strandTexLum = 0.74 + 0.34 * capTex.r * capTex.a;
             } else {
-              strandTexLum = uIsScalpCap > 0.5 ? 0.92 : (0.80 + 0.20 * sin(vUv.x * 31.4159));
+              strandTexLum = 0.80 + 0.20 * sin(vUv.x * 31.4159);
             }
             // Borde del casquete difuminado: nacimiento del pelo suave sobre la frente y las sienes
             if (uIsScalpCap > 0.5) {
-              alpha = 1.0 - smoothstep(0.36, 0.45, vUv.y);
+              alpha = 1.0 - smoothstep(0.415, 0.45, vUv.y);
               if (alpha < 0.04) discard;
             }
 
             // 1. Oclusión Ambiental de Raíz y de Capa Interna (el interior queda sombreado y profundo, nunca brillante)
             float layerOcclusion = clamp(vStrandData.x, 0.20, 1.0);
             float strandSeed = vStrandData.y;
-            float rootAO = (smoothstep(0.0, 0.30, vUv.y) * 0.62 + 0.38) * (0.35 + 0.65 * layerOcclusion);
-            if (uIsScalpCap > 0.5) rootAO = 0.78;
+            // Oscurecimiento de raíz corto y suave: con raíces muy visibles (raya al medio) se seguían viendo como banda lisa
+            float rootAO = (smoothstep(0.0, 0.10, vUv.y) * 0.30 + 0.70) * (0.62 + 0.38 * layerOcclusion);
+            if (uIsScalpCap > 0.5) rootAO = 0.84;
 
             // 2. Color base con degradado Raíz -> Punta + Mechas selectivas por mechón (Balayage / Highlights)
-            float gradMix = uIsScalpCap > 0.5 ? 0.12 : pow(clamp(vUv.y, 0.0, 1.0), 1.35);   // raíz oscura más extendida: profundidad
+            // El tono de raíz ocupa sólo el primer tramo (~1 cm); después degradado suave hasta la punta.
+            // (Antes ocupaba un buen trozo del mechón y, en la raya al medio, las raíces formaban una banda oscura)
+            float vy = clamp(vUv.y, 0.0, 1.0);
+            float gradMix = uIsScalpCap > 0.5 ? 0.42 : (smoothstep(0.0, 0.045, vy) * 0.40 + 0.60 * pow(vy, 1.1));
             vec3 gradColor = mix(uColorRoot, uColorTip, gradMix);
             // Mechas suaves y continuas (antes: mechones sueltos muy claros que se veían como destellos)
             float isHighlightStrand = smoothstep(0.55, 1.0, strandSeed) * uHighlightAmount * 0.38;
-            float fineRibbonStreak = smoothstep(0.35, 0.95, sin(vUv.x * 9.42 + strandSeed * 6.0)) * uHighlightAmount * 0.28;
+            float cardU = fract(vUv.x * 4.0);   // coordenada transversal dentro de la tarjeta (atlas de 4 columnas)
+            float fineRibbonStreak = smoothstep(0.35, 0.95, sin(cardU * 9.42 + strandSeed * 6.0)) * uHighlightAmount * 0.28;
             float highlightMask = clamp(isHighlightStrand + fineRibbonStreak, 0.0, 1.0) * smoothstep(0.08, 0.65, vUv.y) * (1.0 - uIsScalpCap);
             vec3 baseColor = mix(gradColor, uColorHighlight, highlightMask) * rootAO * strandTexLum;
 
@@ -18873,7 +18938,7 @@
             float specMask = exteriorMask * uSpecularIntensity * crownTipEnvelope * (1.0 - 0.94 * uIsScalpCap);
 
             // Iluminación difusa envolvente (más oscura en el reverso interior para dar volumen 3D)
-            float interiorDarken = gl_FrontFacing ? 1.0 : 0.42;
+            float interiorDarken = gl_FrontFacing ? 1.0 : 0.78;   // (antes 0.42: manchas oscuras de "camuflaje")
             // + luz ambiental: la nuca y los laterales no quedan negros con las luces frontales
             float wrapDiff = (max(0.0, dot(N, L) * 0.68 + 0.32) * 0.82 + max(0.0, dot(N, L2) * 0.5 + 0.5) * 0.28 + 0.13) * interiorDarken;
 
@@ -18930,7 +18995,7 @@
       for (let i = 0; i < totalRoots; i += stride) {
         const anchor = unifiedScalpRoots[i];
         if (isVikingCrest && (Math.abs(anchor.pos.x) > 0.042 || anchor.pos.z > 0.102)) continue;
-        if ((HAIR_CONFIG.cutStyle === 'raya_medio_lisa' || HAIR_CONFIG.cutStyle === 'trenzas_laterales') && Math.abs(anchor.pos.x) < 0.0035 && anchor.pos.z > -0.02) continue;
+        if ((HAIR_CONFIG.cutStyle === 'raya_medio_lisa' || HAIR_CONFIG.cutStyle === 'trenzas_laterales') && Math.abs(anchor.pos.x) < 0.0018 && anchor.pos.z > -0.02) continue;
         const len = baseLen * anchor.randScale;
         const segCount = curl > 0.75 ? 11 : 9;
         const pts = generateHairStrandPoints(anchor, len, segCount, curl);
@@ -18944,6 +19009,13 @@
           anchor.layerNorm,
           anchor.strandSeed
         );
+        // Tipo de mechón del atlas: tupidos en el interior, sueltos/finos en el contorno, el flequillo y el nacimiento
+        const outer = anchor.layerNorm > 0.82 || pts.isBangStrand || anchor.pos.z > 0.07;
+        const sd = anchor.strandSeed;
+        const variant = outer
+          ? (sd < 0.40 ? 1 : (sd < 0.78 ? 2 : 3))
+          : (sd < 0.45 ? 0 : (sd < 0.85 ? 1 : 2));
+        remapCardUvToAtlas(cardGeo, variant);
         cardGeometries.push(cardGeo);
       }
 
@@ -19049,7 +19121,7 @@
       for (let i = 0; i < unifiedScalpRoots.length; i += stride) {
         const anchor = unifiedScalpRoots[i];
         const pts = generateHairStrandPoints(anchor, finLen * anchor.randScale, 7, hairUniforms.uCurl.value);
-        finGeos.push(buildRibbonBufferFromPoints(pts, 0.016 * HAIR_CONFIG.widthScale, 0.65, 0.4, anchor.layerNorm, anchor.strandSeed));
+        finGeos.push(remapCardUvToAtlas(buildRibbonBufferFromPoints(pts, 0.016 * HAIR_CONFIG.widthScale, 0.65, 0.4, anchor.layerNorm, anchor.strandSeed), 1));
       }
 
       if (finGeos.length > 0) {
@@ -20103,6 +20175,22 @@
         });
       }
       // ===== Texturas de rostro: selector, carga con alineación por 3 clics y plantilla del canon =====
+      // Atlas de pelo propio (si no se carga ninguno, se usa el atlas generado por código)
+      const hairAtlasFile = document.getElementById('hair-atlas-file');
+      const btnHairAtlas = document.getElementById('btn-hair-atlas-load');
+      if (btnHairAtlas && hairAtlasFile) btnHairAtlas.addEventListener('click', () => hairAtlasFile.click());
+      if (hairAtlasFile) hairAtlasFile.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        hairAtlasFile.value = '';
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => { loadHairAtlasFromImage(img); showToast('Atlas de pelo aplicado: ' + file.name); };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
       const faceTexSel = document.getElementById('face-texture-select');
       const applyFaceTextureKey = (key) => {
         const CH = window.CreadorHumano;
