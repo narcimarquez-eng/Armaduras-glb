@@ -22426,7 +22426,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
   // Globo ocular: córnea apenas por delante del plano facial a la altura de los ojos (hundido bajo el arco superciliar)
   const eyeR = canon.eyeR;
-  const eyeCZ = baseFrontZ(canon.eyeX, canon.eyeY) + 0.0030 - eyeR;
+  // Globo ocular hundido en la órbita: la córnea queda ~1 mm por detrás del plano facial a la altura de los ojos
+  // (antes 3 mm por delante: los párpados sobresalían como unas gafas y la textura se estiraba sobre ellos)
+  const eyeCZ = baseFrontZ(canon.eyeX, canon.eyeY) - 0.0010 - eyeR;
 
   for (let i = 0; i < pos.count; i++) {
     const x0 = pos.getX(i), y0 = pos.getY(i), z0 = pos.getZ(i);
@@ -22756,18 +22758,19 @@ function buildSculptedHeadGroup(caraCfg, mats) {
           p = eyeCenter.clone().addScaledVector(angToDir(cax, cay), eyeR * 1.002);
         } else {
           const s = (r - 1) / (RINGS - 2);
-          const mag = 1.0 + 1.05 * s;
+          const mag = 1.0 + 0.75 * s;
           const ax = clampV(cax * mag, -1.52, 1.52);
           const ay = clampV(cay * mag + (isUpper[k] ? 0.06 * s : 0), -1.35, 1.35);
           // Pliegue palpebral superior (surco del párpado) y ligera bolsa inferior
           const fold = isUpper[k]
-            ? 0.06 * eyeR * Math.exp(-Math.pow((s - 0.22) / 0.12, 2))
-            : 0.03 * eyeR * Math.exp(-Math.pow((s - 0.25) / 0.15, 2));
+            ? 0.035 * eyeR * Math.exp(-Math.pow((s - 0.22) / 0.12, 2))
+            : 0.0;
           const sp = eyeCenter.clone().addScaledVector(angToDir(ax, ay), eyeR + lidT + fold);
           const skinZ = surfaceFrontZ(sp.x, sp.y, sp.z);
-          const w = sstep(s, 0.30, 1.0);
+          const w = sstep(s, 0.18, 0.80);
           p = sp.clone();
-          p.z = THREE.MathUtils.lerp(sp.z, skinZ - (r === RINGS - 1 ? 0.0008 : 0.0), w);
+          // El tercio exterior se hunde bajo la piel del cráneo: sin borde ovalado visible alrededor del ojo
+          p.z = THREE.MathUtils.lerp(sp.z, skinZ - 0.0016 * sstep(s, 0.55, 1.0), w);
           // Fuera de la abertura la piel nunca queda por detrás del globo (sin blanco asomando en las esquinas)
           const dxE = p.x - eyeCenter.x, dyE = p.y - eyeCenter.y, dd = dxE * dxE + dyE * dyE;
           if (dd < eyeR * eyeR && r < RINGS - 1) p.z = Math.max(p.z, eyeCenter.z + Math.sqrt(eyeR * eyeR - dd) + 0.0004);
