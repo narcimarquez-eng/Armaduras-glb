@@ -21254,6 +21254,74 @@ function buildSculptedTorsoGeometry(torsoCfg) {
 }
 
 /**
+ * CANON DE PROPORCIONES DEL ROSTRO ADULTO (módulo F)
+ *
+ * Altura total cráneo → barbilla = 3,5 F. Niveles (desde el nivel superior del cráneo, en F):
+ *   A. Nivel superior del cráneo ........ 0
+ *   B. Nacimiento del cabello ........... 0,5   (A→B = F/2)
+ *   C. Nivel de las cejas ............... 1,5   (B→C = F)
+ *   D. Situación de los ojos ............ 1,75  (C→D = F/4)
+ *   E. Base de la nariz ................. 2,5   (C→E = F)
+ *   F. Base del labio inferior .......... 3,0   (E→F = F/2)
+ *   G. Límite inferior de la barbilla ... 3,5   (F→G = F/2)
+ * Frontal: anchura del rostro = 2,5 F (regla de los 5 ojos): ojo = F/2, separación entre ojos = F/2,
+ *   anchura de la nariz ≈ separación entre ojos, comisuras de la boca ≈ bajo los iris.
+ * Perfil: profundidad = 3,5 F (la cabeza se inscribe en un cuadrado); la oreja va de la línea
+ *   de las cejas (C) a la base de la nariz (E), justo por detrás del eje medio del cráneo.
+ *
+ * Los parámetros de `CONFIG.cara` sólo desplazan estos valores ligeramente (desviación acotada
+ * alrededor de un valor neutro), de modo que el canon siempre domina.
+ */
+const FACE_CANON = {
+  // A y G en coordenadas locales de 'headSculpt' (cráneo r=0.125 centrado en y=0.11, y*1.18)
+  topY: 0.2575,
+  chinY: -0.016,
+  levels: { A: 0.0, B: 0.5, C: 1.5, D: 1.75, E: 2.5, stomion: 2.87, F: 3.0, G: 3.5 },
+  widths: { eyeCenter: 0.475, eyeFissure: 0.44, nose: 0.42, mouth: 0.70 },
+  // Valor de cada parámetro de CONFIG.cara que reproduce exactamente el canon,
+  // y desviación máxima permitida (fracción relativa o múltiplos de F)
+  neutral: { eyeY: 0.72, eyeSpacing: 1.08, eyeSize: 1.10, noseLength: 1.15, noseWidth: 0.98, lipWidth: 1.0, earSize: 1.05, chinY: 1.05 },
+  maxDev: { eyeY_F: 0.10, eyeSpacing: 0.08, eyeSize: 0.12, noseLength_F: 0.10, noseWidth: 0.10, lipWidth: 0.10, earSize: 0.12, chinY: 0.20 },
+  // Dimensiones de la geometría base (escala 1) para convertir el canon en escalas
+  base: { eyeFissure: 0.0274, noseLen: 0.041, noseAla: 0.0237, mouth: 0.044, ear: 0.0629 },
+};
+
+/**
+ * Devuelve los niveles y medidas absolutas del rostro según el canon, aplicando sólo
+ * ligeras variaciones a partir de los parámetros de cara.
+ */
+function getFaceCanon(caraCfg = {}) {
+  const C = FACE_CANON;
+  const clamp = (v, m) => Math.max(-m, Math.min(m, v));
+  const dev = (key) => clamp((caraCfg[key] ?? C.neutral[key]) - C.neutral[key], 1.0);
+  const F = (C.topY - C.chinY) / C.levels.G;
+  const lv = (k) => C.topY - C.levels[k] * F;
+
+  const eyeYDev = clamp(dev('eyeY') / 0.3, 1.0) * C.maxDev.eyeY_F * F;
+  const noseDev = clamp(dev('noseLength') / 0.2, 1.0) * C.maxDev.noseLength_F * F;
+
+  const eyeScale = (C.widths.eyeFissure * F / C.base.eyeFissure) * (1 + clamp(dev('eyeSize'), C.maxDev.eyeSize));
+  const eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
+  const eyeY = lv('D') + eyeYDev;
+  const noseBaseY = lv('E') - noseDev;
+  const noseRootY = eyeY + 0.04 * F;
+
+  return {
+    F,
+    topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY, noseBaseY, noseRootY,
+    mouthY: lv('stomion'), lowerLipY: lv('F'), chinY: lv('G'),
+    eyeX, eyeScale,
+    noseScaleY: (noseRootY - noseBaseY) / C.base.noseLen,
+    noseScaleX: (C.widths.nose * F / C.base.noseAla) * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
+    mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
+    earScale: (0.95 * F / C.base.ear) * (1 + clamp(dev('earSize'), C.maxDev.earSize)),
+    earY: (lv('C') + lv('E')) * 0.5,
+    earZ: -0.020,
+    chinElev: clamp((caraCfg.chinY ?? C.neutral.chinY) - 1.0, C.maxDev.chinY),
+  };
+}
+
+/**
  * Definición anatómica y morfología paramétrica de diferentes tipos de ojos
  */
 const EYE_TYPES_DATA = {
@@ -21495,8 +21563,21 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
   const jawW = caraCfg.jawWidth ?? 1.0;
   const chinL = caraCfg.chinLength ?? 1.0;
-  const chinY = caraCfg.chinY ?? 1.0;
   const brow = caraCfg.browRidge ?? 1.0;
+
+  // Canon facial: todos los rasgos se colocan sobre los niveles A–G del módulo F
+  const canon = getFaceCanon(caraCfg);
+  const chinY = 1.0 + canon.chinElev;
+  // Conversión de alturas del canon (espacio headSculpt) a coordenada normalizada de la esfera base
+  const nyOf = (Y) => (Y - 0.11) / (0.125 * 1.18);
+  const NY_EYE = nyOf(canon.eyeY + 0.002);
+  const NY_BROW = nyOf(canon.browY + 0.006);
+  const NY_RADIX = nyOf((canon.eyeY + canon.noseBaseY) * 0.5 + 0.006);
+  const NY_CHEEK = nyOf(canon.eyeY - 0.27 * canon.F);
+  const NY_SUBMALAR = nyOf(canon.noseBaseY + 0.004);
+  const NY_MENTOLABIAL = nyOf(canon.lowerLipY - 0.004);
+  const NY_CHIN = nyOf(canon.chinY + 0.012);
+  const NX_EYE = canon.eyeX / 0.125;
 
   for (let i = 0; i < pos.count; i++) {
     let x = pos.getX(i);
@@ -21545,15 +21626,16 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       const chinZMask = THREE.MathUtils.smoothstep(nz, 0.0, 0.52);
       const chinSpot =
         Math.exp(-Math.pow(nx / 0.46, 2)) *
-        Math.exp(-Math.pow((ny + 0.78) / 0.26, 2)) *
+        Math.exp(-Math.pow((ny - NY_CHIN) / 0.26, 2)) *
         chinZMask;
 
-      z += chinSpot * (0.016 * chinL + chinElev * 0.005);
+      // Proyección mentoniana del canon de perfil: la barbilla queda casi bajo el labio inferior
+      z += chinSpot * (0.022 * chinL + chinElev * 0.005);
 
       // Surco mentolabial (hendidura anatómica suave bajo el labio inferior)
       const mentolabial =
         Math.exp(-Math.pow(nx / 0.34, 2)) *
-        Math.exp(-Math.pow((ny + 0.48) / 0.11, 2)) *
+        Math.exp(-Math.pow((ny - NY_MENTOLABIAL) / 0.11, 2)) *
         chinZMask;
       z -= mentolabial * (0.004 + 0.002 * chinL);
 
@@ -21579,18 +21661,18 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     }
 
     // Pómulos (cigomáticos) suaves y transición malar continua (elimina el surco marcado bajo los ojos)
-    if (nz > 0.05 && ny > -0.38 && ny < 0.20) {
+    if (nz > 0.05 && ny > NY_SUBMALAR - 0.10 && ny < 0.20) {
       const cheekFade = THREE.MathUtils.smoothstep(Math.abs(nx), 0.12, 0.34);
       const cheek =
         Math.exp(-Math.pow((Math.abs(nx) - 0.50) / 0.28, 2)) *
-        Math.exp(-Math.pow((ny + 0.07) / 0.24, 2)) *
+        Math.exp(-Math.pow((ny - NY_CHEEK) / 0.24, 2)) *
         cheekFade;
       x += Math.sign(x) * cheek * 0.0042;
       z += cheek * 0.0062;
 
       const subMalar =
         Math.exp(-Math.pow((Math.abs(nx) - 0.46) / 0.22, 2)) *
-        Math.exp(-Math.pow((ny + 0.28) / 0.16, 2)) *
+        Math.exp(-Math.pow((ny - NY_SUBMALAR) / 0.16, 2)) *
         cheekFade;
       z -= subMalar * 0.0022;
     }
@@ -21598,20 +21680,24 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     // Arco superciliar, cuencas oculares amplias y puente nasal continuo en el rostro
     if (nz > 0.3) {
       // Cuenca ocular amplia para alojar globo ocular y párpados sin recorte del cráneo
-      const eyeSocketX = Math.exp(-Math.pow((Math.abs(nx) - 0.29) / 0.22, 2));
-      const eyeSocketY = Math.exp(-Math.pow((ny - 0.10) / 0.18, 2));
+      const eyeSocketX = Math.exp(-Math.pow((Math.abs(nx) - NX_EYE) / 0.22, 2));
+      const eyeSocketY = Math.exp(-Math.pow((ny - NY_EYE) / 0.18, 2));
       z -= eyeSocketX * eyeSocketY * 0.0155;
 
       // Arco superciliar orgánico
-      const browY = Math.exp(-Math.pow((ny - 0.28) / 0.12, 2));
+      const browY = Math.exp(-Math.pow((ny - NY_BROW) / 0.12, 2));
       const browX = Math.exp(-Math.pow(nx / 0.62, 2));
       z += browX * browY * 0.0095 * brow;
 
       // Puente nasal anatómico esculpido desde la glabela hasta el tabique medio
       const radixX = Math.exp(-Math.pow(nx / 0.105, 2));
-      const radixY = Math.exp(-Math.pow((ny - 0.02) / 0.17, 2));
+      const radixY = Math.exp(-Math.pow((ny - NY_RADIX) / 0.21, 2));
       z += radixX * radixY * 0.0125;
     }
+
+    // Canon frontal (anchura del rostro ≈ 2,5 F): estrecha suavemente pómulos y mandíbula por debajo de los ojos
+    const faceNarrow = THREE.MathUtils.smoothstep(NY_EYE - ny, 0.0, 0.45) * THREE.MathUtils.smoothstep(nz, -0.25, 0.35);
+    x *= 1.0 - 0.06 * faceNarrow;
 
     pos.setXYZ(i, x, y, z);
   }
@@ -21625,7 +21711,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
   const bStyle = caraCfg.beardStyle || 'ninguna';
   const hasBeardActive = bStyle !== 'ninguna';
-  const chinElev = (caraCfg.chinY ?? 1.0) - 1.0;
+  // Nivel B del canon (nacimiento del cabello) en coordenadas de la esfera base
+  const canonHairlineVy = canon.hairlineY - 0.11;
 
   for (let i = 0; i < vCount; i++) {
     const vx = pos.getX(i);
@@ -21640,12 +21727,13 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       sMask = Math.max(sMask, THREE.MathUtils.smoothstep(vy, 0.026, 0.040));
     }
     if (vz > 0.0) {
-      const hairlineY = 0.060 + Math.pow(absX / 0.115, 1.6) * 0.012 + Math.max(0, (vz - 0.072) / 0.055) * 0.008;
+      // Arco frontal suave del canon: nace en B en el centro y desciende hacia las sienes
+      const hairlineY = canonHairlineVy - Math.pow(absX / 0.115, 2.0) * 0.024 + Math.max(0, (vz - 0.072) / 0.055) * 0.008;
       if (vy > hairlineY - 0.006) {
         sMask = Math.max(sMask, THREE.MathUtils.smoothstep(vy, hairlineY - 0.005, hairlineY + 0.005));
       } else if (absX > 0.078 && vz < 0.068) {
         const templeT = THREE.MathUtils.clamp((0.068 - vz) / 0.053, 0.0, 1.0);
-        const templeMinY = THREE.MathUtils.lerp(hairlineY, -0.012, templeT);
+        const templeMinY = THREE.MathUtils.lerp(hairlineY, -0.012, Math.sqrt(templeT));
         if (vy > templeMinY - 0.005) {
           sMask = Math.max(sMask, THREE.MathUtils.smoothstep(vy, templeMinY - 0.005, templeMinY + 0.005));
         }
@@ -21668,7 +21756,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     let bMask = 0.0;
     if (hasBeardActive && vz > 0.006) {
       const antFade = THREE.MathUtils.smoothstep(vz, 0.006, 0.024);
-      const lipCenterY = 0.044 + chinElev * 0.009;
+      const lipCenterY = canon.mouthY;
       const inMouthOpening = (hy > lipCenterY - 0.010 && hy < lipCenterY + 0.009 && absX < 0.027 && vz > 0.092);
 
       // Bigote sobre el labio superior
@@ -21726,11 +21814,11 @@ function buildSculptedHeadGroup(caraCfg, mats) {
         const ax = Math.abs(vx);
         // Calidez natural en pómulos y punta nasal
         const cheekWarm = Math.exp(-Math.pow((ax - 0.056) / 0.036, 2)) * Math.exp(-Math.pow((vy + 0.008) / 0.030, 2)) * THREE.MathUtils.smoothstep(vz, 0.04, 0.11);
-        const noseWarm = Math.exp(-Math.pow(ax / 0.022, 2)) * Math.exp(-Math.pow((vy + 0.010) / 0.024, 2)) * THREE.MathUtils.smoothstep(vz, 0.08, 0.13);
+        const noseWarm = Math.exp(-Math.pow(ax / 0.022, 2)) * Math.exp(-Math.pow((vy - (canon.noseBaseY + 0.010 - 0.11)) / 0.024, 2)) * THREE.MathUtils.smoothstep(vz, 0.08, 0.13);
         const warmAmt = Math.min(0.24, cheekWarm * 0.22 + noseWarm * 0.16);
         if (warmAmt > 0.001) tmp.lerp(blushCol, warmAmt);
         // Sombra anatómica suave en cuencas oculares y bajo la mandíbula
-        const orbitAO = Math.exp(-Math.pow((ax - 0.036) / 0.022, 2)) * Math.exp(-Math.pow((vy - 0.016) / 0.018, 2)) * THREE.MathUtils.smoothstep(vz, 0.06, 0.115);
+        const orbitAO = Math.exp(-Math.pow((ax - canon.eyeX) / 0.022, 2)) * Math.exp(-Math.pow((vy - (canon.eyeY + 0.004 - 0.11)) / 0.018, 2)) * THREE.MathUtils.smoothstep(vz, 0.06, 0.115);
         const underJawAO = THREE.MathUtils.smoothstep(vy, -0.075, -0.122) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.085, 0.125));
         const aoAmt = Math.min(0.26, orbitAO * 0.20 + underJawAO * 0.24);
         if (aoAmt > 0.001) tmp.lerp(shadowCol, aoAmt);
@@ -21749,6 +21837,23 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   craniumMesh.receiveShadow = true;
   craniumMesh.position.set(0, 0.11, 0);
   headGroup.add(craniumMesh);
+
+  // Muestreo de la superficie esculpida para asentar ojos, nariz, boca y orejas sobre la piel
+  craniumMesh.updateMatrixWorld(true);
+  const _surfRay = new THREE.Raycaster();
+  const _surfHit = (origin, dir, fallback) => {
+    _surfRay.set(origin, dir);
+    const hit = _surfRay.intersectObject(craniumMesh, false)[0];
+    return hit ? hit.point : fallback;
+  };
+  const surfaceFrontZ = (x, y, fb) => {
+    const p = _surfHit(new THREE.Vector3(x, y, 1.0), new THREE.Vector3(0, 0, -1), null);
+    return p ? p.z : fb;
+  };
+  const surfaceSideX = (y, z, fb) => {
+    const p = _surfHit(new THREE.Vector3(1.0, y, z), new THREE.Vector3(-1, 0, 0), null);
+    return p ? p.x : fb;
+  };
 
   // 2. Ojos humanos realistas multicapa (esclerótica sombreada, iris fibroso con textura, córnea húmeda y párpados ceñidos)
   const eyeTypeKey = caraCfg.eyeType || 'almendrado';
@@ -21781,7 +21886,13 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const dir = i === 0 ? 1 : -1;
     const eyePivot = new THREE.Group();
     eyePivot.name = `eye_${i}`;
-    eyePivot.position.set(dir * 0.0335, 0.1215, 0.1185);
+    // Canon: centro del ojo a F/2 del eje (ojo = separación = F/2) sobre el nivel D, hundido en la cuenca
+    const eyeZ = surfaceFrontZ(dir * canon.eyeX, canon.eyeY, 0.1215) - 0.0025;
+    eyePivot.position.set(dir * canon.eyeX, canon.eyeY, eyeZ);
+    eyePivot.scale.setScalar(canon.eyeScale);
+    // Cejas sobre el nivel C, apoyadas en el arco superciliar
+    const browLocalY = (canon.browY + 0.0012 - canon.eyeY) / canon.eyeScale - 0.0152;
+    const browLocalZ = (surfaceFrontZ(dir * canon.eyeX, canon.browY, eyeZ + 0.02) + 0.0012 - eyeZ) / canon.eyeScale - 0.0087;
 
     // Inclinación canthal combinada
     const totalSlant = dir * (eyeTypeData.baseSlant + eyeSlant * 0.35);
@@ -21881,6 +21992,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       ]);
       const gBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0028, 8, false), browMat);
       gBrow.scale.set(1.0, 0.78, 0.48);
+      gBrow.position.set(0, browLocalY, browLocalZ);
       eyePivot.add(gBrow);
     } else if (isFish) {
       const upperCurve = new THREE.CatmullRomCurve3([
@@ -21905,6 +22017,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       ]);
       const fBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0028, 8, false), browMat);
       fBrow.scale.set(1.0, 0.78, 0.48);
+      fBrow.position.set(0, browLocalY, browLocalZ);
       eyePivot.add(fBrow);
     } else {
       // Borde anatómico de párpados y línea sutil de pestañas fundidos sobre el borde inferior de upperLidCap
@@ -21944,6 +22057,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       ]);
       const browMesh = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 18, 0.0028, 8, false), browMat);
       browMesh.scale.set(1.0, 0.78, 0.48);
+      browMesh.position.set(0, browLocalY, browLocalZ);
       browMesh.castShadow = false;
       eyePivot.add(browMesh);
     }
@@ -21966,7 +22080,15 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   // 3. Nariz Anatómica Integrada (Dorso continuo hacia glabela sin corte rectangular)
   const noseGroup = new THREE.Group();
   noseGroup.name = 'nose';
-  noseGroup.position.set(0, 0.097, 0.128);
+  // Canon: la nariz ocupa desde la raíz (entre los ojos) hasta la base E; anchura ≈ separación entre ojos
+  const noseSY = canon.noseScaleY;
+  const noseSZ = 1.18;
+  const noseGZ = surfaceFrontZ(0, canon.noseBaseY + 0.008, 0.132) - 0.004;
+  const noseTopOff = THREE.MathUtils.clamp(
+    (surfaceFrontZ(0, canon.noseRootY, 0.1455) - 0.0065 - noseGZ) / noseSZ, 0.0095, 0.026
+  );
+  noseGroup.position.set(0, canon.noseBaseY + 0.016 * noseSY, noseGZ);
+  noseGroup.scale.set(canon.noseScaleX, noseSY, noseSZ);
 
   const bridgeProfile = [
     [0.0, 0.0076],
@@ -21979,7 +22101,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     heightSegments: 14,
     scaleX: (t) => THREE.MathUtils.lerp(1.05, 0.62, t),
     scaleZ: (t) => THREE.MathUtils.lerp(1.25, 0.85, t),
-    offsetZ: (t) => THREE.MathUtils.lerp(0.0195, 0.0095, t),
+    offsetZ: (t) => THREE.MathUtils.lerp(0.0195, noseTopOff, t),
   });
   const bridgeMesh = new THREE.Mesh(bridgeGeo, faceSkinMat);
   bridgeMesh.position.set(0, -0.011, 0.0);
@@ -22015,7 +22137,10 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   // 4. Labios Esculpidos proporcionados con arco de Cupido suave y comisura envolvente
   const mouthGroup = new THREE.Group();
   mouthGroup.name = 'mouth';
-  mouthGroup.position.set(0, 0.048 + (chinY - 1.0) * 0.009, 0.1195);
+  // Canon: línea de la boca a 1/3 entre la base de la nariz (E) y la barbilla (G); base del labio inferior ≈ F
+  const lipThick = caraCfg.lipThickness ?? 1.0;
+  mouthGroup.position.set(0, canon.mouthY + 0.0015, surfaceFrontZ(0, canon.mouthY, 0.1142) + 0.0053);
+  mouthGroup.scale.set(canon.mouthScaleX, Math.max(0.76, lipThick * 1.35), Math.max(0.92, lipThick * 1.45));
 
   const upperLipCurve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(-0.020, -0.0014, -0.0085),
@@ -22056,7 +22181,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const dir = i === 0 ? 1 : -1;
     const earGroup = new THREE.Group();
     earGroup.name = `ear_${i}`;
-    earGroup.position.set(dir * 0.114, 0.105, -0.008);
+    // Canon: oreja entre la línea de las cejas (C) y la base de la nariz (E), tras el eje medio del cráneo
+    earGroup.position.set(dir * (surfaceSideX(canon.earY, canon.earZ, 0.1137) + 0.0003), canon.earY, canon.earZ);
+    earGroup.scale.setScalar(canon.earScale);
     earGroup.rotation.y = dir * 0.22;
     earGroup.rotation.z = -dir * 0.08;
 
@@ -22101,8 +22228,11 @@ function buildProceduralBeardGroup(caraCfg, beardMat) {
   const chinL = caraCfg.chinLength ?? 1.0;
   const chinY = caraCfg.chinY ?? 1.0;
   const bLen = caraCfg.beardLength ?? 1.0;
-  const chinElev = chinY - 1.0;
+  const beardCanon = getFaceCanon(caraCfg);
+  const chinElev = beardCanon.chinElev;
   const chinProj = chinL - 1.0;
+  // Desplazamiento de bigote/candado para seguir la línea de la boca del canon
+  const mouthDY = beardCanon.mouthY - 0.0465;
 
   // Altura y profundidad del mentón adaptadas al slider de elevación
   const chinBaseY = 0.015 + chinElev * 0.038;
@@ -22116,9 +22246,9 @@ function buildProceduralBeardGroup(caraCfg, beardMat) {
     for (let i = 0; i < 2; i++) {
       const dir = i === 0 ? 1 : -1;
       const mustacheCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(dir * 0.002, 0.054 + chinElev * 0.009, 0.118),
-        new THREE.Vector3(dir * 0.015, 0.050 + chinElev * 0.009, 0.118),
-        new THREE.Vector3(dir * 0.029, 0.041 + chinElev * 0.008, 0.106),
+        new THREE.Vector3(dir * 0.002, 0.054 + mouthDY, 0.118),
+        new THREE.Vector3(dir * 0.015, 0.050 + mouthDY, 0.118),
+        new THREE.Vector3(dir * 0.029, 0.041 + mouthDY, 0.106),
       ]);
       const mustacheHalf = new THREE.Mesh(
         new THREE.TubeGeometry(mustacheCurve, 14, 0.0034 * Math.min(1.3, bLen), 8, false),
@@ -22152,8 +22282,8 @@ function buildProceduralBeardGroup(caraCfg, beardMat) {
     for (let i = 0; i < 2; i++) {
       const dir = i === 0 ? 1 : -1;
       const sideCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(dir * 0.025, 0.043 + chinElev * 0.009, 0.107),
-        new THREE.Vector3(dir * 0.021, 0.028 + chinElev * 0.012, 0.109),
+        new THREE.Vector3(dir * 0.025, 0.043 + mouthDY, 0.107),
+        new THREE.Vector3(dir * 0.021, 0.028 + mouthDY * 0.5 + chinElev * 0.012, 0.109),
         new THREE.Vector3(dir * 0.012, chinBaseY + 0.006, chinBaseZ - 0.007),
       ]);
       const sideBar = new THREE.Mesh(
@@ -25063,7 +25193,7 @@ const ARCHETYPES = {
       eyeSlant: 0.0,
       eyeSize: 1.26,
       eyeSpacing: 1.12,
-      eyeY: 0.72,
+      eyeY: 0.48, // niño: ojos ligeramente por debajo del canon adulto
       eyeSquash: 1.05,
       eyeAspect: 0.98,
       eyeAngular: 0.0,
@@ -25095,7 +25225,7 @@ const ARCHETYPES = {
       eyeSlant: 0.0,
       eyeSize: 1.28,
       eyeSpacing: 1.10,
-      eyeY: 0.72,
+      eyeY: 0.48, // niña: ojos ligeramente por debajo del canon adulto
       eyeSquash: 1.06,
       eyeAspect: 0.98,
       eyeAngular: 0.0,
@@ -25528,31 +25658,7 @@ function rebuildCharacter() {
   const sculptedHead = buildSculptedHeadGroup(c.cara, MAT);
   sculptedHead.scale.set(c.cara.headWidth, c.cara.headHeight, (c.cara.headWidth + c.cara.headHeight) * 0.5);
 
-  sculptedHead.traverse((o) => {
-    if (o.name.startsWith('eye_')) {
-      const isLeft = o.name === 'eye_0';
-      const dir = isLeft ? 1 : -1;
-      o.position.x = dir * 0.036 * c.cara.eyeSpacing;
-      o.position.y = 0.120 + (c.cara.eyeY - 1.0) * 0.025;
-      o.scale.setScalar(c.cara.eyeSize);
-    }
-    if (o.name === 'nose') {
-      o.scale.set(c.cara.noseWidth, c.cara.noseLength, 0.5 + c.cara.noseLength * 0.5);
-    }
-    if (o.name === 'mouth') {
-      o.scale.set(
-        c.cara.lipWidth,
-        Math.max(0.76, c.cara.lipThickness * 1.35),
-        Math.max(0.92, c.cara.lipThickness * 1.45)
-      );
-    }
-    if (o.name === 'philtrum') {
-      o.scale.set(c.cara.lipWidth, 1.0, 1.0);
-    }
-    if (o.name.startsWith('ear_')) {
-      o.scale.setScalar(c.cara.earSize);
-    }
-  });
+  // Ojos, nariz, boca y orejas ya vienen colocados y escalados según FACE_CANON (getFaceCanon)
 
   assignZone(sculptedHead, 'cara');
   rig.head.add(sculptedHead);
