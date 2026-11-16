@@ -21310,7 +21310,9 @@ function getFaceCanon(caraCfg = {}) {
   // Globo ocular (r ≈ 0,2F) dimensionado para que la abertura palpebral mida ≈ 0,42F (canon: ojo = F/2 entre cantos)
   // eyeSize escala el globo directamente respecto al neutro: de ×0,9 hasta ×1,5 (ojos grandes en el aleatorio)
   const eyeSizeK = Math.max(0.9, Math.min(1.5, (caraCfg.eyeSize ?? C.neutral.eyeSize) / C.neutral.eyeSize));
-  const eyeR = 0.213 * F * eyeSizeK;
+  // Rasgo femenino (0 = neutro, 1 = rostro femenino estilizado): ojos algo mayores, mandíbula en V, nariz pequeña…
+  const fem = Math.max(0, Math.min(1, caraCfg.feminine ?? 0));
+  const eyeR = 0.213 * F * eyeSizeK * (1 + 0.08 * fem);
   const eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
   const eyeY = lv('D') + eyeYDev;
   const noseBaseY = lv('E') - noseDev;
@@ -21320,7 +21322,7 @@ function getFaceCanon(caraCfg = {}) {
     F,
     topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY, noseBaseY, noseRootY,
     mouthY: lv('stomion'), lowerLipY: lv('F'), chinY: lv('G'),
-    eyeX, eyeR, eyeSizeK,
+    eyeX, eyeR, eyeSizeK, fem,
     noseAlaHalf: 0.5 * C.widths.nose * F * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
     noseWidthScale: 1 + clamp(dev('noseWidth'), C.maxDev.noseWidth),
     mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
@@ -21612,14 +21614,15 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   };
   const gonionY = (canon.noseBaseY + canon.lowerLipY) * 0.5;
   // Silueta frontal (semianchura relativa a la máxima del cráneo)
+  const fem = canon.fem;
   const faceW = makeProfile([
     [CY, 1.0],
-    [canon.noseBaseY, 0.93],
-    [gonionY, 0.83 * jwF],
-    [canon.lowerLipY, 0.72 * jwF],
-    [(canon.lowerLipY + chinLowY) * 0.5, 0.56],
-    [chinLowY + 0.004, 0.36],
-    [chinLowY, 0.30],
+    [canon.noseBaseY, 0.93 - 0.025 * fem],
+    [gonionY, (0.83 - 0.085 * fem) * jwF],
+    [canon.lowerLipY, (0.72 - 0.11 * fem) * jwF],
+    [(canon.lowerLipY + chinLowY) * 0.5, 0.56 - 0.09 * fem],
+    [chinLowY + 0.004, 0.36 - 0.06 * fem],
+    [chinLowY, 0.30 - 0.04 * fem],
   ]);
   // Perfil frontal (profundidad relativa a la máxima del cráneo)
   const faceZ = makeProfile([
@@ -21691,19 +21694,19 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       const gy = (c, s) => Math.exp(-Math.pow((y - c) / s, 2));
       let dz = 0, dx = 0;
       // Arco superciliar continuo sobre ambos ojos y glabela
-      dz += 0.0068 * brow * Math.exp(-Math.pow(X / 0.060, 4)) * gy(canon.browY + 0.004, 0.011);
+      dz += 0.0068 * brow * (1 - 0.45 * fem) * Math.exp(-Math.pow(X / 0.060, 4)) * gy(canon.browY + 0.004, 0.011);
       // Raíz y dorso óseo nasal entre los ojos
       dz += 0.0055 * gx(0, 0.010) * gy(canon.eyeY - 0.006, 0.018);
       // Pómulos (cigomáticos) bajo el ángulo externo del ojo
-      const cheek = gx(canon.eyeX + 0.016, 0.020) * gy(canon.eyeY - 0.024, 0.015);
-      dz += 0.0050 * cheek; dx += 0.0030 * cheek;
+      const cheek = gx(canon.eyeX + 0.016, 0.020) * gy(canon.eyeY - 0.024 + 0.005 * fem, 0.015);
+      dz += 0.0050 * (1 + 0.5 * fem) * cheek; dx += 0.0030 * cheek;
       // Hueco submalar suave
       dz -= 0.0018 * gx(canon.eyeX + 0.010, 0.018) * gy(canon.noseBaseY - 0.004, 0.012);
       // Arcada dental: el bloque de la boca avanza ligeramente
       dz += 0.0042 * gx(0, 0.030) * gy(canon.mouthY, 0.020);
       // Surco mentolabial y protuberancia mentoniana
       dz -= 0.0024 * gx(0, 0.018) * gy(canon.lowerLipY - 0.005, 0.0055);
-      dz += 0.0070 * chinLF * gx(0, 0.021) * gy(chinLowY + 0.012, 0.012);
+      dz += 0.0070 * chinLF * gx(0, 0.021 * (1 - 0.3 * fem)) * gy(chinLowY + 0.012, 0.012);
       x += Math.sign(x) * dx * fm;
       z += dz * fm;
 
@@ -21712,9 +21715,16 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       const qx = (X - canon.eyeX) / (0.027 * canon.eyeSizeK), qy = (y - canon.eyeY) / (0.021 * canon.eyeSizeK);
       const q = qx * qx + qy * qy;
       if (q < 1.0) {
-        const zCav = eyeCZ + eyeR * 1.06 * Math.sqrt(Math.max(0, 1 - q * 1.6)) + 0.004 * q;
+        // Detrás del globo (siguiendo su curvatura) para que la esclerótica llegue a los cantos, incluido el lagrimal
+        // (sólo dentro de la abertura palpebral; fuera, los párpados siguen cubriendo el globo)
+        const dEx = X - canon.eyeX, dEy = y - canon.eyeY;
+        const d2 = dEx * dEx + dEy * dEy;
+        const zBowl = eyeCZ + eyeR * 1.06 * Math.sqrt(Math.max(0, 1 - q * 1.6)) + 0.004 * q - 0.0006;
+        const oq = Math.pow(dEx / (eyeR * 1.02), 2) + Math.pow(dEy / (eyeR * 0.50), 2);
+        const zBehindEye = eyeCZ + Math.sqrt(Math.max(0, eyeR * eyeR - d2)) - 0.0010;
+        const zCav = THREE.MathUtils.lerp(zBowl, Math.min(zBowl, zBehindEye), 1.0 - sstep(oq, 0.9, 1.3));
         const w = 1.0 - sstep(q, 0.15, 1.0);
-        if (zCav - 0.0006 < z) z = THREE.MathUtils.lerp(z, zCav - 0.0006, w);
+        if (zCav < z) z = THREE.MathUtils.lerp(z, zCav, w);
       }
     }
 
@@ -21909,7 +21919,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const openF = clampV(0.55 + 0.45 * eyeOpen, 0.4, 1.25);
   const lidAw = clampV(1.10 * Math.sqrt(scW) * (0.88 + 0.12 * eyeAspect), 1.0, 1.40);
   const lidHScale = (scH / 0.92) * clampV(eyeSquash, 0.7, 1.3) * openF;
-  const lidHu = 0.42 * lidHScale;           // el párpado superior tapa el borde alto del iris
+  const lidHu = 0.42 * lidHScale * (1 + 0.04 * canon.fem);           // el párpado superior tapa el borde alto del iris
   const lidHl = 0.47 * lidHScale;           // el inferior roza el borde bajo del iris
   const lidPu = isGoku ? 0.22 : (isFish ? 0.9 : 0.55);
   const lidPl = isFish ? 0.9 : (isGoku ? 0.6 : 0.78);
@@ -21963,7 +21973,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       let ay = upper
         ? lidHu * Math.pow(bell, lidPu) * (1 - 0.16 * ud)
         : -lidHl * Math.pow(bell, lidPl) * (1 + 0.14 * ud);
-      ay += 0.05 * ud;
+      ay += (0.05 + 0.07 * canon.fem) * ud;   // canto externo elevado (más en rostros femeninos)
       const ax = lidAw * u;
       contour.push([ax * cs - ay * sn, ax * sn + ay * cs]);
       isUpper.push(upper);
@@ -22023,15 +22033,39 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       const [cax, cay] = contour[k];
       lashPts.push(eyeCenter.clone().addScaledVector(angToDir(cax * 1.01, cay + 0.015), eyeR + lidT * 1.15));
     }
-    lashPts.sort((p1, p2) => p1.x - p2.x);
+    lashPts.sort((p1, p2) => (p1.x - p2.x) * dir);
+    if (canon.fem > 0.05) {
+      // Ala de pestañas / delineado que prolonga el canto externo hacia arriba
+      // (sobre la piel del párpado, continuando la abertura más allá del canto externo)
+      for (const [ka, kb] of [[1.07, 0.06], [1.15, 0.14]]) {
+        const ax = dir * lidAw * ka, ay = (0.05 + 0.07 * canon.fem) + kb * canon.fem;
+        const axr = ax * Math.cos(dir * slantBase) - ay * Math.sin(dir * slantBase);
+        const ayr = ax * Math.sin(dir * slantBase) + ay * Math.cos(dir * slantBase);
+        lashPts.push(eyeCenter.clone().addScaledVector(angToDir(axr, ayr), eyeR + lidT * 1.2));
+      }
+    }
     if (lashPts.length > 3) {
       const lashCurve = new THREE.CatmullRomCurve3(lashPts);
-      const lash = new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 32, eyeR * 0.045, 6, false), lashLineMat);
+      const lashSegs = 40, lashRad = 6;
+      const lashGeo = new THREE.TubeGeometry(lashCurve, lashSegs, eyeR * 0.045 * (1 + 0.7 * canon.fem), lashRad, false);
+      // Afinar los extremos: fino en el lagrimal y en punta al final del ala
+      const lp = lashGeo.attributes.position;
+      const ctr = new THREE.Vector3();
+      for (let si = 0; si <= lashSegs; si++) {
+        const u = si / lashSegs;
+        lashCurve.getPointAt(u, ctr);
+        const taper = Math.min(0.45 + 0.55 * sstep(u, 0.0, 0.18), 1.0 - 0.8 * sstep(u, canon.fem > 0.05 ? 0.80 : 0.88, 1.0));
+        for (let rj = 0; rj <= lashRad; rj++) {
+          const vi = si * (lashRad + 1) + rj;
+          lp.setXYZ(vi, ctr.x + (lp.getX(vi) - ctr.x) * taper, ctr.y + (lp.getY(vi) - ctr.y) * taper, ctr.z + (lp.getZ(vi) - ctr.z) * taper);
+        }
+      }
+      lashGeo.computeVertexNormals();
+      const lash = new THREE.Mesh(lashGeo, lashLineMat);
       lash.name = `eye_lash_${i}`;
       lash.castShadow = false;
       headGroup.add(lash);
     }
-
     // Carúncula lagrimal en el canto medial
     const medial = contour[dir > 0 ? N / 2 : 0];
     const caruncula = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.11, 10, 10), carunculaMat);
@@ -22042,13 +22076,13 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
     // Ceja sobre el nivel C, apoyada en el arco superciliar
     const browPts = [
-      [-0.018, -0.0015], [-0.006, 0.0018], [0.008, 0.0024], [0.020, 0.0002], [0.026, -0.0028]
+      [-0.018, -0.0015], [-0.006, 0.0018], [0.008, 0.0024 + 0.0016 * canon.fem], [0.020, 0.0002 + 0.0008 * canon.fem], [0.026, -0.0028]
     ].map(([ox, oy]) => {
       const bx = dir * (canon.eyeX + ox * (0.9 + 0.1 * eyeAspect));
       const by = canon.browY + oy + (eyeTypeData.browOffset || 0) * 0.6;
       return new THREE.Vector3(bx, by, surfaceFrontZ(bx, by, eyeCZ + eyeR) + 0.0009);
     });
-    const browGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(browPts), 24, 0.0021, 8, false);
+    const browGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(browPts), 24, 0.0021 * (1 - 0.32 * canon.fem), 8, false);
     // Aplanar el tubo contra la frente (sección elíptica)
     const bp = browGeo.attributes.position;
     for (let k = 0; k < bp.count; k++) {
@@ -22073,13 +22107,13 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   noseGroup.name = 'nose';
   {
     const F = canon.F;
-    const wS = canon.noseWidthScale;
+    const wS = canon.noseWidthScale * (1 - 0.16 * canon.fem);
     const rootY = canon.noseRootY, baseY = canon.noseBaseY;
     const L = rootY - baseY;
-    const proj = 0.30 * F;                       // proyección de la punta (≈ F/3 en el perfil del canon)
-    const tipY = baseY + 0.20 * L;
+    const proj = 0.30 * F * (1 - 0.14 * canon.fem);   // proyección de la punta (≈ F/3 en el perfil del canon)
+    const tipY = baseY + (0.20 + 0.05 * canon.fem) * L; // punta algo respingona en rostros femeninos
     const tTip = (rootY - tipY) / L;
-    const alaHalf = canon.noseAlaHalf;
+    const alaHalf = canon.noseAlaHalf * (1 - 0.14 * canon.fem);
     const alaRx = 0.0068 * wS, alaRy = 0.0072, alaX = alaHalf - alaRx * 0.95, alaY = baseY + 0.0052;
     const tipRx = 0.0090 * wS, tipRy = 0.0082;
     const smax = (a, b, k) => { const h = clampV(0.5 + 0.5 * (a - b) / k, 0, 1); return b + (a - b) * h + k * h * (1 - h); };
@@ -22199,16 +22233,18 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const F = canon.F;
     const lipThickRaw = caraCfg.lipThickness ?? 0.55;
     const tk = clampV(1.0 + (lipThickRaw - 0.55) * 0.6, 0.85, 1.2);
-    const halfW = 0.5 * canon.mouthScaleX * FACE_CANON.base.mouth;   // ≈ 0,35F (boca ≈ 0,7F)
+    const halfW = 0.5 * canon.mouthScaleX * FACE_CANON.base.mouth * (1 - 0.06 * canon.fem);   // ≈ 0,35F (boca ≈ 0,7F)
     const y0 = canon.mouthY;
-    const Hu = 0.105 * F * tk, Hl = 0.13 * F * tk;   // altura del bermellón superior / inferior
-    const Pu = 0.050 * F * tk, Pl = 0.046 * F * tk;  // proyección del volumen labial
+    const fl = 1 + 0.22 * canon.fem;                  // labios más carnosos en rostros femeninos
+    const Hu = 0.105 * F * tk * fl, Hl = 0.13 * F * tk * (fl + 0.03 * canon.fem);   // altura del bermellón superior / inferior
+    const fp = 1 + 0.08 * canon.fem;
+    const Pu = 0.050 * F * tk * fp, Pl = 0.046 * F * tk * fp;  // proyección del volumen labial
     const U = 40, VS = 12;
     const stomionY = (u) => y0 - 0.0006 * u * u - 0.0007 * Math.exp(-Math.pow(u / 0.16, 2));
     const upperH = (u) => {
       const a = Math.abs(u);
       const base = Math.pow(Math.max(0, 1 - Math.pow(a, 1.7)), 0.75);
-      const peaks = 1 + 0.20 * Math.exp(-Math.pow((a - 0.24) / 0.11, 2));
+      const peaks = 1 + (0.20 + 0.10 * canon.fem) * Math.exp(-Math.pow((a - 0.24) / 0.11, 2));
       const dip = 0.16 * Math.exp(-Math.pow(u / 0.085, 2));
       return Hu * Math.max(0, base * peaks - dip);
     };
@@ -25085,6 +25121,7 @@ const CONFIG = {
     cloth: '#1e293b',
   },
   cara: {
+    feminine: 0.0,
     headWidth: 0.98,
     headHeight: 0.96,
     jawWidth: 1.00,
@@ -25160,7 +25197,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.14, waistWidth: 0.94, hipWidth: 0.96, chestDepth: 1.08, height: 1.02, neckWidth: 1.06, muscleDef: 0.62 },
     brazos: { length: 1.02, thickness: 1.06, bicepSize: 1.12, forearmSize: 1.06, handSize: 1.02 },
     piernas: { length: 1.02, thickness: 1.05, calfSize: 1.06, gluteSize: 1.0, footSize: 1.02 },
-    cara: {
+    cara: { feminine: 0.0,
       headWidth: 0.98,
       headHeight: 0.96,
       jawWidth: 1.04,
@@ -25202,7 +25239,7 @@ const ARCHETYPES = {
       eyeType: 'almendrado',
       eyeOpen: 1.08,
       eyeSlant: 0.08,
-      eyeSize: 1.14,
+      eyeSize: 1.30,
       eyeSpacing: 1.06,
       eyeY: 0.74,
       eyeSquash: 1.0,
@@ -25213,6 +25250,7 @@ const ARCHETYPES = {
       lipWidth: 1.02,
       lipThickness: 0.74,
       earSize: 0.92,
+      feminine: 1.0,
       beardStyle: 'ninguna',
       beardLength: 0.0,
     },
@@ -25224,7 +25262,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.02, waistWidth: 1.02, hipWidth: 0.96, chestDepth: 0.98, height: 0.96, neckWidth: 0.95, muscleDef: 0.22 },
     brazos: { length: 0.98, thickness: 0.92, bicepSize: 0.86, forearmSize: 0.90, handSize: 1.02 },
     piernas: { length: 0.96, thickness: 0.92, calfSize: 0.90, gluteSize: 0.88, footSize: 1.0 },
-    cara: {
+    cara: { feminine: 0.0,
       headWidth: 0.96,
       headHeight: 0.94,
       jawWidth: 0.98,
@@ -25277,6 +25315,7 @@ const ARCHETYPES = {
       lipWidth: 0.90,
       lipThickness: 0.42,
       earSize: 1.16,
+      feminine: 0.75,
       beardStyle: 'ninguna',
       beardLength: 0.0,
     },
@@ -25288,7 +25327,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 0.82, waistWidth: 0.82, hipWidth: 0.84, chestDepth: 0.84, height: 0.76, neckWidth: 0.80, muscleDef: 0.04 },
     brazos: { length: 0.82, thickness: 0.78, bicepSize: 0.76, forearmSize: 0.76, handSize: 0.82 },
     piernas: { length: 0.78, thickness: 0.80, calfSize: 0.80, gluteSize: 0.85, footSize: 0.82 },
-    cara: {
+    cara: { feminine: 0.0,
       headWidth: 1.18,
       headHeight: 1.14,
       jawWidth: 0.74,
@@ -25341,6 +25380,7 @@ const ARCHETYPES = {
       lipWidth: 0.94,
       lipThickness: 0.65,
       earSize: 0.94,
+      feminine: 0.6,
       beardStyle: 'ninguna',
       beardLength: 0.0,
     },
@@ -25352,7 +25392,7 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.04, waistWidth: 0.92, hipWidth: 0.96, chestDepth: 1.00, height: 1.0, neckWidth: 0.98, muscleDef: 0.55 },
     brazos: { length: 1.0, thickness: 1.0, bicepSize: 1.05, forearmSize: 1.0, handSize: 1.0 },
     piernas: { length: 1.0, thickness: 1.02, calfSize: 1.02, gluteSize: 1.0, footSize: 1.0 },
-    cara: {
+    cara: { feminine: 0.0,
       headWidth: 0.94,
       headHeight: 0.78,
       jawWidth: 0.84,
@@ -25382,28 +25422,28 @@ const ARCHETYPES = {
     torso: { chestWidth: 1.08, waistWidth: 0.92, hipWidth: 0.96, chestDepth: 1.04, height: 1.02, neckWidth: 1.02, muscleDef: 0.68 },
     brazos: { length: 1.0, thickness: 1.05, bicepSize: 1.12, forearmSize: 1.04, handSize: 1.0 },
     piernas: { length: 1.02, thickness: 1.06, calfSize: 1.08, gluteSize: 1.04, footSize: 1.0 },
-    cara: { jawWidth: 1.04, chinLength: 1.0, chinY: 1.02, browRidge: 1.05, headWidth: 1.0, headHeight: 1.0 },
+    cara: { feminine: 0.0, jawWidth: 1.04, chinLength: 1.0, chinY: 1.02, browRidge: 1.05, headWidth: 1.0, headHeight: 1.0 },
   },
   culturista: {
     label: 'Culturista',
     torso: { chestWidth: 1.32, waistWidth: 0.88, hipWidth: 0.98, chestDepth: 1.24, height: 1.0, neckWidth: 1.22, muscleDef: 0.96 },
     brazos: { length: 1.0, thickness: 1.32, bicepSize: 1.42, forearmSize: 1.25, handSize: 1.05 },
     piernas: { length: 1.0, thickness: 1.30, calfSize: 1.34, gluteSize: 1.22, footSize: 1.04 },
-    cara: { jawWidth: 1.14, chinLength: 1.08, chinY: 1.05, browRidge: 1.15, headWidth: 1.04, headHeight: 0.98 },
+    cara: { feminine: 0.0, jawWidth: 1.14, chinLength: 1.08, chinY: 1.05, browRidge: 1.15, headWidth: 1.04, headHeight: 0.98 },
   },
   esbelto: {
     label: 'Esbelto',
     torso: { chestWidth: 0.90, waistWidth: 0.82, hipWidth: 0.90, chestDepth: 0.88, height: 1.06, neckWidth: 0.88, muscleDef: 0.32 },
     brazos: { length: 1.05, thickness: 0.82, bicepSize: 0.85, forearmSize: 0.84, handSize: 0.95 },
     piernas: { length: 1.08, thickness: 0.86, calfSize: 0.88, gluteSize: 0.90, footSize: 0.96 },
-    cara: { jawWidth: 0.90, chinLength: 0.96, chinY: 0.98, browRidge: 0.85, headWidth: 0.95, headHeight: 1.04 },
+    cara: { feminine: 0.0, jawWidth: 0.90, chinLength: 0.96, chinY: 0.98, browRidge: 0.85, headWidth: 0.95, headHeight: 1.04 },
   },
   robusto: {
     label: 'Robusto',
     torso: { chestWidth: 1.26, waistWidth: 1.22, hipWidth: 1.18, chestDepth: 1.26, height: 0.96, neckWidth: 1.20, muscleDef: 0.48 },
     brazos: { length: 0.95, thickness: 1.26, bicepSize: 1.20, forearmSize: 1.22, handSize: 1.08 },
     piernas: { length: 0.94, thickness: 1.25, calfSize: 1.22, gluteSize: 1.18, footSize: 1.06 },
-    cara: { jawWidth: 1.16, chinLength: 1.02, chinY: 0.96, browRidge: 1.10, headWidth: 1.08, headHeight: 0.96 },
+    cara: { feminine: 0.0, jawWidth: 1.16, chinLength: 1.02, chinY: 0.96, browRidge: 1.10, headWidth: 1.08, headHeight: 0.96 },
   },
 };
 
@@ -26333,7 +26373,7 @@ function randomizeArchetype(archetypeKey) {
     CONFIG.cara.lipWidth = rVal(0.96, 1.10);
     CONFIG.cara.lipThickness = rVal(0.68, 0.84);
     CONFIG.cara.eyeType = pick(['almendrado', 'rasgado', 'felino', 'redondo', 'profundo']);
-    CONFIG.cara.eyeSize = rVal(1.08, 1.65); // hasta +50 % sobre el canon
+    CONFIG.cara.eyeSize = rVal(1.25, 1.65); // hasta +50 % sobre el canon
     CONFIG.cara.eyeOpen = rVal(1.02, 1.15);
     CONFIG.cara.eyeSlant = rVal(0.04, 0.16);
     CONFIG.cara.eyeSpacing = rVal(1.02, 1.12);
