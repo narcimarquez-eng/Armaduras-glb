@@ -76,6 +76,9 @@
         <option value="combat">Pose Guardia Combate</option>
         <option value="heroic">Pose Heroica</option>
       </select>
+      <label class="flex items-center gap-1.5 px-1 text-[10px] text-slate-300 cursor-pointer select-none" title="Proyecta una textura de rostro de referencia sobre la cara (prueba)">
+        <input id="chk-face-ref-texture" type="checkbox" class="accent-amber-500 w-3 h-3" /> Textura de rostro (prueba)
+      </label>
       <button id="btn-generate-human-glb" class="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-600/90 to-orange-600/90 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-[10px] flex items-center justify-center gap-1.5 shadow border border-amber-400/30 transition active:scale-95">
         <i data-lucide="sparkles" class="w-3 h-3"></i> Generar Variación
       </button>
@@ -3928,7 +3931,8 @@
         fullPath.includes('brow') ||
         fullPath.includes('lash') ||
         fullPath.includes('cornea') ||
-        fullPath.includes('pupil')
+        fullPath.includes('pupil') ||
+        fullPath.includes('face_tex')
       ) {
         return 'face_detail';
       }
@@ -19890,6 +19894,14 @@
           generateCreador3DHumanoGLB(e.target.value, false);
         });
       }
+      const chkFaceTex = document.getElementById('chk-face-ref-texture');
+      if (chkFaceTex) {
+        chkFaceTex.addEventListener('change', (e) => {
+          if (!window.CreadorHumano) return;
+          window.CreadorHumano.CONFIG.cara.faceTexture = e.target.checked ? 'ref_mujer' : null;
+          generateCreador3DHumanoGLB('keep', false);
+        });
+      }
       const selPose = document.getElementById('human-pose-select');
       if (selPose) {
         selPose.addEventListener('change', (e) => {
@@ -21560,6 +21572,73 @@ function createProceduralFaceSkinMaterial(skinColorHex = "#d99e82") {
 }
 
 /**
+ * Texturas de rostro de referencia (prueba): imagen frontal recortada con máscara ovalada.
+ * Puntos de anclaje en píxeles de la imagen: centros de los ojos y barbilla. Se alinean con el canon
+ * (línea de los ojos D, barbilla G y centros de ojo a ±eyeX) para proyectarla en vista frontal.
+ */
+const FACE_TEXTURES = {
+  ref_mujer: {
+    label: 'Rostro de referencia (mujer)',
+    url: 'textures/rostro_ref_mujer.png',
+    size: [396, 424],
+    eyeL: [127, 166],   // ojo a la izquierda de la imagen (lado +X del personaje visto de frente: derecha)
+    eyeR: [262, 166],
+    chinY: 369.5,
+  },
+};
+const _FACE_TEX_CACHE = {};
+
+function applyFaceReferenceTexture(headGroup, canon, def) {
+  if (!_FACE_TEX_CACHE[def.url]) {
+    const tex = new THREE.TextureLoader().load(def.url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.anisotropy = 4;
+    _FACE_TEX_CACHE[def.url] = tex;
+  }
+  const tex = _FACE_TEX_CACHE[def.url];
+  const [W, H] = def.size;
+  const cxPx = (def.eyeL[0] + def.eyeR[0]) * 0.5;
+  const kx = ((def.eyeR[0] - def.eyeL[0]) * 0.5) / canon.eyeX;          // píxeles por unidad (horizontal)
+  const eyePx = (def.eyeL[1] + def.eyeR[1]) * 0.5;
+  const ky = (def.chinY - eyePx) / (canon.eyeY - canon.chinY);           // píxeles por unidad (vertical)
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    roughness: 0.62, metalness: 0.0,
+  });
+  const targets = [];
+  headGroup.children.forEach((o) => {
+    if (!o.isMesh) {
+      if (o.name === 'nose' || o.name === 'mouth') o.children.forEach((c) => { if (c.isMesh && /^(nose_volume|mouth_upper_lip|mouth_lower_lip)$/.test(c.name)) targets.push(c); });
+      return;
+    }
+    if (o.name === 'Head_Cranium_Mesh' || o.name.startsWith('eye_lid_')) targets.push(o);
+  });
+  targets.forEach((m) => {
+    const g = m.geometry.clone();
+    const P = g.attributes.position;
+    const uv = new Float32Array(P.count * 2);
+    const off = m.position;
+    for (let i = 0; i < P.count; i++) {
+      const X = P.getX(i) + off.x, Y = P.getY(i) + off.y, Z = P.getZ(i) + off.z;
+      if (Z < 0.02) { uv[i * 2] = -0.01; uv[i * 2 + 1] = -0.01; continue; }   // sólo la cara anterior
+      uv[i * 2] = (cxPx + X * kx) / W;
+      uv[i * 2 + 1] = 1.0 - (eyePx + (canon.eyeY - Y) * ky) / H;
+    }
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    const ov = new THREE.Mesh(g, mat);
+    ov.name = `face_tex_overlay_${m.name}`;
+    ov.position.copy(m.position); ov.rotation.copy(m.rotation); ov.scale.copy(m.scale);
+    ov.renderOrder = 2;
+    ov.castShadow = false;
+    m.parent.add(ov);
+  });
+  // Cejas y pestañas ya vienen pintadas en la textura
+  headGroup.children.forEach((o) => { if (/^(brow_|eye_lash_)/.test(o.name)) o.visible = false; });
+}
+
+/**
  * Construye una cabeza humana esculpida con cráneo, mandíbula, mentón, arco superciliar,
  * cuencas oculares, ojos con iris/pupila/párpados, cejas, nariz esculpida, labios y orejas.
  */
@@ -21919,11 +21998,11 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const openF = clampV(0.55 + 0.45 * eyeOpen, 0.4, 1.25);
   const lidAw = clampV(1.10 * Math.sqrt(scW) * (0.88 + 0.12 * eyeAspect), 1.0, 1.40);
   const lidHScale = (scH / 0.92) * clampV(eyeSquash, 0.7, 1.3) * openF;
-  const lidHu = 0.42 * lidHScale * (1 + 0.04 * canon.fem);           // el párpado superior tapa el borde alto del iris
-  const lidHl = 0.47 * lidHScale;           // el inferior roza el borde bajo del iris
+  const lidHu = 0.42 * lidHScale * (1 - 0.06 * canon.fem);           // el párpado superior tapa el borde alto del iris
+  const lidHl = 0.47 * lidHScale * (1 - 0.06 * canon.fem);           // el inferior roza el borde bajo del iris
   const lidPu = isGoku ? 0.22 : (isFish ? 0.9 : 0.55);
   const lidPl = isFish ? 0.9 : (isGoku ? 0.6 : 0.78);
-  const irisAng = clampV(0.47 * (eyeTypeData.irisRadius / 0.0095), 0.36, 0.62);
+  const irisAng = clampV(0.47 * (eyeTypeData.irisRadius / 0.0095) * (1 + 0.14 * canon.fem), 0.36, 0.62);
   const lidT = eyeR * 0.075;                // grosor del borde palpebral
   const slantBase = eyeTypeData.baseSlant + eyeSlant * 0.35;
 
@@ -22351,6 +22430,11 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   // Las curvas de barba están definidas sobre el cráneo original: se ajustan a la anchura del canon
   beardGroup.scale.x = SX;
   headGroup.add(beardGroup);
+
+  // 7. Textura de rostro de referencia (prueba), proyectada en frontal y alineada con el canon
+  if (caraCfg.faceTexture && FACE_TEXTURES[caraCfg.faceTexture]) {
+    applyFaceReferenceTexture(headGroup, canon, FACE_TEXTURES[caraCfg.faceTexture]);
+  }
 
   return headGroup;
 }
@@ -25237,7 +25321,7 @@ const ARCHETYPES = {
       chinY: 1.18,
       browRidge: 0.72,
       eyeType: 'almendrado',
-      eyeOpen: 1.08,
+      eyeOpen: 1.0,
       eyeSlant: 0.08,
       eyeSize: 1.30,
       eyeSpacing: 1.06,
@@ -26791,7 +26875,11 @@ function resetCharacter() {
       CH.CONFIG.items.outfit = 'shorts';
       CH.CONFIG.items.accessory = 'ninguno';
 
-      if (archetype === 'random') {
+      if (archetype === 'keep') {
+        // Reconstruir el personaje actual sin cambiar su configuración
+        CH.rebuildCharacter();
+        labelName = 'Personaje actual';
+      } else if (archetype === 'random') {
         CH.randomizeCharacter();
         CH.CONFIG.items.pose = activePose;
         CH.CONFIG.items.animation = 'none';
