@@ -94,7 +94,16 @@
         <select id="face-texture-select" class="bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer">
           <option value="">Sin textura</option>
           <option value="maniqui">🧩 Maniquí (guía del canon)</option>
-          <option value="ref_mujer">🖼️ Rostro de referencia (mujer)</option>
+          <optgroup label="Hombres">
+            <option value="ref_guerrero">🗡️ Guerrero barbado</option>
+            <option value="ref_anciano">🧔 Anciano guerrero</option>
+            <option value="ref_drow_hombre">🌑 Elfo oscuro</option>
+          </optgroup>
+          <optgroup label="Mujeres">
+            <option value="ref_mujer">🖼️ Guerrera de trenzas</option>
+            <option value="ref_elfa">✨ Elfa de la luz</option>
+            <option value="ref_drow_mujer">🌑 Elfa oscura</option>
+          </optgroup>
         </select>
         <div class="flex gap-1">
           <button id="btn-face-tex-upload" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Carga una foto o dibujo frontal y marca ojos y barbilla">Cargar imagen…</button>
@@ -20212,11 +20221,21 @@
         // Colores reales de la imagen: piel, labios, ojos y pelo (raíz, punta y reflejos)
         const def = key ? CH.getFaceTextureDef(key, CH.CONFIG.cara) : null;
         const col = def && def.colors;
+        // Los rostros predeterminados traen barba y cejas pintadas: se oculta la barba 3D y se recupera al quitarlos
+        if (def && def.gender) {
+          if (CH.CONFIG.cara._beardBeforeTex === undefined) CH.CONFIG.cara._beardBeforeTex = CH.CONFIG.cara.beardStyle;
+          CH.CONFIG.cara.beardStyle = 'ninguna';
+        } else if (CH.CONFIG.cara._beardBeforeTex !== undefined) {
+          CH.CONFIG.cara.beardStyle = CH.CONFIG.cara._beardBeforeTex;
+          delete CH.CONFIG.cara._beardBeforeTex;
+        }
         if (col) {
           if (col.skin) CH.CONFIG.colors.skin = col.skin;
           if (col.lips) CH.CONFIG.colors.lips = col.lips;
           if (col.eyes) CH.CONFIG.colors.eyes = col.eyes;
           if (col.hairRoot && col.hairTip) setHairPresetColor(col.hairRoot, col.hairTip, col.hairHigh || col.hairTip, true);
+          // Peinado parecido al de la ilustración (melena con raya al medio o trenzas)
+          if (def.hairCut && HAIR_CUT_PRESETS[def.hairCut]) applyHairCutPreset(def.hairCut, true);
           if (CH.syncMaterialColors) CH.syncMaterialColors();
         }
         generateCreador3DHumanoGLB('keep', false);
@@ -22276,8 +22295,44 @@ function sampleFaceColors(img, anchors, Fpx) {
 
 const FACE_TEXTURES = {
   maniqui: null,   // se genera bajo demanda (getFaceTextureDef)
+  // Rostros predeterminados (ilustraciones de referencia recortadas con la máscara facial; anclajes medidos a mano)
+  ref_guerrero: {
+    label: 'Guerrero barbado', gender: 'hombre', hairCut: 'raya_medio_lisa',
+    url: 'textures/rostro_guerrero.png', size: [410, 487],
+    eyeL: [132.3, 219.0], eyeR: [277.7, 219.0], chinY: 464.0, eyeWidth: 60.2,
+    browY: 190.9, noseY: 327.4, mouthL: [147.2, 379.7], mouthR: [265.6, 379.7],
+    colors: {'hairRoot': '#1b0c09', 'hairTip': '#241711', 'hairHigh': '#44352e', 'skin': '#dda486', 'lips': '#d18f77', 'eyes': '#6b4a32'},
+  },
+  ref_drow_hombre: {
+    label: 'Elfo oscuro', gender: 'hombre', hairCut: 'raya_medio_lisa',
+    url: 'textures/rostro_drow_hombre.png', size: [410, 487],
+    eyeL: [114.1, 219.0], eyeR: [295.9, 219.0], chinY: 464.0, eyeWidth: 80.8,
+    browY: 181.1, noseY: 347.8, mouthL: [140.8, 403.4], mouthR: [277.2, 403.4],
+    colors: {'hairRoot': '#797782', 'hairTip': '#b4b2bd', 'hairHigh': '#ebeaf2', 'skin': '#9b9db4', 'lips': '#675d76', 'eyes': '#d0506e'},
+  },
+  ref_anciano: {
+    label: 'Anciano guerrero', gender: 'hombre', hairCut: 'raya_medio_lisa',
+    url: 'textures/rostro_anciano.png', size: [410, 487],
+    eyeL: [137.1, 219.0], eyeR: [272.9, 219.0], chinY: 464.0, eyeWidth: 57.4,
+    browY: 192.2, noseY: 326.2, mouthL: [152.4, 377.9], mouthR: [267.2, 377.9],
+    colors: {'hairRoot': '#89827c', 'hairTip': '#a1978e', 'hairHigh': '#f8e4c3', 'skin': '#e4a480', 'lips': '#e6b098', 'eyes': '#7f93a8'},
+  },
+  ref_elfa: {
+    label: 'Elfa de la luz', gender: 'mujer', hairCut: 'trenzas_laterales',
+    url: 'textures/rostro_elfa.png', size: [410, 487],
+    eyeL: [119.1, 219.0], eyeR: [290.9, 219.0], chinY: 464.0, eyeWidth: 81.7,
+    browY: 180.4, noseY: 330.4, mouthL: [149.8, 379.9], mouthR: [256.2, 379.9],
+    colors: {'hairRoot': '#6c6263', 'hairTip': '#b69f8d', 'hairHigh': '#e7dac9', 'skin': '#f8e2d7', 'lips': '#f0a9a5', 'eyes': '#5f9ad6'},
+  },
+  ref_drow_mujer: {
+    label: 'Elfa oscura', gender: 'mujer', hairCut: 'trenzas_laterales',
+    url: 'textures/rostro_drow_mujer.png', size: [410, 487],
+    eyeL: [116.2, 219.0], eyeR: [293.8, 219.0], chinY: 464.0, eyeWidth: 79.5,
+    browY: 180.3, noseY: 334.1, mouthL: [149.1, 381.8], mouthR: [257.8, 381.8],
+    colors: {'hairRoot': '#191724', 'hairTip': '#262231', 'hairHigh': '#626375', 'skin': '#e1cad0', 'lips': '#c27fa0', 'eyes': '#8a52d0'},
+  },
   ref_mujer: {
-    label: 'Rostro de referencia (mujer)',
+    label: 'Guerrera de trenzas', gender: 'mujer', hairCut: 'trenzas_laterales',
     url: 'textures/rostro_ref_mujer.png',
     size: [396, 424],
     eyeL: [127, 166],
