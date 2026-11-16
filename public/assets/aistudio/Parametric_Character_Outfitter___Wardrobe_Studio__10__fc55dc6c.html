@@ -688,6 +688,11 @@
     const THREE = { ...THREE_CORE, OrbitControls, GLTFLoader, GLTFExporter };
     window.THREE = THREE;
 
+    // Escala del cráneo respecto al elipsoide original (r=0.125, y*1.18, z*1.08) para cumplir el canon:
+    // anchura frontal ≈ 2,4F y profundidad frente-nuca ≈ 3F (la cabeza con nariz cabe en el cuadrado de 3,5F).
+    // El sistema de pelo (HairLab) se construye en el espacio del elipsoide original y se escala igual.
+    const HEAD_SHAPE_SCALE = { x: 0.81, z: 0.86 };
+
     /* =========================================================================
        1. ESTADO GLOBAL (CONFIGURACIÓN INICIAL ESTILO PALADÍN DE REFERENCIA)
        ========================================================================= */
@@ -19095,6 +19100,8 @@
           armorSockets.hair.add(hairMeshGroup);
         }
       }
+      // El pelo se genera sobre el elipsoide craneal original: se adapta al cráneo del canon
+      hairMeshGroup.scale.set(HEAD_SHAPE_SCALE.x, 1.0, HEAD_SHAPE_SCALE.z);
 
       rebuildUnifiedScalpRoots();
       rebuildCurrentHair();
@@ -21300,7 +21307,8 @@ function getFaceCanon(caraCfg = {}) {
   const eyeYDev = clamp(dev('eyeY') / 0.3, 1.0) * C.maxDev.eyeY_F * F;
   const noseDev = clamp(dev('noseLength') / 0.2, 1.0) * C.maxDev.noseLength_F * F;
 
-  const eyeScale = (C.widths.eyeFissure * F / C.base.eyeFissure) * (1 + clamp(dev('eyeSize'), C.maxDev.eyeSize));
+  // Globo ocular (r ≈ 0,2F) dimensionado para que la abertura palpebral mida ≈ 0,42F (canon: ojo = F/2 entre cantos)
+  const eyeR = 0.213 * F * (1 + 0.6 * clamp(dev('eyeSize'), C.maxDev.eyeSize));
   const eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
   const eyeY = lv('D') + eyeYDev;
   const noseBaseY = lv('E') - noseDev;
@@ -21310,13 +21318,13 @@ function getFaceCanon(caraCfg = {}) {
     F,
     topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY, noseBaseY, noseRootY,
     mouthY: lv('stomion'), lowerLipY: lv('F'), chinY: lv('G'),
-    eyeX, eyeScale,
-    noseScaleY: (noseRootY - noseBaseY) / C.base.noseLen,
-    noseScaleX: (C.widths.nose * F / C.base.noseAla) * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
+    eyeX, eyeR,
+    noseAlaHalf: 0.5 * C.widths.nose * F * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
+    noseWidthScale: 1 + clamp(dev('noseWidth'), C.maxDev.noseWidth),
     mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
     earScale: (0.95 * F / C.base.ear) * (1 + clamp(dev('earSize'), C.maxDev.earSize)),
     earY: (lv('C') + lv('E')) * 0.5,
-    earZ: -0.020,
+    earZ: -0.026,
     chinElev: clamp((caraCfg.chinY ?? C.neutral.chinY) - 1.0, C.maxDev.chinY),
   };
 }
@@ -21557,8 +21565,12 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
   const faceSkinMat = mats.faceSkin || mats.skin;
 
-  // 1. Cráneo + Máscara Facial mediante deformación matemática de esfera de alta densidad
-  const headGeo = new THREE.SphereGeometry(0.125, 48, 48);
+  // 1. Cráneo con las proporciones del canon, construido por secciones horizontales:
+  //    - Bóveda (por encima de la línea media): elipsoide craneal escalado (HEAD_SHAPE_SCALE), igual que el pelo.
+  //    - Rostro (por debajo): silueta frontal y de perfil interpoladas a partir de los niveles del canon,
+  //      con lados casi verticales hasta la base de la nariz, ángulo mandibular a la altura de la boca y
+  //      mentón de anchura ≈ 0,6F; perfil facial casi vertical (barbilla ligeramente por detrás de la frente).
+  const headGeo = new THREE.SphereGeometry(0.125, 64, 64);
   const pos = headGeo.attributes.position;
 
   const jawW = caraCfg.jawWidth ?? 1.0;
@@ -21568,138 +21580,143 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   // Canon facial: todos los rasgos se colocan sobre los niveles A–G del módulo F
   const canon = getFaceCanon(caraCfg);
   const chinY = 1.0 + canon.chinElev;
-  // Conversión de alturas del canon (espacio headSculpt) a coordenada normalizada de la esfera base
-  const nyOf = (Y) => (Y - 0.11) / (0.125 * 1.18);
-  const NY_EYE = nyOf(canon.eyeY + 0.002);
-  const NY_BROW = nyOf(canon.browY + 0.006);
-  const NY_RADIX = nyOf((canon.eyeY + canon.noseBaseY) * 0.5 + 0.006);
-  const NY_CHEEK = nyOf(canon.eyeY - 0.27 * canon.F);
-  const NY_SUBMALAR = nyOf(canon.noseBaseY + 0.004);
-  const NY_MENTOLABIAL = nyOf(canon.lowerLipY - 0.004);
-  const NY_CHIN = nyOf(canon.chinY + 0.012);
-  const NX_EYE = canon.eyeX / 0.125;
+  const sstep = THREE.MathUtils.smoothstep;
+  const clampV = THREE.MathUtils.clamp;
+  const SX = HEAD_SHAPE_SCALE.x, SZ = HEAD_SHAPE_SCALE.z;
+  const CY = 0.11, RY = 0.1475, Y_BOT = CY - RY;
+  const W_MAX = 0.125 * SX, Z_MAX = 0.135 * SZ;
+  const jwF = clampV(jawW, 0.9, 1.1);
+  const chinLF = clampV(chinL, 0.85, 1.15);
+  const chinLowY = canon.chinY + canon.chinElev * 0.02;
+
+  // Interpolación cúbica de Hermite sobre puntos [y, valor] ordenados de arriba abajo (pendiente 0 en el primero)
+  const makeProfile = (pts) => {
+    const m = pts.map((p, k) => {
+      if (k === 0) return 0;
+      const a = pts[k - 1], b = pts[Math.min(pts.length - 1, k + 1)];
+      return (b[1] - a[1]) / (b[0] - a[0]);
+    });
+    return (y) => {
+      if (y >= pts[0][0]) return pts[0][1];
+      for (let k = 0; k < pts.length - 1; k++) {
+        const [y0, v0] = pts[k], [y1, v1] = pts[k + 1];
+        if (y <= y0 && y >= y1) {
+          const h = y1 - y0, t = (y - y0) / h, t2 = t * t, t3 = t2 * t;
+          return (2 * t3 - 3 * t2 + 1) * v0 + (t3 - 2 * t2 + t) * h * m[k] + (-2 * t3 + 3 * t2) * v1 + (t3 - t2) * h * m[k + 1];
+        }
+      }
+      return pts[pts.length - 1][1];
+    };
+  };
+  const gonionY = (canon.noseBaseY + canon.lowerLipY) * 0.5;
+  // Silueta frontal (semianchura relativa a la máxima del cráneo)
+  const faceW = makeProfile([
+    [CY, 1.0],
+    [canon.noseBaseY, 0.93],
+    [gonionY, 0.83 * jwF],
+    [canon.lowerLipY, 0.72 * jwF],
+    [(canon.lowerLipY + chinLowY) * 0.5, 0.56],
+    [chinLowY + 0.004, 0.36],
+    [chinLowY, 0.30],
+  ]);
+  // Perfil frontal (profundidad relativa a la máxima del cráneo)
+  const faceZ = makeProfile([
+    [CY, 1.0],
+    [canon.noseBaseY, 0.985],
+    [canon.mouthY, 0.968],
+    [canon.lowerLipY, 0.952],
+    [chinLowY + 0.012, 0.93 + (chinLF - 1.0) * 0.06],
+    [chinLowY, 0.84],
+  ]);
+  const baseShape = (y) => {
+    const u = clampV((y - CY) / RY, -1, 1);
+    const e = Math.sqrt(Math.max(0, 1 - u * u));
+    let W, Zf;
+    if (y >= CY) {
+      W = W_MAX * e; Zf = Z_MAX * e;
+    } else if (y >= chinLowY) {
+      W = W_MAX * faceW(y); Zf = Z_MAX * faceZ(y);
+    } else {
+      const close = Math.sqrt(clampV((y - Y_BOT) / (chinLowY - Y_BOT), 0, 1));
+      W = W_MAX * faceW(chinLowY) * close; Zf = Z_MAX * faceZ(chinLowY) * close;
+    }
+    // Nuca: se recoge hacia el cuello por debajo de la línea media
+    const napeT = clampV((0.13 - y) / (0.13 - Y_BOT), 0, 1);
+    const Zb = Z_MAX * e * THREE.MathUtils.lerp(1.0, 0.62, Math.pow(napeT, 1.2));
+    // Cara algo más "cuadrada" (superelipse) por debajo de los ojos; nuca elíptica
+    const nF = 2.0 + 0.6 * sstep(0.125 - y, 0.0, 0.05);
+    return { W, Zf, Zb, nF };
+  };
+  const baseFrontZ = (x, y) => {
+    const sh = baseShape(y);
+    const r = Math.min(1, Math.abs(x) / Math.max(1e-5, sh.W));
+    return sh.Zf * Math.pow(Math.max(0, 1 - Math.pow(r, sh.nF)), 1 / sh.nF);
+  };
+
+  // Globo ocular: córnea apenas por delante del plano facial a la altura de los ojos (hundido bajo el arco superciliar)
+  const eyeR = canon.eyeR;
+  const eyeCZ = baseFrontZ(canon.eyeX, canon.eyeY) + 0.0030 - eyeR;
 
   for (let i = 0; i < pos.count; i++) {
-    let x = pos.getX(i);
-    let y = pos.getY(i);
-    let z = pos.getZ(i);
+    const x0 = pos.getX(i), y0 = pos.getY(i), z0 = pos.getZ(i);
+    const y = CY + RY * clampV(y0 / 0.125, -1, 1);
+    const phi = Math.atan2(x0, z0);
+    const sPhi = Math.sin(phi), cPhi = Math.cos(phi);
+    const sh = baseShape(y);
+    const ex = 2 / (cPhi >= 0 ? sh.nF : 2.0);
+    // Borde inferior de la mandíbula: recto desde el ángulo goníaco (a la altura de la boca, bajo la oreja)
+    // hasta la barbilla (G). Lo que queda por debajo en la cara y los lados se pliega como suelo submentoniano;
+    // sólo la nuca sigue bajando hacia el cuello.
+    let yS = y;
+    const yJaw = THREE.MathUtils.lerp(gonionY - 0.010, chinLowY - 0.002, sstep(cPhi, 0.0, 0.9));
+    if (y < yJaw) {
+      const fw = sstep(cPhi, -0.85, 0.15);
+      yS = THREE.MathUtils.lerp(y, yJaw - 0.006 * (yJaw - y) / Math.max(1e-4, yJaw - Y_BOT), fw);
+    }
+    let x = sh.W * Math.sign(sPhi) * Math.pow(Math.abs(sPhi), ex);
+    let z = cPhi >= 0 ? sh.Zf * Math.pow(cPhi, ex) : -sh.Zb * Math.pow(-cPhi, ex);
 
-    // Normalizar coordenadas aproximadas (-1 a 1)
-    const nx = x / 0.125;
-    const ny = y / 0.125;
-    const nz = z / 0.125;
-
-    // Alargar proporción vertical humana del cráneo
-    y *= 1.18;
-    // Profundidad craneal anteroposterior
-    z *= 1.08;
-    // Aplanar suavemente las sienes laterales con transición continua C1 (evita escalón en mejillas)
-    const templeMask = Math.exp(-Math.pow((ny - 0.24) / 0.34, 2)) * THREE.MathUtils.smoothstep(Math.abs(nx), 0.35, 0.85);
+    // Sienes ligeramente aplanadas (mismo criterio que el casquete del pelo)
+    const nyN = (y - CY) / RY;
+    const templeMask = Math.exp(-Math.pow((nyN - 0.24) / 0.34, 2)) * sstep(Math.abs(x) / W_MAX, 0.35, 0.85);
     x *= (1.0 - 0.10 * templeMask);
 
-    // Parte inferior del rostro: esculpir pómulos, mejillas, mandíbula y mentón con continuidad C1
-    if (ny < 0.18) {
-      const lowerT = THREE.MathUtils.clamp((0.18 - ny) / 1.18, 0, 1);
-      // Máscara suave anteroposterior (evita cortes o roturas en nz = 0 y en el polo inferior)
-      const frontBlend = THREE.MathUtils.smoothstep(nz, -0.35, 0.35);
+    // Detalles faciales (sólo en la cara anterior)
+    if (z > 0) {
+      const fm = sstep(z / Math.max(1e-4, sh.Zf), 0.35, 0.85);
+      const X = Math.abs(x);
+      const gx = (c, s) => Math.exp(-Math.pow((X - c) / s, 2));
+      const gy = (c, s) => Math.exp(-Math.pow((y - c) / s, 2));
+      let dz = 0, dx = 0;
+      // Arco superciliar continuo sobre ambos ojos y glabela
+      dz += 0.0068 * brow * Math.exp(-Math.pow(X / 0.060, 4)) * gy(canon.browY + 0.004, 0.011);
+      // Raíz y dorso óseo nasal entre los ojos
+      dz += 0.0055 * gx(0, 0.010) * gy(canon.eyeY - 0.006, 0.018);
+      // Pómulos (cigomáticos) bajo el ángulo externo del ojo
+      const cheek = gx(canon.eyeX + 0.016, 0.020) * gy(canon.eyeY - 0.024, 0.015);
+      dz += 0.0050 * cheek; dx += 0.0030 * cheek;
+      // Hueco submalar suave
+      dz -= 0.0018 * gx(canon.eyeX + 0.010, 0.018) * gy(canon.noseBaseY - 0.004, 0.012);
+      // Arcada dental: el bloque de la boca avanza ligeramente
+      dz += 0.0042 * gx(0, 0.030) * gy(canon.mouthY, 0.020);
+      // Surco mentolabial y protuberancia mentoniana
+      dz -= 0.0024 * gx(0, 0.018) * gy(canon.lowerLipY - 0.005, 0.0055);
+      dz += 0.0070 * chinLF * gx(0, 0.021) * gy(chinLowY + 0.012, 0.012);
+      x += Math.sign(x) * dx * fm;
+      z += dz * fm;
 
-      // Estrechamiento progresivo y redondeado hacia la rama mandibular y mentón humano
-      const safeJawW = Math.max(0.84, jawW);
-      const frontTaperX = THREE.MathUtils.lerp(1.0, 0.68 * safeJawW, Math.pow(lowerT, 1.28));
-      const backTaperX = THREE.MathUtils.lerp(1.0, 0.72, Math.pow(lowerT, 1.25));
-      x *= THREE.MathUtils.lerp(backTaperX, frontTaperX, frontBlend);
-
-      // Profundidad craneofacial continua de nuca (-Z) a maxilar/mentón (+Z)
-      const backZScale = THREE.MathUtils.lerp(1.0, 0.58, Math.pow(lowerT, 1.2));
-      const frontZScale = THREE.MathUtils.lerp(1.02, 0.88, lowerT * 0.62);
-      z *= THREE.MathUtils.lerp(backZScale, frontZScale, frontBlend);
-
-      // Recogido occipital suave en la nuca
-      const occiputMask = THREE.MathUtils.smoothstep(nz, 0.05, -0.45);
-      y += occiputMask * lowerT * 0.018;
-
-      // Deformación acoplada y suave de Mentón y Mandíbula redondeada
-      const chinElev = chinY - 1.0;
-      const chinProj = chinL - 1.0;
-
-      // 1. Protuberancia mentoniana frontal (anchura natural humana, sin punta estrecha)
-      const chinZMask = THREE.MathUtils.smoothstep(nz, 0.0, 0.52);
-      const chinSpot =
-        Math.exp(-Math.pow(nx / 0.46, 2)) *
-        Math.exp(-Math.pow((ny - NY_CHIN) / 0.26, 2)) *
-        chinZMask;
-
-      // Proyección mentoniana del canon de perfil: la barbilla queda casi bajo el labio inferior
-      z += chinSpot * (0.022 * chinL + chinElev * 0.005);
-
-      // Surco mentolabial (hendidura anatómica suave bajo el labio inferior)
-      const mentolabial =
-        Math.exp(-Math.pow(nx / 0.34, 2)) *
-        Math.exp(-Math.pow((ny - NY_MENTOLABIAL) / 0.11, 2)) *
-        chinZMask;
-      z -= mentolabial * (0.004 + 0.002 * chinL);
-
-      // 2. Arco mandibular inferior y suelo submentoniano
-      const jawSubmentalMask = THREE.MathUtils.smoothstep(nz, -0.28, 0.35);
-      const jawVertMask = THREE.MathUtils.smoothstep(-ny, 0.18, 0.96);
-      const jawCenterFocus = 0.42 + 0.58 * Math.exp(-Math.pow(nx / 0.56, 2));
-      const jawInfluence = jawSubmentalMask * jawVertMask * jawCenterFocus;
-
-      y += jawInfluence * (chinElev * 0.028 - chinProj * 0.008) - chinSpot * 0.006;
-      z += jawInfluence * (chinProj * 0.009 + chinElev * 0.004);
-
-      // 3. Ángulo goníaco de la mandíbula
-      const lateralFade = THREE.MathUtils.smoothstep(Math.abs(nx), 0.05, 0.25);
-      const jawCornerZ = THREE.MathUtils.smoothstep(nz, -0.20, 0.28);
-      const jawAngle =
-        Math.exp(-Math.pow((Math.abs(nx) - 0.56) / 0.28, 2)) *
-        Math.exp(-Math.pow((ny + 0.45) / 0.26, 2)) *
-        jawCornerZ *
-        lateralFade;
-      x += Math.sign(x) * jawAngle * 0.015 * safeJawW;
-      y += jawAngle * chinElev * 0.012;
+      // Cuencas oculares: se abre hueco justo detrás de los párpados para que asome el globo ocular
+      // (cuenco suave y amplio: sin escalón visible alrededor de los párpados)
+      const qx = (X - canon.eyeX) / 0.027, qy = (y - canon.eyeY) / 0.021;
+      const q = qx * qx + qy * qy;
+      if (q < 1.0) {
+        const zCav = eyeCZ + eyeR * 1.06 * Math.sqrt(Math.max(0, 1 - q * 1.6)) + 0.004 * q;
+        const w = 1.0 - sstep(q, 0.15, 1.0);
+        if (zCav - 0.0006 < z) z = THREE.MathUtils.lerp(z, zCav - 0.0006, w);
+      }
     }
 
-    // Pómulos (cigomáticos) suaves y transición malar continua (elimina el surco marcado bajo los ojos)
-    if (nz > 0.05 && ny > NY_SUBMALAR - 0.10 && ny < 0.20) {
-      const cheekFade = THREE.MathUtils.smoothstep(Math.abs(nx), 0.12, 0.34);
-      const cheek =
-        Math.exp(-Math.pow((Math.abs(nx) - 0.50) / 0.28, 2)) *
-        Math.exp(-Math.pow((ny - NY_CHEEK) / 0.24, 2)) *
-        cheekFade;
-      x += Math.sign(x) * cheek * 0.0042;
-      z += cheek * 0.0062;
-
-      const subMalar =
-        Math.exp(-Math.pow((Math.abs(nx) - 0.46) / 0.22, 2)) *
-        Math.exp(-Math.pow((ny - NY_SUBMALAR) / 0.16, 2)) *
-        cheekFade;
-      z -= subMalar * 0.0022;
-    }
-
-    // Arco superciliar, cuencas oculares amplias y puente nasal continuo en el rostro
-    if (nz > 0.3) {
-      // Cuenca ocular amplia para alojar globo ocular y párpados sin recorte del cráneo
-      const eyeSocketX = Math.exp(-Math.pow((Math.abs(nx) - NX_EYE) / 0.22, 2));
-      const eyeSocketY = Math.exp(-Math.pow((ny - NY_EYE) / 0.18, 2));
-      z -= eyeSocketX * eyeSocketY * 0.0155;
-
-      // Arco superciliar orgánico
-      const browY = Math.exp(-Math.pow((ny - NY_BROW) / 0.12, 2));
-      const browX = Math.exp(-Math.pow(nx / 0.62, 2));
-      z += browX * browY * 0.0095 * brow;
-
-      // Puente nasal anatómico esculpido desde la glabela hasta el tabique medio
-      const radixX = Math.exp(-Math.pow(nx / 0.105, 2));
-      const radixY = Math.exp(-Math.pow((ny - NY_RADIX) / 0.21, 2));
-      z += radixX * radixY * 0.0125;
-    }
-
-    // Canon frontal (anchura del rostro ≈ 2,5 F): estrecha suavemente pómulos y mandíbula por debajo de los ojos
-    const faceNarrow = THREE.MathUtils.smoothstep(NY_EYE - ny, 0.0, 0.45) * THREE.MathUtils.smoothstep(nz, -0.25, 0.35);
-    x *= 1.0 - 0.06 * faceNarrow;
-
-    pos.setXYZ(i, x, y, z);
+    pos.setXYZ(i, x, yS - CY, z);
   }
   headGeo.computeVertexNormals();
 
@@ -21715,9 +21732,10 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const canonHairlineVy = canon.hairlineY - 0.11;
 
   for (let i = 0; i < vCount; i++) {
-    const vx = pos.getX(i);
+    // Máscaras evaluadas en el espacio del elipsoide craneal original (el mismo del sistema de pelo)
+    const vx = pos.getX(i) / SX;
     const vy = pos.getY(i); // centrado en 0 (en headGroup equivale a hy = vy + 0.11)
-    const vz = pos.getZ(i);
+    const vz = pos.getZ(i) / SZ;
     const hy = vy + 0.11;
     const absX = Math.abs(vx);
 
@@ -21805,7 +21823,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       const vy = pos.getY(i);
       const vz = pos.getZ(i);
       const crestMask = isVikingCrest
-        ? (1.0 - THREE.MathUtils.smoothstep(Math.abs(vx), 0.032, 0.040)) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.082, 0.096))
+        ? (1.0 - THREE.MathUtils.smoothstep(Math.abs(vx / SX), 0.032, 0.040)) * (1.0 - THREE.MathUtils.smoothstep(vz / SZ, 0.082, 0.096))
         : 1.0;
       const sw = scalpWeights[i] * crestMask;
       const bw = beardWeights[i] * bScale;
@@ -21818,9 +21836,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
         const warmAmt = Math.min(0.24, cheekWarm * 0.22 + noseWarm * 0.16);
         if (warmAmt > 0.001) tmp.lerp(blushCol, warmAmt);
         // Sombra anatómica suave en cuencas oculares y bajo la mandíbula
-        const orbitAO = Math.exp(-Math.pow((ax - canon.eyeX) / 0.022, 2)) * Math.exp(-Math.pow((vy - (canon.eyeY + 0.004 - 0.11)) / 0.018, 2)) * THREE.MathUtils.smoothstep(vz, 0.06, 0.115);
+        const orbitAO = Math.exp(-Math.pow((ax - canon.eyeX) / 0.020, 2)) * Math.exp(-Math.pow((vy - (canon.eyeY + 0.010 - 0.11)) / 0.010, 2)) * THREE.MathUtils.smoothstep(vz, 0.06, 0.105);
         const underJawAO = THREE.MathUtils.smoothstep(vy, -0.075, -0.122) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.085, 0.125));
-        const aoAmt = Math.min(0.26, orbitAO * 0.20 + underJawAO * 0.24);
+        const aoAmt = Math.min(0.26, orbitAO * 0.10 + underJawAO * 0.24);
         if (aoAmt > 0.001) tmp.lerp(shadowCol, aoAmt);
       }
       if (bw > 0.001) tmp.lerp(bCol, bw);
@@ -21855,7 +21873,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     return p ? p.x : fb;
   };
 
-  // 2. Ojos humanos realistas multicapa (esclerótica sombreada, iris fibroso con textura, córnea húmeda y párpados ceñidos)
+  // 2. Ojos humanos: globo ocular esférico hundido en la cuenca y párpados como UNA sola piel que lo envuelve.
+  //    La abertura almendrada (párpado superior más alto hacia el lado medial, inferior más bajo hacia el lateral,
+  //    canto externo algo más alto) es el borde de esa piel: esclerótica e iris sólo se ven a través de ella.
   const eyeTypeKey = caraCfg.eyeType || 'almendrado';
   const eyeTypeData = EYE_TYPES_DATA[eyeTypeKey] || EYE_TYPES_DATA.almendrado;
   const eyeOpen = caraCfg.eyeOpen ?? 1.0;
@@ -21874,258 +21894,274 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     metalness: 0.04
   });
   const lashLineMat = new THREE.MeshStandardMaterial({ color: 0x1c130f, roughness: 0.72, metalness: 0.0 });
-  const eyeLidShadeMat = new THREE.MeshBasicMaterial({ color: 0x261a18, transparent: true, opacity: 0.18, depthWrite: false });
   const corneaDomeMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, roughness: 0.03, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.04,
     transparent: true, opacity: 0.06, depthWrite: false
   });
-
   const browMat = mats.brow || mats.hair;
+  const carunculaMat = mats.caruncula || new THREE.MeshStandardMaterial({ color: 0xd47a78, roughness: 0.28, metalness: 0.0 });
+
+  // Forma de la abertura palpebral en espacio angular sobre el globo (rad)
+  const scW = eyeTypeData.scleraScale[0];
+  const scH = eyeTypeData.scleraScale[1];
+  const openF = clampV(0.55 + 0.45 * eyeOpen, 0.4, 1.25);
+  const lidAw = clampV(1.10 * Math.sqrt(scW) * (0.88 + 0.12 * eyeAspect), 1.0, 1.40);
+  const lidHScale = (scH / 0.92) * clampV(eyeSquash, 0.7, 1.3) * openF;
+  const lidHu = 0.42 * lidHScale;           // el párpado superior tapa el borde alto del iris
+  const lidHl = 0.47 * lidHScale;           // el inferior roza el borde bajo del iris
+  const lidPu = isGoku ? 0.22 : (isFish ? 0.9 : 0.55);
+  const lidPl = isFish ? 0.9 : (isGoku ? 0.6 : 0.78);
+  const irisAng = clampV(0.47 * (eyeTypeData.irisRadius / 0.0095), 0.36, 0.62);
+  const lidT = eyeR * 0.075;                // grosor del borde palpebral
+  const slantBase = eyeTypeData.baseSlant + eyeSlant * 0.35;
+
+  const angToDir = (ax, ay) => new THREE.Vector3(Math.sin(ax) * Math.cos(ay), Math.sin(ay), Math.cos(ax) * Math.cos(ay));
 
   for (let i = 0; i < 2; i++) {
     const dir = i === 0 ? 1 : -1;
+    const eyeCenter = new THREE.Vector3(dir * canon.eyeX, canon.eyeY, eyeCZ);
     const eyePivot = new THREE.Group();
     eyePivot.name = `eye_${i}`;
-    // Canon: centro del ojo a F/2 del eje (ojo = separación = F/2) sobre el nivel D, hundido en la cuenca
-    const eyeZ = surfaceFrontZ(dir * canon.eyeX, canon.eyeY, 0.1215) - 0.0025;
-    eyePivot.position.set(dir * canon.eyeX, canon.eyeY, eyeZ);
-    eyePivot.scale.setScalar(canon.eyeScale);
-    // Cejas sobre el nivel C, apoyadas en el arco superciliar
-    const browLocalY = (canon.browY + 0.0012 - canon.eyeY) / canon.eyeScale - 0.0152;
-    const browLocalZ = (surfaceFrontZ(dir * canon.eyeX, canon.browY, eyeZ + 0.02) + 0.0012 - eyeZ) / canon.eyeScale - 0.0087;
+    eyePivot.position.copy(eyeCenter);
 
-    // Inclinación canthal combinada
-    const totalSlant = dir * (eyeTypeData.baseSlant + eyeSlant * 0.35);
-    eyePivot.rotation.z = totalSlant;
-
-    // Globo ocular proporcionado y asentado dentro de la cuenca
-    const scleraR = 0.0142;
-    const sclera = new THREE.Mesh(new THREE.SphereGeometry(scleraR, 24, 24), mats.eyeWhite);
-    sclera.scale.set(
-      eyeTypeData.scleraScale[0] * eyeAspect,
-      eyeTypeData.scleraScale[1] * (0.48 + 0.52 * eyeOpen) * eyeSquash,
-      eyeTypeData.scleraScale[2]
-    );
+    // Globo ocular
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(eyeR, 32, 24), mats.eyeWhite);
     eyePivot.add(sclera);
 
-    // Iris + Pupila nítidos conformados a la curvatura esférica del globo ocular (nunca atraviesa los párpados)
-    const irisR = eyeTypeData.irisRadius * 0.88;
-    const irisTheta = Math.asin(Math.min(0.72, irisR / scleraR));
-    const irisGeo = new THREE.SphereGeometry(scleraR * 1.008, isGoku ? 16 : 28, 12, 0, Math.PI * 2, 0, irisTheta);
+    // Iris + pupila conformados al globo
+    const irisGeo = new THREE.SphereGeometry(eyeR * 1.004, isGoku ? 18 : 30, 10, 0, Math.PI * 2, 0, irisAng);
     irisGeo.rotateX(Math.PI / 2);
     const irisPosAttr = irisGeo.attributes.position;
     const irisUvAttr = irisGeo.attributes.uv;
-    const irisMaxXY = scleraR * 1.008 * Math.sin(irisTheta);
+    const irisMaxXY = eyeR * 1.004 * Math.sin(irisAng);
     for (let k = 0; k < irisPosAttr.count; k++) {
-      const ix = irisPosAttr.getX(k);
-      const iy = irisPosAttr.getY(k);
-      irisUvAttr.setXY(k, 0.5 + 0.5 * (ix / irisMaxXY), 0.5 + 0.5 * (iy / irisMaxXY));
+      irisUvAttr.setXY(k, 0.5 + 0.5 * (irisPosAttr.getX(k) / irisMaxXY), 0.5 + 0.5 * (irisPosAttr.getY(k) / irisMaxXY));
     }
     irisUvAttr.needsUpdate = true;
-    const iris = new THREE.Mesh(irisGeo, humanIrisMat);
-    iris.scale.set(
-      sclera.scale.x,
-      sclera.scale.y * (isGoku ? 0.88 : 1.0),
-      sclera.scale.z
-    );
-    eyePivot.add(iris);
+    eyePivot.add(new THREE.Mesh(irisGeo, humanIrisMat));
 
-    // Cúpula corneal húmeda para reflejo especular vivo
-    const cornea = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.022, 18, 12, 0, Math.PI * 2, 0, irisTheta * 1.06),
-      corneaDomeMat
-    );
+    // Córnea húmeda
+    const cornea = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 1.02, 20, 10, 0, Math.PI * 2, 0, irisAng * 1.06), corneaDomeMat);
     cornea.rotation.x = Math.PI / 2;
-    cornea.scale.copy(sclera.scale);
     eyePivot.add(cornea);
+    headGroup.add(eyePivot);
 
-    // Sombra suave bajo el párpado superior para profundidad realista
-    const upperEyeAO = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.028, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.34),
-      eyeLidShadeMat
-    );
-    upperEyeAO.rotation.x = -0.06 - (eyeOpen - 1.0) * 0.14;
-    upperEyeAO.scale.copy(sclera.scale);
-    eyePivot.add(upperEyeAO);
-
-    const scX = eyeTypeData.scleraScale[0] * eyeAspect;
-    const scY = eyeTypeData.scleraScale[1] * eyeSquash;
-    const scZ = scleraR * eyeTypeData.scleraScale[2];
-
-    // Capotas anatómicas de párpado superior e inferior por delante del globo ocular (cubren ligeramente el borde superior de iris/pupila en apertura normal y se abren limpiamente al subir eyeOpen)
-    const upperLidCap = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.055, 22, 14, 0, Math.PI * 2, 0, Math.PI * 0.40),
-      faceSkinMat
-    );
-    upperLidCap.scale.copy(sclera.scale);
-    upperLidCap.rotation.x = 0.09 - (eyeOpen - 1.0) * 0.20;
-    eyePivot.add(upperLidCap);
-
-    const lowerLidCap = new THREE.Mesh(
-      new THREE.SphereGeometry(scleraR * 1.045, 22, 12, 0, Math.PI * 2, Math.PI * 0.65, Math.PI * 0.22),
-      faceSkinMat
-    );
-    lowerLidCap.scale.copy(sclera.scale);
-    lowerLidCap.rotation.x = 0.02 + (eyeOpen - 1.0) * 0.08;
-    eyePivot.add(lowerLidCap);
-
-    if (isGoku) {
-      const upperCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0155 * eyeAspect, -0.0008 * eyeSquash, scZ * 0.56),
-        new THREE.Vector3(-dir * 0.004 * eyeAspect, (0.0033 + (eyeOpen - 1.0) * 0.0024) * eyeSquash, scZ * 1.06),
-        new THREE.Vector3(dir * 0.0148 * eyeAspect, -0.0004 * eyeSquash, scZ * 0.50),
-      ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0014, 8, false), faceSkinMat));
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0007, 6, false), lashLineMat));
-
-      const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0155 * eyeAspect, -0.0008 * eyeSquash, scZ * 0.50),
-        new THREE.Vector3(0, (-0.0056 - (eyeOpen - 1.0) * 0.0014) * eyeSquash, scZ * 1.03),
-        new THREE.Vector3(dir * 0.0148 * eyeAspect, -0.0004 * eyeSquash, scZ * 0.46),
-      ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0012, 8, false), faceSkinMat));
-
-      const browCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0185 * eyeAspect, 0.0175, 0.0182),
-        new THREE.Vector3(0, 0.0218, 0.0182),
-        new THREE.Vector3(dir * 0.0205 * eyeAspect, 0.0170, 0.0102),
-      ]);
-      const gBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0028, 8, false), browMat);
-      gBrow.scale.set(1.0, 0.78, 0.48);
-      gBrow.position.set(0, browLocalY, browLocalZ);
-      eyePivot.add(gBrow);
-    } else if (isFish) {
-      const upperCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0156 * eyeAspect, 0.0, scZ * 0.52),
-        new THREE.Vector3(0, (0.0033 + (eyeOpen - 1.0) * 0.0024) * eyeSquash, scZ * 1.06),
-        new THREE.Vector3(dir * 0.0150 * eyeAspect, 0.0, scZ * 0.48),
-      ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0014, 8, false), faceSkinMat));
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 16, 0.0007, 6, false), lashLineMat));
-
-      const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0156 * eyeAspect, 0.0, scZ * 0.48),
-        new THREE.Vector3(0, (-0.0056 - (eyeOpen - 1.0) * 0.0014) * eyeSquash, scZ * 1.03),
-        new THREE.Vector3(dir * 0.0150 * eyeAspect, 0.0, scZ * 0.44),
-      ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0012, 8, false), faceSkinMat));
-
-      const browCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0170 * eyeAspect, 0.0180, 0.0182),
-        new THREE.Vector3(0, 0.0226, 0.0182),
-        new THREE.Vector3(dir * 0.0205 * eyeAspect, 0.0175, 0.0102),
-      ]);
-      const fBrow = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 16, 0.0028, 8, false), browMat);
-      fBrow.scale.set(1.0, 0.78, 0.48);
-      fBrow.position.set(0, browLocalY, browLocalZ);
-      eyePivot.add(fBrow);
-    } else {
-      // Borde anatómico de párpados y línea sutil de pestañas fundidos sobre el borde inferior de upperLidCap
-      const lidH = (0.0032 + (eyeOpen - 1.0) * 0.0026) * scY;
-      const upperCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0136 * scX, -0.0006 * scY, scZ * 0.58),
-        new THREE.Vector3(-dir * 0.0044 * scX, lidH, scZ * 1.055),
-        new THREE.Vector3(dir * 0.0044 * scX, lidH * 0.94, scZ * 1.045),
-        new THREE.Vector3(dir * 0.0138 * scX, -0.0008 * scY, scZ * 0.52),
-      ]);
-      const upperLid = new THREE.Mesh(new THREE.TubeGeometry(upperCurve, 20, 0.0013, 10, false), faceSkinMat);
-      upperLid.castShadow = false;
-      eyePivot.add(upperLid);
-
-      const lashCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0134 * scX, -0.0005 * scY, scZ * 0.60),
-        new THREE.Vector3(-dir * 0.0042 * scX, lidH * 0.88, scZ * 1.068),
-        new THREE.Vector3(dir * 0.0044 * scX, lidH * 0.82, scZ * 1.058),
-        new THREE.Vector3(dir * 0.0136 * scX, -0.0007 * scY, scZ * 0.54),
-      ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 18, 0.00065, 6, false), lashLineMat));
-
-      const lowLidH = (-0.0056 - (eyeOpen - 1.0) * 0.0014) * scY;
-      const lowerCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0134 * scX, -0.0008 * scY, scZ * 0.54),
-        new THREE.Vector3(0, lowLidH, scZ * 1.02),
-        new THREE.Vector3(dir * 0.0136 * scX, -0.0009 * scY, scZ * 0.48),
-      ]);
-      eyePivot.add(new THREE.Mesh(new THREE.TubeGeometry(lowerCurve, 16, 0.0012, 8, false), faceSkinMat));
-
-      // Ceja arqueada claramente separada sobre el arco superciliar
-      const browYOffset = eyeTypeData.browOffset;
-      const browCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-dir * 0.0165 * eyeAspect, 0.0180 + browYOffset, 0.0182),
-        new THREE.Vector3(-dir * 0.0015 * eyeAspect, 0.0226 + browYOffset * 1.1, 0.0184),
-        new THREE.Vector3(dir * 0.0210 * eyeAspect, 0.0172 + browYOffset * 0.5, 0.0102),
-      ]);
-      const browMesh = new THREE.Mesh(new THREE.TubeGeometry(browCurve, 18, 0.0028, 8, false), browMat);
-      browMesh.scale.set(1.0, 0.78, 0.48);
-      browMesh.position.set(0, browLocalY, browLocalZ);
-      browMesh.castShadow = false;
-      eyePivot.add(browMesh);
+    // --- Contorno de la abertura (con inclinación cantal) ---
+    const N = 72;
+    const slant = dir * slantBase;
+    const cs = Math.cos(slant), sn = Math.sin(slant);
+    const contour = [];
+    const isUpper = [];
+    for (let k = 0; k < N; k++) {
+      const a = (k / N) * Math.PI * 2;
+      const u = Math.cos(a);
+      const upper = Math.sin(a) >= 0;
+      const ud = u * dir; // > 0 hacia el lado lateral
+      const bell = Math.max(0, 1 - u * u);
+      let ay = upper
+        ? lidHu * Math.pow(bell, lidPu) * (1 - 0.16 * ud)
+        : -lidHl * Math.pow(bell, lidPl) * (1 + 0.14 * ud);
+      ay += 0.05 * ud;
+      const ax = lidAw * u;
+      contour.push([ax * cs - ay * sn, ax * sn + ay * cs]);
+      isUpper.push(upper);
     }
 
-    // Carúncula lagrimal sutil en el canto medial
-    const innerCanthusX = -dir * (0.0135 * scX);
-    const innerCanthusY = -0.0008 * eyeSquash;
-    const innerCanthusZ = scZ * 0.72;
-    const carunculaMat = mats.caruncula || new THREE.MeshStandardMaterial({ color: 0xd47a78, roughness: 0.28, metalness: 0.0 });
-    const caruncula = new THREE.Mesh(new THREE.SphereGeometry(0.0017, 12, 12), carunculaMat);
-    caruncula.name = `caruncula_${i}`;
-    caruncula.position.set(innerCanthusX, innerCanthusY, innerCanthusZ);
-    caruncula.scale.set(1.05, 0.80, 0.62);
-    caruncula.rotation.y = -dir * 0.22;
-    eyePivot.add(caruncula);
+    // --- Piel palpebral: anillos desde el borde (sobre el globo) hasta fundirse con la cuenca ---
+    const RINGS = 14;
+    const lidPos = [];
+    for (let r = 0; r < RINGS; r++) {
+      for (let k = 0; k < N; k++) {
+        const [cax, cay] = contour[k];
+        let p;
+        if (r === 0) {
+          p = eyeCenter.clone().addScaledVector(angToDir(cax, cay), eyeR * 1.002);
+        } else {
+          const s = (r - 1) / (RINGS - 2);
+          const mag = 1.0 + 1.05 * s;
+          const ax = clampV(cax * mag, -1.52, 1.52);
+          const ay = clampV(cay * mag + (isUpper[k] ? 0.06 * s : 0), -1.35, 1.35);
+          // Pliegue palpebral superior (surco del párpado) y ligera bolsa inferior
+          const fold = isUpper[k]
+            ? 0.06 * eyeR * Math.exp(-Math.pow((s - 0.22) / 0.12, 2))
+            : 0.03 * eyeR * Math.exp(-Math.pow((s - 0.25) / 0.15, 2));
+          const sp = eyeCenter.clone().addScaledVector(angToDir(ax, ay), eyeR + lidT + fold);
+          const skinZ = surfaceFrontZ(sp.x, sp.y, sp.z);
+          const w = sstep(s, 0.30, 1.0);
+          p = sp.clone();
+          p.z = THREE.MathUtils.lerp(sp.z, skinZ - (r === RINGS - 1 ? 0.0008 : 0.0), w);
+        }
+        lidPos.push(p.x, p.y, p.z);
+      }
+    }
+    const lidIdx = [];
+    for (let r = 0; r < RINGS - 1; r++) {
+      for (let k = 0; k < N; k++) {
+        const a = r * N + k, b = r * N + ((k + 1) % N), c = (r + 1) * N + ((k + 1) % N), d = (r + 1) * N + k;
+        lidIdx.push(a, d, b, b, d, c);
+      }
+    }
+    const lidGeo = new THREE.BufferGeometry();
+    lidGeo.setAttribute('position', new THREE.Float32BufferAttribute(lidPos, 3));
+    lidGeo.setIndex(lidIdx);
+    const lidUv = [];
+    for (let r = 0; r < RINGS; r++) for (let k = 0; k < N; k++) lidUv.push((k / N) * 0.6, (r / (RINGS - 1)) * 0.15);
+    lidGeo.setAttribute('uv', new THREE.Float32BufferAttribute(lidUv, 2));
+    lidGeo.computeVertexNormals();
+    const lidMesh = new THREE.Mesh(lidGeo, faceSkinMat);
+    lidMesh.name = `eye_lid_${i}`; // prefijo 'eye_' => se clasifica como detalle facial (no recibe material de armadura)
+    lidMesh.castShadow = false;
+    lidMesh.receiveShadow = true;
+    headGroup.add(lidMesh);
 
-    headGroup.add(eyePivot);
+    // Línea de pestañas sobre el borde del párpado superior
+    const lashPts = [];
+    for (let k = 0; k < N; k++) {
+      if (!isUpper[k]) continue;
+      const [cax, cay] = contour[k];
+      lashPts.push(eyeCenter.clone().addScaledVector(angToDir(cax * 1.01, cay + 0.015), eyeR + lidT * 1.15));
+    }
+    lashPts.sort((p1, p2) => p1.x - p2.x);
+    if (lashPts.length > 3) {
+      const lashCurve = new THREE.CatmullRomCurve3(lashPts);
+      const lash = new THREE.Mesh(new THREE.TubeGeometry(lashCurve, 32, eyeR * 0.045, 6, false), lashLineMat);
+      lash.name = `eye_lash_${i}`;
+      lash.castShadow = false;
+      headGroup.add(lash);
+    }
+
+    // Carúncula lagrimal en el canto medial
+    const medial = contour[dir > 0 ? N / 2 : 0];
+    const caruncula = new THREE.Mesh(new THREE.SphereGeometry(eyeR * 0.11, 10, 10), carunculaMat);
+    caruncula.name = `caruncula_${i}`;
+    caruncula.position.copy(eyeCenter).addScaledVector(angToDir(medial[0] * 0.90, medial[1]), eyeR * 1.0);
+    caruncula.scale.set(1.0, 0.75, 0.6);
+    headGroup.add(caruncula);
+
+    // Ceja sobre el nivel C, apoyada en el arco superciliar
+    const browPts = [
+      [-0.018, -0.0015], [-0.006, 0.0018], [0.008, 0.0024], [0.020, 0.0002], [0.026, -0.0028]
+    ].map(([ox, oy]) => {
+      const bx = dir * (canon.eyeX + ox * (0.9 + 0.1 * eyeAspect));
+      const by = canon.browY + oy + (eyeTypeData.browOffset || 0) * 0.6;
+      return new THREE.Vector3(bx, by, surfaceFrontZ(bx, by, eyeCZ + eyeR) + 0.0009);
+    });
+    const browGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(browPts), 24, 0.0021, 8, false);
+    // Aplanar el tubo contra la frente (sección elíptica)
+    const bp = browGeo.attributes.position;
+    for (let k = 0; k < bp.count; k++) {
+      const by = bp.getY(k);
+      const t = clampV((bp.getX(k) * dir - (canon.eyeX - 0.018)) / 0.044, 0, 1);
+      const midY = canon.browY + 0.0006;
+      bp.setY(k, midY + (by - midY) * (1.0 - 0.25 * t));
+      const surf = surfaceFrontZ(bp.getX(k), bp.getY(k), bp.getZ(k));
+      bp.setZ(k, surf + (bp.getZ(k) - surf) * 0.45 + 0.0003);
+    }
+    browGeo.computeVertexNormals();
+    const browMesh = new THREE.Mesh(browGeo, browMat);
+    browMesh.name = `brow_${i}`;
+    browMesh.castShadow = false;
+    headGroup.add(browMesh);
   }
 
-  // 3. Nariz Anatómica Integrada (Dorso continuo hacia glabela sin corte rectangular)
+  // 3. Nariz: volumen en cuña que nace de la raíz entre los ojos y llega a la base E (canon);
+  //    dorso recto, punta redondeada, aletas a la anchura de la separación entre ojos y narinas bajo la punta.
   const noseGroup = new THREE.Group();
   noseGroup.name = 'nose';
-  // Canon: la nariz ocupa desde la raíz (entre los ojos) hasta la base E; anchura ≈ separación entre ojos
-  const noseSY = canon.noseScaleY;
-  const noseSZ = 1.18;
-  const noseGZ = surfaceFrontZ(0, canon.noseBaseY + 0.008, 0.132) - 0.004;
-  const noseTopOff = THREE.MathUtils.clamp(
-    (surfaceFrontZ(0, canon.noseRootY, 0.1455) - 0.0065 - noseGZ) / noseSZ, 0.0095, 0.026
-  );
-  noseGroup.position.set(0, canon.noseBaseY + 0.016 * noseSY, noseGZ);
-  noseGroup.scale.set(canon.noseScaleX, noseSY, noseSZ);
+  {
+    const F = canon.F;
+    const wS = canon.noseWidthScale;
+    const rootY = canon.noseRootY, baseY = canon.noseBaseY;
+    const sRoot = surfaceFrontZ(0, rootY, 0.125);
+    const sBase = surfaceFrontZ(0, baseY, 0.115);
+    const tipProj = 0.30 * F;
+    const tipY = baseY + 0.17 * (rootY - baseY);
+    const zTip = sBase + tipProj;
+    const zSub = sBase + 0.0045;
+    const rows = [];
+    const ROWS1 = 18, ROWS2 = 9;
+    for (let k = 0; k <= ROWS1; k++) {
+      const t = k / ROWS1;
+      const y = THREE.MathUtils.lerp(rootY + 0.003, tipY, t);
+      const zf = THREE.MathUtils.lerp(sRoot + 0.0012, zTip, Math.pow(t, 1.08)) + 0.0010 * Math.sin(t * Math.PI) ;
+      const w = THREE.MathUtils.lerp(0.0048, 0.0100, Math.pow(t, 2.2)) * wS;
+      rows.push([y, zf, w]);
+    }
+    for (let k = 1; k <= ROWS2; k++) {
+      const t = k / ROWS2;
+      const a = t * Math.PI * 0.5;
+      const y = tipY - (tipY - baseY) * Math.sin(a);
+      const zf = zTip - (zTip - zSub) * (1 - Math.cos(a));
+      const w = THREE.MathUtils.lerp(0.0100, 0.0120, t) * wS;
+      rows.push([y, zf, w]);
+    }
+    const M = 16;
+    const nPos = [];
+    rows.forEach(([y, zf, w]) => {
+      for (let j = 0; j <= M; j++) {
+        const ph = -Math.PI / 2 + (j / M) * Math.PI;
+        const x = w * Math.sin(ph);
+        const zBack = surfaceFrontZ(x, y, zf - 0.01) - 0.0035;
+        const c = Math.pow(Math.max(0, Math.cos(ph)), 0.75);
+        nPos.push(x, y, zBack + (Math.max(zf, zBack + 0.001) - zBack) * c);
+      }
+    });
+    const nIdx = [];
+    for (let r = 0; r < rows.length - 1; r++) {
+      for (let j = 0; j < M; j++) {
+        const a = r * (M + 1) + j, b = a + 1, c = a + (M + 1) + 1, d = a + (M + 1);
+        nIdx.push(a, d, b, b, d, c);
+      }
+    }
+    // Tapa inferior (columela) en abanico
+    const last = (rows.length - 1) * (M + 1);
+    const cIdx = nPos.length / 3;
+    const lr = rows[rows.length - 1];
+    nPos.push(0, lr[0] - 0.0004, (lr[1] + surfaceFrontZ(0, lr[0], lr[1])) * 0.5);
+    for (let j = 0; j < M; j++) nIdx.push(last + j, cIdx, last + j + 1);
+    const nGeo = new THREE.BufferGeometry();
+    nGeo.setAttribute('position', new THREE.Float32BufferAttribute(nPos, 3));
+    const nUv = [];
+    rows.forEach((row, r) => { for (let j = 0; j <= M; j++) nUv.push((j / M) * 0.12, (r / (rows.length - 1)) * 0.2); });
+    nUv.push(0.06, 0.2);
+    nGeo.setAttribute('uv', new THREE.Float32BufferAttribute(nUv, 2));
+    nGeo.setIndex(nIdx);
+    nGeo.computeVertexNormals();
+    // Asegurar normales hacia fuera (la cara frontal de la fila media mira a +Z)
+    const mid = Math.round(ROWS1 * 0.6) * (M + 1) + M / 2;
+    if (nGeo.attributes.normal.getZ(mid) < 0) {
+      for (let t = 0; t < nIdx.length; t += 3) { const tmp = nIdx[t + 1]; nIdx[t + 1] = nIdx[t + 2]; nIdx[t + 2] = tmp; }
+      nGeo.setIndex(nIdx);
+      nGeo.computeVertexNormals();
+    }
+    const dorsum = new THREE.Mesh(nGeo, faceSkinMat);
+    dorsum.castShadow = true;
+    noseGroup.add(dorsum);
 
-  const bridgeProfile = [
-    [0.0, 0.0076],
-    [0.35, 0.0064],
-    [0.70, 0.0058],
-    [1.0, 0.0056],
-  ];
-  const bridgeGeo = createAnatomicalLathe(bridgeProfile, 0.036, {
-    radialSegments: 22,
-    heightSegments: 14,
-    scaleX: (t) => THREE.MathUtils.lerp(1.05, 0.62, t),
-    scaleZ: (t) => THREE.MathUtils.lerp(1.25, 0.85, t),
-    offsetZ: (t) => THREE.MathUtils.lerp(0.0195, noseTopOff, t),
-  });
-  const bridgeMesh = new THREE.Mesh(bridgeGeo, faceSkinMat);
-  bridgeMesh.position.set(0, -0.011, 0.0);
-  bridgeMesh.castShadow = false;
-  noseGroup.add(bridgeMesh);
+    // Punta (lóbulo) redondeada
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0068 * wS, 20, 16), faceSkinMat);
+    tip.position.set(0, tipY - 0.0012, zTip - 0.0060);
+    tip.scale.set(1.0, 0.92, 0.95);
+    noseGroup.add(tip);
 
-  const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.0068, 20, 20), faceSkinMat);
-  noseTip.position.set(0, -0.0108, 0.0175);
-  noseTip.scale.set(0.96, 0.84, 1.04);
-  noseGroup.add(noseTip);
+    // Aletas nasales: el ancho total ≈ separación entre ojos (F/2·0,84)
+    const nostrilInnerMat = new THREE.MeshStandardMaterial({ color: 0x381917, roughness: 0.85, metalness: 0.0 });
+    for (let k = 0; k < 2; k++) {
+      const d = k === 0 ? 1 : -1;
+      const alaR = 0.0062;
+      const ala = new THREE.Mesh(new THREE.SphereGeometry(alaR, 18, 14), faceSkinMat);
+      const ax = d * (canon.noseAlaHalf - alaR * 0.80);
+      ala.position.set(ax, baseY + 0.0050, surfaceFrontZ(ax, baseY + 0.005, sBase) + 0.0020);
+      ala.scale.set(0.72, 0.70, 1.55);
+      ala.rotation.y = d * 0.60;
+      noseGroup.add(ala);
 
-  const nostrilInnerMat = new THREE.MeshStandardMaterial({ color: 0x381917, roughness: 0.85, metalness: 0.0 });
-  for (let i = 0; i < 2; i++) {
-    const dir = i === 0 ? 1 : -1;
-    const nostrilWing = new THREE.Mesh(new THREE.SphereGeometry(0.0054, 16, 16), faceSkinMat);
-    nostrilWing.position.set(dir * 0.0070, -0.0124, 0.0115);
-    nostrilWing.scale.set(0.88, 0.74, 1.05);
-    noseGroup.add(nostrilWing);
-
-    // Orificio nasal (narina oscura) bajo cada aleta
-    const nostrilHole = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 10, 10), nostrilInnerMat);
-    nostrilHole.position.set(dir * 0.0044, -0.0147, 0.0128);
-    nostrilHole.scale.set(0.92, 0.52, 1.18);
-    noseGroup.add(nostrilHole);
+      const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.0026, 12, 10), nostrilInnerMat);
+      nostril.position.set(d * 0.0046 * wS, baseY + 0.0020, zSub + 0.0045);
+      nostril.scale.set(1.0, 0.42, 1.45);
+      nostril.rotation.y = d * 0.35;
+      noseGroup.add(nostril);
+    }
   }
   headGroup.add(noseGroup);
 
@@ -22139,7 +22175,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   mouthGroup.name = 'mouth';
   // Canon: línea de la boca a 1/3 entre la base de la nariz (E) y la barbilla (G); base del labio inferior ≈ F
   const lipThick = caraCfg.lipThickness ?? 1.0;
-  mouthGroup.position.set(0, canon.mouthY + 0.0015, surfaceFrontZ(0, canon.mouthY, 0.1142) + 0.0053);
+  mouthGroup.position.set(0, canon.mouthY + 0.0015, surfaceFrontZ(0, canon.mouthY, 0.1142) + 0.0022);
   mouthGroup.scale.set(canon.mouthScaleX, Math.max(0.76, lipThick * 1.35), Math.max(0.92, lipThick * 1.45));
 
   const upperLipCurve = new THREE.CatmullRomCurve3([
@@ -22207,6 +22243,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
 
   // 6. Barba Procedural Esculpida (Delimitada estrictamente a mandíbula y mentón anterior, sin invadir la nuca)
   const beardGroup = buildProceduralBeardGroup(caraCfg, mats.beard || mats.hair);
+  // Las curvas de barba están definidas sobre el cráneo original: se ajustan a la anchura del canon
+  beardGroup.scale.x = SX;
   headGroup.add(beardGroup);
 
   return headGroup;
@@ -25666,9 +25704,9 @@ function rebuildCharacter() {
   // Cabello procedural
   const hairGroup = buildProceduralHairGroup(c.pelo, MAT, c.cara, CONFIG.colors);
   hairGroup.scale.set(
-    c.cara.headWidth,
+    c.cara.headWidth * HEAD_SHAPE_SCALE.x,
     c.cara.headHeight,
-    (c.cara.headWidth + c.cara.headHeight) * 0.5
+    (c.cara.headWidth + c.cara.headHeight) * 0.5 * HEAD_SHAPE_SCALE.z
   );
   assignZone(hairGroup, 'pelo');
   rig.head.add(hairGroup);
