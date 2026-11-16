@@ -22283,6 +22283,29 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
   mc.fillStyle = '#fff';
   _traceFaceMask(mc, 2 + (cxPx - x0) * scale, 2 + (eyeYpx - y0) * scale, Fpx * scale * 0.96);
   mc.fill();
+  // Borde difuminado hacia el tono de la frente (laterales y frente; la barbilla se respeta)
+  let foreheadHex = null;
+  try { foreheadHex = sampleFaceColors(img, anchors, Fpx).skin; } catch (e) { }
+  if (foreheadHex) {
+    const cxS = 2 + (cxPx - x0) * scale, cyS = 2 + (eyeYpx - y0) * scale, FS = Fpx * scale * 0.96;
+    const inner = document.createElement('canvas'); inner.width = c.width; inner.height = c.height;
+    const ic = inner.getContext('2d');
+    ic.filter = `blur(${Math.max(2, Math.round(0.13 * Fpx * scale))}px)`;
+    ic.fillStyle = '#fff';
+    ic.beginPath();
+    FACE_MASK_POLY_F.forEach(([x, y], i) => {
+      const px = cxS + x * FS * (y < 1.0 ? 0.86 : 0.95), py = cyS + (y < 0 ? y * 0.88 : y * 1.03) * FS;
+      if (i === 0) ic.moveTo(px, py); else ic.lineTo(px, py);
+    });
+    ic.closePath(); ic.fill();
+    // capa: piel de la frente con la cara recortada por la máscara interior encima
+    const face = document.createElement('canvas'); face.width = c.width; face.height = c.height;
+    const fc = face.getContext('2d');
+    fc.drawImage(c, 0, 0);
+    fc.globalCompositeOperation = 'destination-in'; fc.drawImage(inner, 0, 0);
+    ctx.fillStyle = foreheadHex; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(face, 0, 0);
+  }
   ctx.globalCompositeOperation = 'destination-in';
   ctx.drawImage(m, 0, 0);
   const tr = (p) => [2 + (p[0] - x0) * scale, 2 + (p[1] - y0) * scale];
@@ -22367,8 +22390,8 @@ const FACE_TEXTURES = {
   ref_drow_hombre: {
     label: 'Elfo oscuro', gender: 'hombre', hairCut: 'raya_medio_lisa',
     url: 'textures/rostro_drow_hombre.png', size: [410, 487],
-    eyeL: [114.1, 219.0], eyeR: [295.9, 219.0], chinY: 464.0, eyeWidth: 80.8,
-    browY: 181.1, noseY: 347.8, mouthL: [140.8, 403.4], mouthR: [277.2, 403.4],
+    eyeL: [121.0, 219.0], eyeR: [289.0, 219.0], chinY: 464.0, eyeWidth: 74.7,
+    browY: 184.0, noseY: 338.0, mouthL: [145.7, 389.3], mouthR: [271.7, 389.3],
     colors: {'hairRoot': '#797782', 'hairTip': '#b4b2bd', 'hairHigh': '#ebeaf2', 'skin': '#9a9cb6', 'lips': '#675d76', 'eyes': '#d0506e'},
   },
   ref_anciano: {
