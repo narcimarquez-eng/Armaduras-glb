@@ -76,9 +76,19 @@
         <option value="combat">Pose Guardia Combate</option>
         <option value="heroic">Pose Heroica</option>
       </select>
-      <label class="flex items-center gap-1.5 px-1 text-[10px] text-slate-300 cursor-pointer select-none" title="Proyecta una textura de rostro de referencia sobre la cara (prueba)">
-        <input id="chk-face-ref-texture" type="checkbox" class="accent-amber-500 w-3 h-3" /> Textura de rostro (prueba)
-      </label>
+      <div class="flex flex-col gap-1 rounded-xl border border-slate-700/60 p-1.5">
+        <span class="text-[9px] text-slate-400 uppercase tracking-wider px-0.5">Textura de rostro</span>
+        <select id="face-texture-select" class="bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer">
+          <option value="">Sin textura</option>
+          <option value="maniqui">🧩 Maniquí (guía del canon)</option>
+          <option value="ref_mujer">🖼️ Rostro de referencia (mujer)</option>
+        </select>
+        <div class="flex gap-1">
+          <button id="btn-face-tex-upload" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Carga una foto o dibujo frontal y marca ojos y barbilla">Cargar imagen…</button>
+          <button id="btn-face-tex-template" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Descarga la plantilla del canon (512×600) para pintar o alinear un rostro">Plantilla</button>
+        </div>
+        <input id="face-tex-file" type="file" accept="image/*" class="hidden" />
+      </div>
       <button id="btn-generate-human-glb" class="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-600/90 to-orange-600/90 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-[10px] flex items-center justify-center gap-1.5 shadow border border-amber-400/30 transition active:scale-95">
         <i data-lucide="sparkles" class="w-3 h-3"></i> Generar Variación
       </button>
@@ -19894,14 +19904,118 @@
           generateCreador3DHumanoGLB(e.target.value, false);
         });
       }
-      const chkFaceTex = document.getElementById('chk-face-ref-texture');
-      if (chkFaceTex) {
-        chkFaceTex.addEventListener('change', (e) => {
-          if (!window.CreadorHumano) return;
-          window.CreadorHumano.CONFIG.cara.faceTexture = e.target.checked ? 'ref_mujer' : null;
-          generateCreador3DHumanoGLB('keep', false);
+      // ===== Texturas de rostro: selector, carga con alineación por 3 clics y plantilla del canon =====
+      const faceTexSel = document.getElementById('face-texture-select');
+      const applyFaceTextureKey = (key) => {
+        if (!window.CreadorHumano) return;
+        window.CreadorHumano.CONFIG.cara.faceTexture = key || null;
+        generateCreador3DHumanoGLB('keep', false);
+      };
+      if (faceTexSel) faceTexSel.addEventListener('change', (e) => applyFaceTextureKey(e.target.value));
+
+      const btnFaceTpl = document.getElementById('btn-face-tex-template');
+      if (btnFaceTpl) btnFaceTpl.addEventListener('click', () => {
+        const CH = window.CreadorHumano; if (!CH) return;
+        const a = document.createElement('a');
+        a.download = 'plantilla_rostro_canon.png';
+        a.href = CH.drawFaceTemplateCanvas(true).toDataURL('image/png');
+        a.click();
+        showToast('Plantilla descargada: pinta o alinea tu rostro sobre ella (512×600) y cárgala');
+      });
+
+      const faceFile = document.getElementById('face-tex-file');
+      const btnFaceUpload = document.getElementById('btn-face-tex-upload');
+      if (btnFaceUpload && faceFile) btnFaceUpload.addEventListener('click', () => faceFile.click());
+      if (faceFile) faceFile.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        faceFile.value = '';
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => openFaceAlignModal(img, file.name.replace(/\.[^.]+$/, ''));
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      function openFaceAlignModal(img, label) {
+        const CH = window.CreadorHumano; if (!CH) return;
+        const T = CH.FACE_TEMPLATE;
+        const isTemplate = img.naturalWidth === T.W && img.naturalHeight === T.H;
+        // Anclajes iniciales: los de la plantilla, o una estimación centrada
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        let pts = isTemplate
+          ? [T.eyeL.slice(), T.eyeR.slice(), [T.cx, T.chinY]]
+          : [[iw * 0.40, ih * 0.42], [iw * 0.60, ih * 0.42], [iw * 0.5, ih * 0.78]];
+        const names = ['ojo izquierdo de la imagen', 'ojo derecho de la imagen', 'punta de la barbilla'];
+        const colors = ['#22d3ee', '#a78bfa', '#f59e0b'];
+        let step = isTemplate ? 3 : 0;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'fixed inset-0 z-[100] bg-slate-950/80 flex items-center justify-center p-4';
+        overlay.innerHTML = `
+          <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3 max-w-[92vw]" style="width:min(560px,92vw)">
+            <div class="text-sm font-semibold text-amber-300">Alinear textura de rostro</div>
+            <div id="fa-msg" class="text-xs text-slate-300"></div>
+            <canvas id="fa-canvas" class="rounded-xl bg-slate-900 cursor-crosshair self-center" style="max-width:100%"></canvas>
+            <div class="flex gap-2 justify-end">
+              <button id="fa-reset" class="glass-btn px-3 py-1.5 rounded-xl text-xs text-slate-200">Volver a marcar</button>
+              <button id="fa-cancel" class="glass-btn px-3 py-1.5 rounded-xl text-xs text-slate-200">Cancelar</button>
+              <button id="fa-apply" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-amber-600 to-orange-600">Aplicar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        const cv = overlay.querySelector('#fa-canvas');
+        const msg = overlay.querySelector('#fa-msg');
+        const maxW = Math.min(520, window.innerWidth * 0.85), maxH = window.innerHeight * 0.6;
+        const sc = Math.min(maxW / iw, maxH / ih, 1.5);
+        cv.width = Math.round(iw * sc); cv.height = Math.round(ih * sc);
+        const ctx = cv.getContext('2d');
+        const draw = () => {
+          ctx.drawImage(img, 0, 0, cv.width, cv.height);
+          pts.forEach((p, i) => {
+            if (i >= step && step < 3) return;
+            ctx.strokeStyle = colors[i]; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(p[0] * sc, p[1] * sc, 7, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p[0] * sc - 11, p[1] * sc); ctx.lineTo(p[0] * sc + 11, p[1] * sc);
+            ctx.moveTo(p[0] * sc, p[1] * sc - 11); ctx.lineTo(p[0] * sc, p[1] * sc + 11); ctx.stroke();
+          });
+          if (step >= 3) {
+            // Vista previa de las guías del canon que resultarán
+            const ey = (pts[0][1] + pts[1][1]) / 2, F = (pts[2][1] - ey) / 1.75, cx = (pts[0][0] + pts[1][0]) / 2;
+            ctx.strokeStyle = 'rgba(239,68,68,0.7)'; ctx.lineWidth = 1;
+            for (const k of [-1.75, -1.25, -0.25, 0, 0.75, 1.25, 1.75]) {
+              ctx.beginPath(); ctx.moveTo((cx - 1.4 * F) * sc, (ey + k * F) * sc); ctx.lineTo((cx + 1.4 * F) * sc, (ey + k * F) * sc); ctx.stroke();
+            }
+          }
+          msg.innerHTML = step < 3
+            ? `Paso ${step + 1}/3: haz clic en el <b style="color:${colors[step]}">${names[step]}</b> (centro de la pupila${step === 2 ? '; aquí, el punto más bajo del mentón' : ''}).`
+            : (isTemplate ? 'Imagen con el tamaño de la plantilla: anclajes colocados automáticamente. ' : '') + 'Revisa las líneas rojas (cejas, ojos, nariz, boca, barbilla) y pulsa <b>Aplicar</b>.';
+        };
+        cv.addEventListener('click', (ev) => {
+          if (step >= 3) return;
+          const r = cv.getBoundingClientRect();
+          pts[step] = [(ev.clientX - r.left) * (cv.width / r.width) / sc, (ev.clientY - r.top) * (cv.height / r.height) / sc];
+          step++; draw();
         });
+        overlay.querySelector('#fa-reset').onclick = () => { step = 0; draw(); };
+        overlay.querySelector('#fa-cancel').onclick = () => overlay.remove();
+        overlay.querySelector('#fa-apply').onclick = () => {
+          if (step < 3) { showToast('Marca primero los 3 puntos'); return; }
+          if (pts[2][1] <= (pts[0][1] + pts[1][1]) / 2 + 4) { showToast('La barbilla debe estar por debajo de los ojos'); return; }
+          const key = CH.createFaceTextureFromImage(img, pts, label || 'Textura cargada');
+          if (faceTexSel) {
+            const opt = document.createElement('option');
+            opt.value = key; opt.textContent = '📷 ' + (label || 'Textura cargada');
+            faceTexSel.appendChild(opt); faceTexSel.value = key;
+          }
+          overlay.remove();
+          applyFaceTextureKey(key);
+        };
+        draw();
       }
+
       const selPose = document.getElementById('human-pose-select');
       if (selPose) {
         selPose.addEventListener('change', (e) => {
@@ -21325,7 +21439,17 @@ function getFaceCanon(caraCfg = {}) {
   // Rasgo femenino (0 = neutro, 1 = rostro femenino estilizado): ojos algo mayores, mandíbula en V, nariz pequeña…
   const fem = Math.max(0, Math.min(1, caraCfg.feminine ?? 0));
   const eyeR = 0.213 * F * eyeSizeK * (1 + 0.08 * fem);
-  const eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
+  let eyeX = C.widths.eyeCenter * F * (1 + clamp(dev('eyeSpacing'), C.maxDev.eyeSpacing));
+  let eyeRf = eyeR, eyeSizeKf = eyeSizeK;
+  // Con una textura de rostro activa, los ojos 3D toman la separación y el tamaño de los ojos de la imagen
+  const ftDef = (caraCfg.faceTexture && typeof getFaceTextureDef === 'function') ? getFaceTextureDef(caraCfg.faceTexture) : null;
+  if (ftDef) {
+    const ePx = (ftDef.eyeL[1] + ftDef.eyeR[1]) * 0.5;
+    const Fpx = (ftDef.chinY - ePx) / (C.levels.G - C.levels.D);
+    eyeX = ((ftDef.eyeR[0] - ftDef.eyeL[0]) * 0.5 / Fpx) * F;
+    eyeRf = (ftDef.eyeWidth / Fpx) * F / (2 * 1.075 * Math.sin(1.10));
+    eyeSizeKf = eyeRf / (0.213 * F);
+  }
   const eyeY = lv('D') + eyeYDev;
   const noseBaseY = lv('E') - noseDev;
   const noseRootY = eyeY + 0.04 * F;
@@ -21334,7 +21458,7 @@ function getFaceCanon(caraCfg = {}) {
     F,
     topY: lv('A'), hairlineY: lv('B'), browY: lv('C') + eyeYDev, eyeY, noseBaseY, noseRootY,
     mouthY: lv('stomion'), lowerLipY: lv('F'), chinY: lv('G'),
-    eyeX, eyeR, eyeSizeK, fem,
+    eyeX, eyeR: eyeRf, eyeSizeK: eyeSizeKf, fem,
     noseAlaHalf: 0.5 * C.widths.nose * F * (1 + clamp(dev('noseWidth'), C.maxDev.noseWidth)),
     noseWidthScale: 1 + clamp(dev('noseWidth'), C.maxDev.noseWidth),
     mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
@@ -21572,21 +21696,160 @@ function createProceduralFaceSkinMaterial(skinColorHex = "#d99e82") {
 }
 
 /**
- * Texturas de rostro de referencia (prueba): imagen frontal recortada con máscara ovalada.
- * Puntos de anclaje en píxeles de la imagen: centros de los ojos y barbilla. Se alinean con el canon
- * (línea de los ojos D, barbilla G y centros de ojo a ±eyeX) para proyectarla en vista frontal.
+ * TEXTURAS DE ROSTRO
+ * Cada textura es una imagen frontal con tres puntos de anclaje (en píxeles): centro de cada ojo y barbilla,
+ * más la anchura de la abertura del ojo. Se proyecta en frontal sobre cráneo, párpados, nariz y labios con
+ * escala uniforme: la línea de los ojos cae en D y la barbilla en G (canon). Con una textura activa, los ojos
+ * 3D adoptan la separación y el tamaño de los ojos de la imagen (ver getFaceCanon).
+ *
+ * MANIQUÍ / PLANTILLA: cara guía con el canon dibujado (niveles A–G, columnas F/2, ojos, nariz, boca).
+ * Se puede aplicar como textura o descargar como plantilla: una imagen pintada/alineada sobre ella
+ * (mismo tamaño) se carga después con los anclajes ya colocados.
  */
+const FACE_TEMPLATE = (() => {
+  const W = 512, H = 600, Fpx = 120, cx = 256, topY = 40;
+  const eyeY = topY + 1.75 * Fpx, chinY = topY + 3.5 * Fpx;
+  return {
+    W, H, Fpx, cx, topY, eyeY, chinY,
+    eyeL: [cx - 0.475 * Fpx, eyeY], eyeR: [cx + 0.475 * Fpx, eyeY],
+    eyeWidth: 0.44 * Fpx,
+  };
+})();
+
+// Contorno de la máscara facial en unidades F, relativo al punto medio entre los ojos (y hacia abajo)
+const FACE_MASK_POLY_F = (() => {
+  const half = [[0, -1.30], [0.55, -1.24], [0.98, -1.0], [1.16, -0.55], [1.18, 0.0], [1.13, 0.55], [1.0, 1.0], [0.72, 1.38], [0.36, 1.66], [0, 1.76]];
+  return half.concat(half.slice(1, -1).reverse().map(([x, y]) => [-x, y]));
+})();
+
+function _traceFaceMask(ctx, cx, cy, Fpx) {
+  ctx.beginPath();
+  FACE_MASK_POLY_F.forEach(([x, y], i) => {
+    const px = cx + x * Fpx, py = cy + y * Fpx;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+}
+
+/** Dibuja el maniquí/plantilla del canon. withBackground=false deja transparente fuera de la cara. */
+function drawFaceTemplateCanvas(withBackground = true) {
+  const T = FACE_TEMPLATE;
+  const c = document.createElement('canvas'); c.width = T.W; c.height = T.H;
+  const ctx = c.getContext('2d');
+  const F = T.Fpx, cx = T.cx, ey = T.eyeY;
+  const lv = (k) => T.topY + k * F;
+  if (withBackground) { ctx.fillStyle = '#f4efe6'; ctx.fillRect(0, 0, T.W, T.H); }
+  // Piel neutra del maniquí
+  ctx.save();
+  _traceFaceMask(ctx, cx, ey, F);
+  const g = ctx.createRadialGradient(cx, ey + 0.3 * F, 0.2 * F, cx, ey + 0.3 * F, 1.9 * F);
+  g.addColorStop(0, '#e2cdb9'); g.addColorStop(1, '#c9ae97');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.restore();
+  // Guías del canon
+  ctx.lineWidth = 1.5;
+  const levels = [['A', 0], ['B', 0.5], ['C', 1.5], ['D', 1.75], ['E', 2.5], ['F', 3.0], ['G', 3.5]];
+  ctx.font = 'bold 15px sans-serif';
+  levels.forEach(([k, v]) => {
+    const y = lv(v);
+    ctx.strokeStyle = 'rgba(200,40,40,0.75)';
+    ctx.beginPath(); ctx.moveTo(cx - 1.45 * F, y); ctx.lineTo(cx + 1.45 * F, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(160,30,30,0.95)'; ctx.fillText(k, cx - 1.75 * F, y + 5);
+  });
+  ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(40,80,200,0.6)';
+  for (const fx of [-1.25, -0.75, -0.25, 0, 0.25, 0.75, 1.25]) {
+    ctx.beginPath(); ctx.moveTo(cx + fx * F, lv(0.3)); ctx.lineTo(cx + fx * F, lv(3.6)); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // Rasgos: cejas, ojos, nariz y boca en sus posiciones canónicas
+  ctx.strokeStyle = '#5b4334'; ctx.lineWidth = 2.5;
+  for (const s of [-1, 1]) {
+    const ex = cx + s * 0.475 * F, w = 0.22 * F;
+    ctx.beginPath(); ctx.moveTo(ex - s * 0.24 * F, lv(1.52)); ctx.quadraticCurveTo(ex + s * 0.02 * F, lv(1.36), ex + s * 0.30 * F, lv(1.50)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ex - w, ey); ctx.quadraticCurveTo(ex, ey - 0.17 * F, ex + w, ey); ctx.quadraticCurveTo(ex, ey + 0.14 * F, ex - w, ey); ctx.stroke();
+    ctx.beginPath(); ctx.arc(ex, ey, 0.085 * F, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx - 0.08 * F, lv(1.85)); ctx.lineTo(cx - 0.12 * F, lv(2.38)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 0.21 * F, lv(2.42)); ctx.quadraticCurveTo(cx, lv(2.6), cx + 0.21 * F, lv(2.42)); ctx.stroke();
+  const my = lv(2.87);
+  ctx.beginPath(); ctx.moveTo(cx - 0.35 * F, my); ctx.quadraticCurveTo(cx, my + 0.03 * F, cx + 0.35 * F, my); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 0.35 * F, my); ctx.quadraticCurveTo(cx - 0.12 * F, my - 0.16 * F, cx, my - 0.1 * F); ctx.quadraticCurveTo(cx + 0.12 * F, my - 0.16 * F, cx + 0.35 * F, my); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - 0.33 * F, my + 0.01 * F); ctx.quadraticCurveTo(cx, my + 0.24 * F, cx + 0.33 * F, my + 0.01 * F); ctx.stroke();
+  // Contorno
+  ctx.strokeStyle = 'rgba(90,60,45,0.8)'; ctx.lineWidth = 2;
+  _traceFaceMask(ctx, cx, ey, F); ctx.stroke();
+  if (!withBackground) {
+    // Borde suave hacia la piel del modelo
+    ctx.globalCompositeOperation = 'destination-in';
+    const m = document.createElement('canvas'); m.width = T.W; m.height = T.H;
+    const mc = m.getContext('2d');
+    mc.filter = 'blur(6px)'; mc.fillStyle = '#fff'; _traceFaceMask(mc, cx, ey, F * 0.97); mc.fill();
+    ctx.drawImage(m, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  return c;
+}
+
+/**
+ * Prepara una textura a partir de una imagen cualquiera y sus anclajes (ojo izq., ojo der., barbilla en px):
+ * recorta alrededor de la cara, aplica la máscara facial con borde suave y la registra.
+ */
+function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
+  const [eL, eR, chin] = anchors;
+  const eyeYpx = (eL[1] + eR[1]) * 0.5;
+  const Fpx = Math.max(4, (chin[1] - eyeYpx) / 1.75);
+  const cxPx = (eL[0] + eR[0]) * 0.5;
+  const scale = Math.min(1, 140 / Fpx);   // resolución máxima ≈ 140 px por F
+  const x0 = cxPx - 1.45 * Fpx, y0 = eyeYpx - 1.55 * Fpx;
+  const w = 2.9 * Fpx, h = 3.45 * Fpx;
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * scale) + 4; c.height = Math.round(h * scale) + 4;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, x0, y0, w, h, 2, 2, w * scale, h * scale);
+  const m = document.createElement('canvas'); m.width = c.width; m.height = c.height;
+  const mc = m.getContext('2d');
+  mc.filter = `blur(${Math.max(2, Math.round(0.06 * Fpx * scale))}px)`;
+  mc.fillStyle = '#fff';
+  _traceFaceMask(mc, 2 + (cxPx - x0) * scale, 2 + (eyeYpx - y0) * scale, Fpx * scale * 0.96);
+  mc.fill();
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(m, 0, 0);
+  const tr = (p) => [2 + (p[0] - x0) * scale, 2 + (p[1] - y0) * scale];
+  const key = 'user_' + Date.now().toString(36);
+  FACE_TEXTURES[key] = {
+    label, url: c.toDataURL('image/png'), size: [c.width, c.height],
+    eyeL: tr(eL), eyeR: tr(eR), chinY: tr(chin)[1],
+    eyeWidth: 0.46 * Math.hypot(eR[0] - eL[0], eR[1] - eL[1]) * scale,
+  };
+  return key;
+}
+
 const FACE_TEXTURES = {
+  maniqui: null,   // se genera bajo demanda (getFaceTextureDef)
   ref_mujer: {
     label: 'Rostro de referencia (mujer)',
     url: 'textures/rostro_ref_mujer.png',
     size: [396, 424],
-    eyeL: [127, 166],   // ojo a la izquierda de la imagen (lado +X del personaje visto de frente: derecha)
+    eyeL: [127, 166],
     eyeR: [262, 166],
     chinY: 369.5,
+    eyeWidth: 64,
   },
 };
 const _FACE_TEX_CACHE = {};
+
+function getFaceTextureDef(key) {
+  if (!key) return null;
+  if (key === 'maniqui' && !FACE_TEXTURES.maniqui) {
+    const T = FACE_TEMPLATE;
+    FACE_TEXTURES.maniqui = {
+      label: 'Maniquí (guía del canon)', url: drawFaceTemplateCanvas(false).toDataURL('image/png'),
+      size: [T.W, T.H], eyeL: T.eyeL, eyeR: T.eyeR, chinY: T.chinY, eyeWidth: T.eyeWidth,
+    };
+  }
+  return FACE_TEXTURES[key] || null;
+}
 
 function applyFaceReferenceTexture(headGroup, canon, def) {
   if (!_FACE_TEX_CACHE[def.url]) {
@@ -21599,9 +21862,9 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
   const tex = _FACE_TEX_CACHE[def.url];
   const [W, H] = def.size;
   const cxPx = (def.eyeL[0] + def.eyeR[0]) * 0.5;
-  const kx = ((def.eyeR[0] - def.eyeL[0]) * 0.5) / canon.eyeX;          // píxeles por unidad (horizontal)
   const eyePx = (def.eyeL[1] + def.eyeR[1]) * 0.5;
-  const ky = (def.chinY - eyePx) / (canon.eyeY - canon.chinY);           // píxeles por unidad (vertical)
+  // Escala uniforme: los ojos 3D ya se han adaptado a la separación de los ojos de la imagen
+  const k = (def.chinY - eyePx) / (canon.eyeY - canon.chinY);
   const mat = new THREE.MeshStandardMaterial({
     map: tex, transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
@@ -21623,8 +21886,8 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
     for (let i = 0; i < P.count; i++) {
       const X = P.getX(i) + off.x, Y = P.getY(i) + off.y, Z = P.getZ(i) + off.z;
       if (Z < 0.02) { uv[i * 2] = -0.01; uv[i * 2 + 1] = -0.01; continue; }   // sólo la cara anterior
-      uv[i * 2] = (cxPx + X * kx) / W;
-      uv[i * 2 + 1] = 1.0 - (eyePx + (canon.eyeY - Y) * ky) / H;
+      uv[i * 2] = (cxPx + X * k) / W;
+      uv[i * 2 + 1] = 1.0 - (eyePx + (canon.eyeY - Y) * k) / H;
     }
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     const ov = new THREE.Mesh(g, mat);
@@ -22081,6 +22344,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
           const w = sstep(s, 0.30, 1.0);
           p = sp.clone();
           p.z = THREE.MathUtils.lerp(sp.z, skinZ - (r === RINGS - 1 ? 0.0008 : 0.0), w);
+          // Fuera de la abertura la piel nunca queda por detrás del globo (sin blanco asomando en las esquinas)
+          const dxE = p.x - eyeCenter.x, dyE = p.y - eyeCenter.y, dd = dxE * dxE + dyE * dyE;
+          if (dd < eyeR * eyeR && r < RINGS - 1) p.z = Math.max(p.z, eyeCenter.z + Math.sqrt(eyeR * eyeR - dd) + 0.0004);
         }
         lidPos.push(p.x, p.y, p.z);
       }
@@ -22432,9 +22698,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   headGroup.add(beardGroup);
 
   // 7. Textura de rostro de referencia (prueba), proyectada en frontal y alineada con el canon
-  if (caraCfg.faceTexture && FACE_TEXTURES[caraCfg.faceTexture]) {
-    applyFaceReferenceTexture(headGroup, canon, FACE_TEXTURES[caraCfg.faceTexture]);
-  }
+  const faceTexDef = getFaceTextureDef(caraCfg.faceTexture);
+  if (faceTexDef) applyFaceReferenceTexture(headGroup, canon, faceTexDef);
 
   return headGroup;
 }
@@ -26832,7 +27097,8 @@ function resetCharacter() {
         updateCharacterAnimation, applyPoseTransformations, alignCharacterToGround,
         evaluateGameAnimation,
         bakeAllGameAnimationClips, syncMaterialColors,
-        setHandCurl, setHandWrap, getHandGroup, getHandGripAnchor
+        setHandCurl, setHandWrap, getHandGroup, getHandGripAnchor,
+        FACE_TEXTURES, FACE_TEMPLATE, getFaceTextureDef, drawFaceTemplateCanvas, createFaceTextureFromImage
       };
     })(window.THREE);
 
