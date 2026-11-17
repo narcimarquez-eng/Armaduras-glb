@@ -9526,6 +9526,23 @@
       return { p: P.addScaledVector(N, lift), n: N };
     }
 
+    // Púa/aleta afilada sobre una placa: nace en (u, v), sale por la normal y se inclina hacia arriba y atrás
+    function addShellSpike(shellMesh, u, v, len, rad, mat, upTilt = 0.7) {
+      const hit = shellPointAt(shellMesh, u, v, 0.001);
+      if (!hit) return null;
+      const geo = new THREE.ConeGeometry(rad, len, 5);
+      geo.translate(0, len * 0.5, 0);
+      geo.scale(1, 1, 0.38);   // aleta plana
+      const m = new THREE.Mesh(geo, mat);
+      const dir = hit.n.clone().multiplyScalar(1 - upTilt * 0.5);
+      dir.y += upTilt; dir.z -= upTilt * 0.55; dir.normalize();
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      m.position.copy(hit.p);
+      m.castShadow = true; m.name = 'ShellSpike';
+      shellMesh.add(m);
+      return m;
+    }
+
     // Tubo dorado en relieve que sigue una curva (u(t), v(t)) sobre la placa
     function addShellRelief(shellMesh, curveFn, radius, mat, samples = 18, lift = null) {
       if (!shellMesh) return;
@@ -11689,6 +11706,10 @@
       16: { toeShape: 'sleek_almond', cuffStyle: 'winged_sweep',  ridgeStrength: 0.010, facetPower: 0.00, collarFactor: 1.22, ankleWings: true, rondels: true, shinRidge: 0.15, shinFlutes: 2, shinFoldTop: 'foliate', shinFoldHem: 'foliate', shinLeaf: true, cuffFlare: 0.06 },
       17: { toeShape: 'sleek_almond', cuffStyle: 'high_cavalier', ridgeStrength: 0.009, facetPower: 0.15, collarFactor: 1.36, ankleWings: true, rondels: true, shinRidge: 0.14, shinFlutes: 3, shinFoldTop: 'ogee_conopial', shinFoldHem: 'scalloped', shinGlowFin: true, cuffFlare: 0.09 }
     };
+
+    // Diseño de la rodillera-collar de la greba por modelo de bota
+    const GREAVE_KNEE_STYLES = { 1: 'v_cuff', 2: 'winged', 3: 'layered', 4: 'winged', 5: 'scalloped', 6: 'layered', 7: 'v_cuff', 8: 'winged',
+      9: 'scalloped', 10: 'layered', 11: 'winged', 12: 'scalloped', 13: 'v_cuff', 15: 'winged', 16: 'scalloped', 17: 'layered' };
 
     function buildArticulatedBoots() {
       const bootType = STATE.equipment.boots;
@@ -14839,27 +14860,64 @@
           getMeshesByAnatomy([partName]).forEach(sMesh => {
             const bA = BOOT_ARCHITECTURES[bootType] || BOOT_ARCHITECTURES[1];
             const topRatio = STATE.fit.shinTop ?? (bootType === 1 ? 0.86 : 0.92);
-            createFormFittedShell(sMesh, mainMat, {
-              targetPart: partName, thicknessRatio: 0.028 * lBulk,
-              yMin: 0.04, yMax: topRatio,
-              flareBottom: 0.06, flareTop: 0.05,
+            const kneeStyle = GREAVE_KNEE_STYLES[bootType] || 'v_cuff';
+            const outerU = partName === 'shin_l' ? 0.75 : 0.25;   // costado exterior de la pierna
+            const shinSh = createFormFittedShell(sMesh, mainMat, {
+              targetPart: partName, thicknessRatio: 0.046 * lBulk,   // más holgura sobre la espinilla
+              yMin: 0.04, yMax: topRatio - 0.04,
+              flareBottom: 0.06, flareTop: 0.03,
               ridgeCenterZ: bA.shinRidge ?? 0.14,
-              archTop: 0.08,
+              archTop: 0.02,
               fluteCount: bA.shinFlutes ?? 0,
               fluteDepth: 0.011,
               bevelRadius: 0.008
             });
-            createFormFittedShell(sMesh, trimMat, {
-              targetPart: partName, thicknessRatio: 0.033 * lBulk,
-              yMin: topRatio - 0.13, yMax: topRatio,
-              ridgeCenterZ: 0.16, archTop: 0.08,
-              foldStyle: bA.shinFoldTop || 'ogee_conopial',
-              foldDepth: 0.07,
-              bevelRadius: 0.007
+            if (shinSh) {
+              // Nervios en relieve: arista central y dos líneas que abren en V hacia la rodilla
+              addShellRelief(shinSh, t => [0.5, 0.12 + 0.70 * t], 0.0022 * lBulk, trimMat, 16);
+              addShellRelief(shinSh, t => [0.5 - 0.11 * t, 0.30 + 0.52 * t], 0.0018 * lBulk, trimMat, 12);
+              addShellRelief(shinSh, t => [0.5 + 0.11 * t, 0.30 + 0.52 * t], 0.0018 * lBulk, trimMat, 12);
+            }
+            // RODILLERA-COLLAR de la greba (estética L2): placa superior levantada que monta sobre la greba,
+            // acampanada hacia fuera, con canto biselado y pico en V que baja por delante
+            const cuffTop = Math.min(1.0, topRatio + 0.07);
+            const cuffs = kneeStyle === 'layered'
+              ? [{ y0: cuffTop - 0.32, y1: cuffTop - 0.14, t: 0.058, fl: 0.22, v: 0.18 }, { y0: cuffTop - 0.19, y1: cuffTop, t: 0.068, fl: 0.58, v: 0.26 }]
+              : [{ y0: cuffTop - (kneeStyle === 'scalloped' ? 0.20 : 0.25), y1: cuffTop, t: 0.068, fl: 0.58, v: kneeStyle === 'scalloped' ? 0.0 : 0.32 }];
+            let topCuff = null;
+            cuffs.forEach((c, ci) => {
+              const cOpts = {
+                targetPart: partName, thicknessRatio: c.t * lBulk,
+                yMin: c.y0, yMax: c.y1,
+                flareTop: c.fl, flareBottom: 0.10,   // canto inferior también levantado: se lee como placa suelta
+                ridgeCenterZ: 0.20, archTop: 0.10,
+                vPointBottom: c.v,
+                bevelRadius: 0.010, edgeRim: 0.0030 * lBulk,
+                frameMaterial: trimMat
+              };
+              if (kneeStyle === 'scalloped') Object.assign(cOpts, { foldStyle: 'scalloped', foldWaves: 3.0, foldDepth: 0.10 });
+              else if (kneeStyle === 'winged') Object.assign(cOpts, { foldStyle: bA.shinFoldTop || 'swallow_tail', foldDepth: 0.08 });
+              const csh = createFormFittedShell(sMesh, mainMat, cOpts);
+              if (csh) {
+                // Moldura en V que acompaña al pico y filete a media altura
+                addShellRelief(csh, t => [0.5 + (t - 0.5) * 0.36, 0.30 + Math.abs(t - 0.5) * 0.9], 0.0021 * lBulk, trimMat, 16);
+                addShellRelief(csh, t => [0.18 + 0.64 * t, 0.82], 0.0017 * lBulk, trimMat, 22);
+                topCuff = csh;
+              }
             });
+            if (topCuff) {
+              let gemK = glowMat, dmK = glowMat;
+              try { gemK = getFacetedGemMaterial((SABATON_DESIGNS[bootType] || SABATON_DESIGNS[1]).gem || 'sapphire', 'boots'); dmK = getFacetedGemMaterial('diamond', 'boots'); } catch (e) { }
+              addShellJewel(topCuff, 0.5, 0.55, 0.0085 * lBulk, gemK, trimMat, dmK, 6);
+              // Púas / aletas laterales barridas hacia atrás en el costado exterior (como la foto de referencia)
+              if (kneeStyle === 'winged' || kneeStyle === 'layered') {
+                const n = kneeStyle === 'winged' ? 3 : 2;
+                for (let k = 0; k < n; k++) addShellSpike(topCuff, outerU + (partName === 'shin_l' ? 1 : -1) * 0.035 * k, 0.80 - 0.24 * k, (0.15 - 0.03 * k) * lBulk, 0.026 * lBulk, trimMat, 0.55);
+              }
+            }
             // Cenefa inferior biselada de la greba que enlaza limpiamente con el cuello de la bota
             createFormFittedShell(sMesh, trimMat, {
-              targetPart: partName, thicknessRatio: 0.033 * lBulk,
+              targetPart: partName, thicknessRatio: 0.052 * lBulk,
               yMin: 0.04, yMax: 0.18,
               flareBottom: 0.07,
               ridgeCenterZ: 0.15,
@@ -14869,14 +14927,14 @@
             });
             if (bA.shinLeaf) {
               createFormFittedShell(sMesh, trimMat, {
-                targetPart: partName, thicknessRatio: 0.035 * lBulk,
-                yMin: 0.40, yMax: 0.75, flareTop: 0.07, archTop: 0.10,
+                targetPart: partName, thicknessRatio: 0.054 * lBulk,
+                yMin: 0.40, yMax: 0.62, flareTop: 0.07, archTop: 0.10,
                 foldStyle: 'foliate', foldWaves: 3.0, foldDepth: 0.10,
                 bevelRadius: 0.007
               });
             } else if (bA.shinGlowFin) {
               createFormFittedShell(sMesh, glowMat, {
-                targetPart: partName, thicknessRatio: 0.034 * lBulk,
+                targetPart: partName, thicknessRatio: 0.053 * lBulk,
                 yMin: 0.28, yMax: 0.46, angleMin: -0.4, angleMax: 0.4,
                 vPointBottom: 0.12, bevelRadius: 0.006
               });
