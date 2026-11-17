@@ -413,6 +413,10 @@
     {
       "idx": 12,
       "name": "Cíngulo Serafín & Faldón Catedralicio de Terciopelo (Archimago)"
+    },
+    {
+      "idx": 13,
+      "name": "Cinturón del Dragón Rúnico con Gema Cian"
     }
   ],
   "tassets": [
@@ -471,6 +475,10 @@
     {
       "idx": 13,
       "name": "Escarcelas Astrales con Péndulos de Incensario (Archimago)"
+    },
+    {
+      "idx": 15,
+      "name": "Escarcelas del Dragón Rúnico (Placa Lateral + Cuero)"
     }
   ],
   "cuisses": [

@@ -523,7 +523,7 @@
       {
         "idx": 2,
         "nombre": "Cinturón Real + Tabardo Azul & Oro",
-        "nivel": 5,
+        "nivel": 4,
         "archivo": "piezas/belt/2.glb"
       },
       {
@@ -535,56 +535,62 @@
       {
         "idx": 4,
         "nombre": "Cinturón Abisal con Punta Gótica",
-        "nivel": 12,
+        "nivel": 11,
         "archivo": "piezas/belt/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Cinturón de Comandante con Hebilla",
-        "nivel": 15,
+        "nivel": 14,
         "archivo": "piezas/belt/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Cinturón Dinastía + Tabardo Esmeralda & Oro Rosa (L2)",
-        "nivel": 19,
+        "nivel": 17,
         "archivo": "piezas/belt/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Cinturón de Brigantina Tachonada (D&D)",
-        "nivel": 22,
+        "nivel": 20,
         "archivo": "piezas/belt/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Cinturón & Tabardo Dark Crystal (L2)",
-        "nivel": 26,
+        "nivel": 24,
         "archivo": "piezas/belt/8.glb"
       },
       {
         "idx": 9,
         "nombre": "Fajín Triple Carmesí & Gabardina Partida (Segador)",
-        "nivel": 29,
+        "nivel": 27,
         "archivo": "piezas/belt/9.glb"
       },
       {
         "idx": 10,
         "nombre": "Fajín Real Dracónico & Faldón Heráldico Carmesí (Soberano)",
-        "nivel": 33,
+        "nivel": 30,
         "archivo": "piezas/belt/10.glb"
       },
       {
         "idx": 11,
         "nombre": "Ceñidor Élfico de Mithril & Faldones de Guardabosques (Cazador)",
-        "nivel": 36,
+        "nivel": 34,
         "archivo": "piezas/belt/11.glb"
       },
       {
         "idx": 12,
         "nombre": "Cíngulo Serafín & Faldón Catedralicio de Terciopelo (Archimago)",
-        "nivel": 40,
+        "nivel": 37,
         "archivo": "piezas/belt/12.glb"
+      },
+      {
+        "idx": 13,
+        "nombre": "Cinturón del Dragón Rúnico con Gema Cian",
+        "nivel": 40,
+        "archivo": "piezas/belt/13.glb"
       }
     ],
     "tassets": [
@@ -603,68 +609,74 @@
       {
         "idx": 3,
         "nombre": "Placas Pesadas de Comandante",
-        "nivel": 8,
+        "nivel": 7,
         "archivo": "piezas/tassets/3.glb"
       },
       {
         "idx": 4,
         "nombre": "Escarcelas Élficas Biseladas",
-        "nivel": 11,
+        "nivel": 10,
         "archivo": "piezas/tassets/4.glb"
       },
       {
         "idx": 5,
         "nombre": "Escarcelas Reales con Blasón",
-        "nivel": 14,
+        "nivel": 13,
         "archivo": "piezas/tassets/5.glb"
       },
       {
         "idx": 6,
         "nombre": "Escarcelas Dinastía Aladas en Abanico (L2)",
-        "nivel": 17,
+        "nivel": 16,
         "archivo": "piezas/tassets/6.glb"
       },
       {
         "idx": 7,
         "nombre": "Escarcelas de Escamas de Dragón (D&D)",
-        "nivel": 20,
+        "nivel": 19,
         "archivo": "piezas/tassets/7.glb"
       },
       {
         "idx": 8,
         "nombre": "Escarcelas de Tablillas / Splint Mail (D&D)",
-        "nivel": 24,
+        "nivel": 22,
         "archivo": "piezas/tassets/8.glb"
       },
       {
         "idx": 9,
         "nombre": "Escarcelas Dark Crystal (L2)",
-        "nivel": 27,
+        "nivel": 25,
         "archivo": "piezas/tassets/9.glb"
       },
       {
         "idx": 10,
         "nombre": "Colgantes Óseos con Cadenas y Plumas (Segador)",
-        "nivel": 30,
+        "nivel": 28,
         "archivo": "piezas/tassets/10.glb"
       },
       {
         "idx": 11,
         "nombre": "Escarcelas Aladas de Dragón en Plata Negra & Oro (Soberano)",
-        "nivel": 34,
+        "nivel": 31,
         "archivo": "piezas/tassets/11.glb"
       },
       {
         "idx": 12,
         "nombre": "Escarcelas Foliares de Mithril & Esmeraldas (Cazador Élfico)",
-        "nivel": 37,
+        "nivel": 34,
         "archivo": "piezas/tassets/12.glb"
       },
       {
         "idx": 13,
         "nombre": "Escarcelas Astrales con Péndulos de Incensario (Archimago)",
-        "nivel": 40,
+        "nivel": 37,
         "archivo": "piezas/tassets/13.glb"
+      },
+      {
+        "idx": 15,
+        "nombre": "Escarcelas del Dragón Rúnico (Placa Lateral + Cuero)",
+        "nivel": 40,
+        "archivo": "piezas/tassets/15.glb"
       }
     ],
     "cuisses": [
