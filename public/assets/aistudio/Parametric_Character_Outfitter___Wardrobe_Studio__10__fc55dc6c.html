@@ -574,6 +574,10 @@
               <span class="flex items-center gap-1"><i data-lucide="cylinder" class="w-3 h-3 text-indigo-400"></i> 4. Clumps</span>
               <span class="text-[9px] text-slate-400 font-normal">400+ Mechones Tubulares</span>
             </button>
+            <button data-tech="locks" class="hair-tech-btn p-2 rounded-xl text-left border border-white/5 bg-slate-900/60 text-slate-300 hover:text-white text-[11px] font-semibold flex flex-col gap-0.5">
+              <span class="flex items-center gap-1"><i data-lucide="feather" class="w-3 h-3 text-indigo-400"></i> 5. Mechones Estilizados</span>
+              <span class="text-[9px] text-slate-400 font-normal">Mechones Planos con Grosor y Punta</span>
+            </button>
           </div>
         </div>
 
@@ -19916,6 +19920,109 @@
     }
 
     /* TÉCNICA 4: VOLUMETRIC CLUMP LOCKS */
+    /* TÉCNICA 5: MECHONES ESTILIZADOS (estilo animación / juego): pocos mechones grandes, anchos y PLANOS,
+       con grosor (sección en media luna), raíz ancha y punta afilada, apilados en capas sobre el cráneo */
+    function buildStylizedLockGeometry(points, width, thick, layerNorm = 0.85, strandSeed = 0.5) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const NS = 18, K = 7;            // tramos a lo largo; puntos por cara a lo ancho
+      const pos = [], uvs = [], tng = [], sdat = [], idx = [];
+      const P = new THREE.Vector3(), T = new THREE.Vector3(), Ns = new THREE.Vector3(), B = new THREE.Vector3(), v = new THREE.Vector3();
+      const isBang = Boolean(points.isBangStrand);
+      const side = points.partingSign !== undefined ? points.partingSign : 1;
+      const twist = (strandSeed - 0.5) * 0.9;
+      for (let i = 0; i <= NS; i++) {
+        const t = i / NS;
+        curve.getPointAt(t, P); curve.getTangentAt(t, T);
+        getCraniumOutwardNormal(P, Ns);
+        B.crossVectors(T, Ns).normalize();
+        Ns.crossVectors(B, T).normalize();
+        // anchura: ancha en la raíz, se ensancha un poco y acaba en punta
+        const w = width * (0.62 + 0.38 * Math.sin(Math.min(1, t * 2.4) * Math.PI * 0.5)) * Math.pow(Math.max(0, 1 - t), 0.80);
+        const th = thick * (1 - 0.75 * t);
+        enforceCraniumAndEyeClearance(P, th + 0.0032, isBang, side, t);
+        const ca = Math.cos(twist * t), sa = Math.sin(twist * t);
+        const Bt = B.clone().multiplyScalar(ca).addScaledVector(Ns, sa);
+        const Nt = Ns.clone().multiplyScalar(ca).addScaledVector(B, -sa);
+        // anillo: cara exterior (abombada) de izquierda a derecha y cara interior de vuelta
+        for (let f = 0; f < 2; f++) {
+          for (let k = 0; k < K; k++) {
+            const q = f === 0 ? (k / (K - 1)) * 2 - 1 : 1 - (k / (K - 1)) * 2;
+            const bulge = (1 - q * q);
+            v.copy(P).addScaledVector(Bt, q * w)
+              .addScaledVector(Nt, f === 0 ? th * bulge : -th * 0.30 * bulge)
+              .addScaledVector(Nt, -Math.abs(q) * w * 0.18);   // los bordes se curvan hacia el cráneo
+            pos.push(v.x, v.y, v.z);
+            uvs.push(f === 0 ? (q + 1) * 0.5 : 1 - (q + 1) * 0.5, t);
+            tng.push(T.x, T.y, T.z);
+            sdat.push(f === 0 ? Math.max(0.92, layerNorm) : 0.6, strandSeed);   // tono parecido al de las fibras de encima
+          }
+        }
+      }
+      const R = 2 * K;
+      for (let i = 0; i < NS; i++) {
+        for (let k = 0; k < R; k++) {
+          const a = i * R + k, b = i * R + (k + 1) % R, c = (i + 1) * R + (k + 1) % R, d = (i + 1) * R + k;
+          idx.push(a, d, b, b, d, c);
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('aTangent', new THREE.Float32BufferAttribute(tng, 3));
+      geo.setAttribute('aStrandData', new THREE.Float32BufferAttribute(sdat, 2));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      return geo;
+    }
+
+    function generateStylizedLocks() {
+      clearHairMesh();
+      if (!HAIR_CONFIG.visible) return;
+      if (unifiedScalpRoots.length === 0) rebuildUnifiedScalpRoots();
+      const total = unifiedScalpRoots.length;
+      const target = Math.min(total, Math.floor(150 * hairUniforms.uDensity.value));
+      const stride = Math.max(1, Math.floor(total / target));
+      const baseLen = 0.155 * hairUniforms.uLength.value;
+      const curl = hairUniforms.uCurl.value * 0.5;   // los mechones grandes se rizan poco: ondulan
+      const geos = [], fiberGeos = [];
+      const Ns = new THREE.Vector3();
+      for (let i = 0; i < total; i += stride) {
+        const anchor = unifiedScalpRoots[i];
+        const pts = generateHairStrandPoints(anchor, baseLen * anchor.randScale, 11, curl);
+        const outer = anchor.layerNorm > 0.7 ? 1.12 : 0.95;
+        const w = 0.030 * HAIR_CONFIG.widthScale * outer * (0.8 + 0.4 * anchor.strandSeed);
+        const th = 0.0042 * (0.8 + 0.4 * anchor.strandSeed);
+        geos.push(buildStylizedLockGeometry(pts, w, th, anchor.layerNorm, anchor.strandSeed));
+        // Mechones TRANSPARENTES encima de cada plancha (tarjetas del atlas): fibras sueltas sobre el volumen sólido,
+        // un poco más largas y anchas para que los pelos sobresalgan del borde y de la punta
+        const curve = new THREE.CatmullRomCurve3(pts);
+        for (let c = 0; c < 2; c++) {
+          const sp = curve.getPoints(14).map((p, k, arr) => {
+            const t = k / (arr.length - 1);
+            getCraniumOutwardNormal(p, Ns);
+            return p.clone().addScaledVector(Ns, th * (1 - 0.6 * t) + 0.0016 + c * 0.0012);
+          });
+          sp.isBangStrand = pts.isBangStrand; sp.partingSign = pts.partingSign;
+          const seed = (anchor.strandSeed + c * 0.37) % 1;
+          const g = buildRibbonBufferFromPoints(sp, w * (c === 0 ? 2.1 : 1.5), 0.55, 0.0, Math.min(1, anchor.layerNorm + 0.1), seed);
+          fiberGeos.push(remapCardUvToAtlas(g, c === 0 ? 1 : (seed < 0.5 ? 2 : 3)));
+        }
+      }
+      if (!geos.length) return;
+      const merged = mergeIndexedGeometries(geos);
+      const mat = createAnisotropicHairShader(false, 0.0);
+      mat.side = THREE.DoubleSide;
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = true;
+      hairMeshGroup.add(mesh);
+      if (fiberGeos.length) {
+        const fibers = new THREE.Mesh(mergeIndexedGeometries(fiberGeos), createAnisotropicHairShader(true, 0.20));
+        fibers.renderOrder = 2;
+        hairMeshGroup.add(fibers);
+      }
+      updateHairStatsUI(fiberGeos.length ? 2 : 1, merged.index.count / 3, geos.length);
+    }
+
     function generateVolumetricClumps() {
       clearHairMesh();
       if (!HAIR_CONFIG.visible) return;
@@ -20127,6 +20234,9 @@
           break;
         case 'clumps':
           generateVolumetricClumps();
+          break;
+        case 'locks':
+          generateStylizedLocks();
           break;
         default:
           generateHairCards();
