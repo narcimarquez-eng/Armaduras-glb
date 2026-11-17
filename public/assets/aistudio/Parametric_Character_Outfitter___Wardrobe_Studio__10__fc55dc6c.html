@@ -1429,25 +1429,25 @@
     const FIT_DEFAULTS = JSON.parse(JSON.stringify(STATE.fit));
 
     const ARMOR_CLASSES = {
-      pesada: { name: 'Pesada', fit: { mageRobe: false, lightHarness: false }, chest: {}, boot: {} },
+      pesada: { name: 'Pesada', fit: { mageRobe: false, lightHarness: false, heavyMetal: true }, chest: {}, boot: {} },
       ligera: {
         name: 'Ligera',
         fit: {
           mageRobe: false,
-          shoulderSize: 0.44,
-          kneeScale: 0.88, kneeWingSize: 0.52,
+          heavyMetal: false,
+          shoulderSize: 0.60,                      // hombreras pequeñas pero visibles
+          kneeScale: 0.74, kneeWingSize: 0.42,     // rodilleras pequeñas pero visibles
           cuissesScale: 0.88, cuissesLength: 0.70,
           cuissesSpan: { top: 0.96, bot: 0.48 },   // muslera ligera con hueco amplio sobre la rodilla
-          tassetScale: 0.90, tassetLength: 0.78, tassetWidth: 0.76,
-          clothSides: true,                        // faldones de tela en los lados
+          tassetScale: 0.86, tassetLength: 0.80, tassetWidth: 0.74,
+          clothSides: false,                       // escarcelas colgantes de placa (sin musleras/pantalón)
           lightHarness: true,                      // peto de pecho con tirantes visibles de cuero y hebillas
-          bootCollarMin: 0.020,                    // caña mínima: apenas cubre el tobillo
-          shinTop: 0.08,                           // grebas que no pasan del tobillo
+          // botas y grebas iguales que las de la armadura pesada
           chestThick: 0.42,                        // pechera fina y ceñida
           tabardWidthMult: 1.75
         },
         chest: { yMinFront: 0.46, yMaxFront: 0.79, chestContour: 'anatomical', ridgeCenterZ: 0.05, flareTop: 0.0, flareBottom: 0.0, hasClavicleScapulaYoke: false },
-        boot: { collarFactor: 0.38 }
+        boot: {}
       },
       mago: {
         name: 'Mago',
@@ -1663,6 +1663,9 @@
       STATE.fit.rankTier = look.rank;
       STATE.fit.simpleLeatherMode = Boolean(rank.simpleLeather || look.simpleLeather);
       STATE.fit.mageRobe = (look.cls === 'mago');
+      STATE.fit.heavyMetal = (look.cls === 'pesada');
+      // Ligera: escarcelas colgantes pero sin musleras (no 'pantalón')
+      if (look.cls === 'ligera') STATE.equipment.cuisses = 0;
       STATE.fit.strapStyle = look.strapStyle || 'parallel_buckled';
       STATE.fit.capeStyle = look.cape || ((look.rank === 'S' || look.rank === 'SR') ? (look.cls === 'mago' ? 'raven_astral_cosmos' : (look.cls === 'ligera' ? 'raven_mithril_sylvan' : 'raven_imperial_gold')) : 'none');
       STATE.fit.shoulderShapeOverride = { ...rank.shoulder };
@@ -3500,8 +3503,10 @@
       const activePrimary = slotTp ? slotTp.primary : STATE.primaryColor;
       const activeSecondary = slotTp ? slotTp.secondary : STATE.secondaryColor;
       const activeCloth = slotTp ? slotTp.cloth : STATE.clothColor;
-      const activeMetalness = slotTp ? slotTp.metalness : STATE.metalness;
-      const activeRoughness = slotTp ? slotTp.roughness : STATE.roughness;
+      // Armadura pesada: todas las piezas de chapa con acabado claramente metálico (bruñido, poco rugoso)
+      const heavyMetal = Boolean(STATE.fit.heavyMetal) && role !== 'cloth';
+      const activeMetalness = heavyMetal ? Math.max(0.90, slotTp ? slotTp.metalness : STATE.metalness) : (slotTp ? slotTp.metalness : STATE.metalness);
+      const activeRoughness = heavyMetal ? Math.min(0.30, slotTp ? slotTp.roughness : STATE.roughness) : (slotTp ? slotTp.roughness : STATE.roughness);
       const activeBump = slotTp ? slotTp.bump : (STATE.bumpDepth || 1.0);
       const activeTiling = slotTp ? slotTp.tiling : (STATE.textureTiling || 1.0);
 
@@ -3579,7 +3584,7 @@
       });
       // Piezas de cuero (texturas de la familia 'cuero' o armaduras de cuero D/C): conservan su grosor
       const tpNow = slotTp || TEXTURE_PRESETS.find(t => t.id === STATE.materialType);
-      if (role === 'primary' && ((tpNow && tpNow.category === 'cuero') || STATE.fit.simpleLeatherMode)) plateM.userData.isSoft = true;
+      if (role === 'primary' && !STATE.fit.heavyMetal && ((tpNow && tpNow.category === 'cuero') || STATE.fit.simpleLeatherMode)) plateM.userData.isSoft = true;
       return plateM;
     }
 
@@ -17588,7 +17593,7 @@
       const wR = (box.max.x - box.min.x) / tW;      // anchura total de hombrera a hombrera
       const hR = (box.max.y - box.min.y) / tW;      // altura (incluye aletas y cuchillas)
       const light = Boolean(STATE.fit.lightHarness);
-      const targetW = light ? 1.22 : 1.58, targetH = light ? 0.45 : 0.88;
+      const targetW = light ? 1.30 : 1.58, targetH = light ? 0.52 : 0.88;   // ligera: más pequeñas pero visibles
       let k = Math.min(targetW / wR, targetH / hR);
       k = THREE.MathUtils.clamp(k, 0.62, light ? 1.0 : 1.12) * (STATE.fit.shoulderUserScale || 1.0);
       if (Math.abs(k - 1) < 0.02) return;
