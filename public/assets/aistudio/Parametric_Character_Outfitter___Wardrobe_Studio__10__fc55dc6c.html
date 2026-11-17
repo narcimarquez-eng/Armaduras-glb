@@ -21875,6 +21875,8 @@ function getFaceCanon(caraCfg = {}) {
       res.mouthScaleX = mw * F / C.base.mouth;
     }
     res.earY = (res.browY + res.noseBaseY) * 0.5;
+    // Rostro con barba pintada: el mentón 3D baja para alojar la barba entera (volumen de la barba)
+    res.beardDrop = (ftDef.beardExt || 0) * F * 0.9;
     // Nariz: aletas ≈ 85 % de la separación entre lagrimales de la imagen (canon: ancho nariz ≈ espacio entre ojos)
     const innerGap = Math.max(0, (ftDef.eyeR[0] - ftDef.eyeL[0]) - ftDef.eyeWidth) / Fpx;
     res.noseAlaHalf = rng(0.5 * 0.95 * innerGap, 0.20, 0.34) * F;
@@ -22503,7 +22505,7 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
   });
   // Barba pintada que cae por debajo de la barbilla 3D: lámina curvada bajo el mentón que recibe la misma
   // proyección (la silueta de la barba la da la transparencia de la textura)
-  if (def.beardExt > 0) {
+  if (def.beardExt > 0 && !canon.beardDrop) {
     const cran = headGroup.children.find((o) => o.name === 'Head_Cranium_Mesh');
     const ray = new THREE.Raycaster();
     cran.updateMatrixWorld(true);
@@ -22644,7 +22646,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const W_MAX = 0.125 * SX, Z_MAX = 0.135 * SZ;
   const jwF = clampV(jawW, 0.9, 1.1);
   const chinLF = clampV(chinL, 0.85, 1.15);
-  const chinLowY = canon.chinY + canon.chinElev * 0.02;
+  const chinLowY = canon.chinY + canon.chinElev * 0.02 - (canon.beardDrop || 0);
 
   // Interpolación cúbica de Hermite sobre puntos [y, valor] ordenados de arriba abajo (pendiente 0 en el primero)
   const makeProfile = (pts) => {
@@ -22670,12 +22672,14 @@ function buildSculptedHeadGroup(caraCfg, mats) {
   const fem = canon.fem;
   const faceW = makeProfile([
     [CY, 1.0],
-    [canon.noseBaseY, 0.93 - 0.015 * fem],
-    [gonionY, (0.83 - 0.045 * fem) * jwF],
-    [canon.lowerLipY, (0.72 - 0.055 * fem) * jwF],
-    [(canon.lowerLipY + chinLowY) * 0.5, 0.56 - 0.04 * fem],
-    [chinLowY + 0.004, 0.36 - 0.02 * fem],
-    [chinLowY, 0.30 - 0.01 * fem],
+    // Silueta frontal del dibujo de referencia: la cara se estrecha desde los pómulos, mandíbula marcada
+    // hacia una barbilla plana y ancha (≈0,45F de semianchura)
+    [canon.noseBaseY, 0.85 - 0.015 * fem],
+    [gonionY, (0.74 - 0.035 * fem) * jwF],
+    [canon.lowerLipY, (0.64 - 0.045 * fem) * jwF],
+    [(canon.lowerLipY + chinLowY) * 0.5, 0.48 - 0.03 * fem],
+    [chinLowY + 0.006, 0.38 - 0.02 * fem],
+    [chinLowY, 0.33 - 0.01 * fem],
   ]);
   // Perfil frontal (profundidad relativa a la máxima del cráneo)
   // (perfil de referencia: los labios quedan ~1,5 cm y la barbilla ~3 cm por detrás de la punta de la nariz)
@@ -22684,8 +22688,10 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     [canon.noseBaseY, 0.972],
     [canon.mouthY, 0.915],
     [canon.lowerLipY, 0.880],
-    [chinLowY + 0.012, 0.825 + (chinLF - 1.0) * 0.06],
-    [chinLowY, 0.72],
+    // Barbilla alta: frente del mentón casi vertical durante ~1 cm antes de girar hacia abajo
+    [chinLowY + 0.014, 0.830 + (chinLF - 1.0) * 0.06],
+    [chinLowY + 0.005, 0.815 + (chinLF - 1.0) * 0.06],
+    [chinLowY, 0.76],
   ]);
   const baseShape = (y) => {
     const u = clampV((y - CY) / RY, -1, 1);
