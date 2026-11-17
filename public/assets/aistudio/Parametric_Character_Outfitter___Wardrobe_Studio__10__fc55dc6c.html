@@ -22709,7 +22709,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const napeT = clampV((0.13 - y) / (0.13 - Y_BOT), 0, 1);
     const Zb = Z_MAX * e * THREE.MathUtils.lerp(1.0, 0.62, Math.pow(napeT, 1.2));
     // Cara algo más "cuadrada" (superelipse) por debajo de los ojos; nuca elíptica
-    const nF = 2.0 + 0.6 * sstep(0.125 - y, 0.0, 0.05);
+    const nF = 2.0 + 0.3 * sstep(0.125 - y, 0.0, 0.05);
     return { W, Zf, Zb, nF };
   };
   const baseFrontZ = (x, y) => {
@@ -22811,6 +22811,45 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     }
 
     pos.setXYZ(i, x, yS - CY, z);
+  }
+
+  // Suavizado Taubin (sin encoger el volumen) de la mitad inferior de la cabeza: redondea las aristas que
+  // dejan las deformaciones acumuladas (ángulo de la mandíbula, unión mandíbula-nuca, escalón bajo el pómulo)
+  {
+    const WS = 64, HS = 64, cols = WS + 1;
+    const n = pos.count;
+    const wgt = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const yy = pos.getY(i) + CY;
+      // pleno por debajo de la boca (pliegue mandíbula-nuca), medio en mejillas
+      wgt[i] = 0.5 * sstep((canon.eyeY - 0.010) - yy, 0.0, 0.030) + 0.5 * sstep(canon.mouthY - yy, 0.0, 0.020);
+    }
+    const P = new Float32Array(pos.array);
+    const tmp = new Float32Array(P.length);
+    const pass = (lam) => {
+      for (let iy = 1; iy < HS; iy++) {
+        for (let ix = 0; ix < WS; ix++) {
+          const i = iy * cols + ix;
+          const w = wgt[i] * lam;
+          const L = iy * cols + ((ix - 1 + WS) % WS), R = iy * cols + ((ix + 1) % WS);
+          const U = (iy - 1) * cols + ix, D = (iy + 1) * cols + ix;
+          for (let c = 0; c < 3; c++) {
+            const avg = (P[L * 3 + c] + P[R * 3 + c] + P[U * 3 + c] + P[D * 3 + c]) * 0.25;
+            tmp[i * 3 + c] = P[i * 3 + c] + w * (avg - P[i * 3 + c]);
+          }
+        }
+        // costura: la última columna repite la primera
+        const i0 = iy * cols, iW = iy * cols + WS;
+        for (let c = 0; c < 3; c++) tmp[iW * 3 + c] = tmp[i0 * 3 + c];
+      }
+      for (let iy = 1; iy < HS; iy++) for (let ix = 0; ix <= WS; ix++) {
+        const i = iy * cols + ix; for (let c = 0; c < 3; c++) P[i * 3 + c] = tmp[i * 3 + c];
+      }
+    };
+    for (let it = 0; it < 14; it++) pass(0.5);
+    for (let it = 0; it < 6; it++) { pass(0.5); pass(-0.53); }
+    pos.array.set(P);
+    pos.needsUpdate = true;
   }
   headGeo.computeVertexNormals();
 
