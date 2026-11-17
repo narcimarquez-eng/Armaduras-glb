@@ -102,7 +102,7 @@ def write_glb_custom(
     prefix: str,
 ) -> dict:
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    nodes = [dict(n) for n in SKELETON_TEMPLATE]
+    nodes = json.loads(json.dumps(SKELETON_TEMPLATE))  # copia profunda: las listas children no se comparten entre GLB
     name_to_node = {n["name"]: i for i, n in enumerate(nodes)}
 
     bin_buf = bytearray()

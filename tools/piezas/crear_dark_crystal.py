@@ -880,7 +880,7 @@ def write_glb(out_path: str, bone_meshes: Dict[str, Dict[str, MeshPart]],
               textures: Dict[str, bytes]) -> dict:
     """Empaqueta las mallas por hueso + texturas PBR embebidas en un archivo .glb válido."""
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    nodes = [dict(n) for n in SKELETON_TEMPLATE]
+    nodes = json.loads(json.dumps(SKELETON_TEMPLATE))  # copia profunda: las listas children no se comparten entre GLB
     name_to_node = {n["name"]: i for i, n in enumerate(nodes)}
 
     bin_buf = bytearray()
