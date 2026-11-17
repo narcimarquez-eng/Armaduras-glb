@@ -14859,7 +14859,7 @@
         ['shin_l', 'shin_r'].forEach(partName => {
           getMeshesByAnatomy([partName]).forEach(sMesh => {
             const bA = BOOT_ARCHITECTURES[bootType] || BOOT_ARCHITECTURES[1];
-            const topRatio = STATE.fit.shinTop ?? (bootType === 1 ? 0.86 : 0.92);
+            const topRatio = (STATE.fit.shinTop ?? (bootType === 1 ? 0.86 : 0.92)) * 0.90;   // grebas un 10% más bajas
             const kneeStyle = GREAVE_KNEE_STYLES[bootType] || 'v_cuff';
             const outerU = partName === 'shin_l' ? 0.75 : 0.25;   // costado exterior de la pierna
             const shinSh = createFormFittedShell(sMesh, mainMat, {
@@ -14880,7 +14880,7 @@
             }
             // RODILLERA-COLLAR de la greba (estética L2): placa superior levantada que monta sobre la greba,
             // acampanada hacia fuera, con canto biselado y pico en V que baja por delante
-            const cuffTop = Math.min(1.0, topRatio + 0.07);
+            const cuffTop = Math.min(0.92, topRatio + 0.06);
             const cuffs = kneeStyle === 'layered'
               ? [{ y0: cuffTop - 0.32, y1: cuffTop - 0.14, t: 0.058, fl: 0.22, v: 0.18 }, { y0: cuffTop - 0.19, y1: cuffTop, t: 0.068, fl: 0.58, v: 0.26 }]
               : [{ y0: cuffTop - (kneeStyle === 'scalloped' ? 0.20 : 0.25), y1: cuffTop, t: 0.068, fl: 0.58, v: kneeStyle === 'scalloped' ? 0.0 : 0.32 }];
@@ -22188,7 +22188,8 @@
        ========================================================================= */
     window.CreadorHumano = (function(THREE) {
 // Proporciones heroicas humanas (~7,5 cabezas, piernas ≈ 53 % de la altura, figura esbelta)
-const BODY_PROPORTIONS = { leg: 1.15, legThick: 0.93, torso: 0.96, head: 0.90 };
+// leg: pierna (muslo+tibia) alargada para que glúteo+pierna midan un 20% más que antes (1.15)
+const BODY_PROPORTIONS = { leg: 1.41, legThick: 0.93, torso: 0.96, head: 0.90 };
       
 /**
  * Crea una geometría orgánica de revolución (LatheGeometry) con sección transversal elíptica
