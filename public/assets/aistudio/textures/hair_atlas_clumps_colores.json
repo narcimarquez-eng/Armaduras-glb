@@ -1,17 +1,17 @@
 {
  "rubio": {
-  "root": "#563b28",
-  "tip": "#917051",
-  "high": "#cfae8d"
+  "root": "#5a3c24",
+  "tip": "#927054",
+  "high": "#bfafa0"
  },
  "oscuro": {
-  "root": "#1e1d19",
-  "tip": "#3f3830",
-  "high": "#7a725f"
+  "root": "#211d1a",
+  "tip": "#3f3b32",
+  "high": "#7f7872"
  },
  "castano": {
-  "root": "#24150e",
-  "tip": "#4b2e26",
-  "high": "#85726c"
+  "root": "#28150e",
+  "tip": "#4e3025",
+  "high": "#847e7e"
  }
 }
