@@ -9085,6 +9085,17 @@
           const avgR = prof ? prof.avgRadius : 0.15;
           opts = Object.assign({}, opts, { thicknessRatio: opts.thicknessRatio + (tasPetoClear + 0.004 * tScale) / (avgR * STATE.fit.globalBulk * 0.70) });
         }
+        // Láminas escalonadas (como las hombreras): cada nivel más bajo sale un poco más del cuerpo y deja
+        // una franja de sombra con el de encima, así se lee cada lámina por separado
+        if (opts.targetPart && opts.targetPart.startsWith('thigh') && opts.yMax != null) {
+          const yMid = ((opts.yMin ?? 0) + opts.yMax) * 0.5;
+          const step = THREE.MathUtils.clamp(1.0 - yMid, 0, 1);
+          opts = Object.assign({}, opts, {
+            thicknessRatio: (opts.thicknessRatio || 0.06) + 0.085 * step * tScale,
+            flareBottom: (opts.flareBottom || 0) + 0.10 * step,
+            yMax: mat === trimMat ? opts.yMax : Math.max((opts.yMin ?? 0) + 0.04, opts.yMax - 0.012)
+          });
+        }
         const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * tScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, opts));
         if (sh && mat !== trimMat && opts.targetPart && opts.targetPart.startsWith('thigh')) {
           addShellRelief(sh, t => [0.5, 0.10 + 0.82 * t], 0.0026 * tScale, trimMat, 14);
@@ -17424,11 +17435,36 @@
       while (grp.children.length > 0) grp.remove(grp.children[0]);
     }
 
+    // Tamaño óptimo de hombreras: se mide el conjunto (ambos lados, con aletas) respecto al ancho del torso y se
+    // reescala cada pieza alrededor de su anclaje al hombro: ni gigantes (S/SR con aletas) ni diminutas.
+    function normalizeShoulderSize() {
+      const socks = [armorSockets.shouldersL, armorSockets.shouldersR].filter(Boolean);
+      const groups = [];
+      socks.forEach(sk => sk.children.forEach(ch => groups.push(ch)));
+      if (!groups.length) return;
+      const tBox = getWorldBoxOfParts(['torso']);
+      if (!tBox) return;
+      const tW = tBox.max.x - tBox.min.x;
+      groups.forEach(g => g.updateMatrixWorld(true));
+      const box = new THREE.Box3();
+      groups.forEach(g => box.expandByObject(g));
+      if (box.isEmpty()) return;
+      const wR = (box.max.x - box.min.x) / tW;      // anchura total de hombrera a hombrera
+      const hR = (box.max.y - box.min.y) / tW;      // altura (incluye aletas y cuchillas)
+      const light = Boolean(STATE.fit.lightHarness);
+      const targetW = light ? 1.22 : 1.58, targetH = light ? 0.45 : 0.88;
+      let k = Math.min(targetW / wR, targetH / hR);
+      k = THREE.MathUtils.clamp(k, 0.62, light ? 1.0 : 1.12) * (STATE.fit.shoulderUserScale || 1.0);
+      if (Math.abs(k - 1) < 0.02) return;
+      groups.forEach(g => g.scale.multiplyScalar(k));
+    }
+
     function updateWardrobePieces() {
       // Restaurar pose base del rig antes de calcular matrices de mundo para ornamentos articulados
       restoreBindPose();
       applyUnderlayerToBody();
       buildAllFittedArmor();
+      normalizeShoulderSize();
 
       document.getElementById('label-helmet').textContent = ITEMS_DB.helmet[STATE.equipment.helmet].name;
       const lblSh = document.getElementById('label-shoulders');
