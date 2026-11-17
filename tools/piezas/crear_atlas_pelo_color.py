@@ -17,11 +17,17 @@ REPO = os.path.abspath(os.path.join(HERE, '..', '..'))
 TEX = os.path.join(REPO, 'public', 'assets', 'aistudio', 'textures')
 SHEETS = ['rubio', 'oscuro', 'castano']
 # Mechones más poblados de la lámina (cajas sobre la imagen a 2000 px)
+# Rejilla 4x2 de celdas de 256x512: fila 0 = mechones LARGOS, fila 1 = mechones CORTOS/medios;
+# columnas de liso a muy curvado
 CELLS = [
-    (25, 375, 230, 745),    # ancho y liso
-    (25, 20, 230, 370),     # ancho y liso
-    (230, 375, 445, 745),   # ancho ondulado
-    (230, 20, 445, 370),    # ancho ondulado
+    (25, 375, 230, 745),    # largo liso tupido
+    (230, 375, 445, 745),   # largo ondulado
+    (445, 375, 665, 745),   # largo con ondas marcadas
+    (665, 375, 833, 745),   # largo curvado en S
+    (25, 750, 220, 1100),   # corto liso tupido
+    (330, 750, 437, 1100),  # corto curvado
+    (833, 20, 1000, 370),   # medio ondulado
+    (1000, 20, 1167, 370),  # medio muy curvado
 ]
 W = np.array([0.30, 0.59, 0.11])
 
@@ -45,8 +51,8 @@ def column(a, box):
     lo, hi = np.percentile(lum[hair], 2), np.percentile(lum[hair], 99)
     fiber = np.clip((lum - lo) / max(1.0, hi - lo), 0, 1) * 0.8 + 0.2
     im = Image.fromarray((np.dstack([fiber, fiber, fiber, alpha]) * 255).astype(np.uint8), 'RGBA')
-    col = Image.new('RGBA', (256, 1024), (0, 0, 0, 0))
-    col.paste(im.resize((244, 1016), Image.LANCZOS), (6, 4))
+    col = Image.new('RGBA', (256, 512), (0, 0, 0, 0))
+    col.paste(im.resize((244, 504), Image.LANCZOS), (6, 4))
     return np.asarray(col), c[hair]
 
 
@@ -58,7 +64,7 @@ def main():
             src = src.resize((2000, round(src.height * 2000 / src.width)), Image.LANCZOS)
         a = np.asarray(src).astype(np.float32)
         cols, px = zip(*[column(a, b) for b in CELLS])
-        out = Image.fromarray(np.concatenate(cols, 1), 'RGBA')
+        out = Image.fromarray(np.concatenate([np.concatenate(cols[:4], 1), np.concatenate(cols[4:], 1)], 0), 'RGBA')
         rgb = out.convert('RGB').filter(ImageFilter.MaxFilter(3))
         out = Image.merge('RGBA', (*rgb.split(), out.split()[3]))
         path = os.path.join(TEX, 'hair_atlas_clumps_%s.png' % name)

@@ -19636,7 +19636,8 @@
               strandTexLum = mix(0.78 + 0.28 * tex.r, 0.30 + 0.95 * tex.r, uTexContrast);
             } else if (uIsScalpCap > 0.5) {
               // Casquete con fibras del atlas peinadas de la coronilla al borde: lo que asoma entre mechones parece pelo
-              vec4 capTex = texture2D(uAlphaMap, vec2(0.25 + fract(vUv.x * 28.0) * 0.25, clamp(0.08 + vUv.y * 1.9, 0.0, 0.97)));
+              float capV = clamp(0.08 + vUv.y * 1.9, 0.0, 0.97);
+              vec4 capTex = texture2D(uAlphaMap, vec2(0.25 + fract(vUv.x * 28.0) * 0.25, uTexContrast > 0.5 ? capV * 0.5 : capV));
               strandTexLum = mix(0.74 + 0.34 * capTex.r * capTex.a, 0.30 + 0.95 * capTex.r, uTexContrast * capTex.a);
             } else {
               strandTexLum = 0.80 + 0.20 * sin(vUv.x * 31.4159);
@@ -19975,7 +19976,12 @@
       geo.setAttribute('aStrandData', new THREE.Float32BufferAttribute(sdat, 2));
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       geo.setIndex(idx);
-      return remapCardUvToAtlas(geo, variant);
+      // Atlas de mechones en rejilla 4x2 (celdas 256x512): fila 0 largos, fila 1 cortos; columnas de liso a curvado
+      const col = variant % 4, row = Math.floor(variant / 4) % 2, PADU = 0.02;
+      const uv = geo.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (col + PADU + uv.getX(i) * (1 - 2 * PADU)) / 4, (row + Math.min(0.995, uv.getY(i))) / 2);
+      uv.needsUpdate = true;
+      return geo;
     }
 
     /* TÉCNICA 5: LÁMINAS DE PELO (método de 'hair cards' de juego): láminas anchas de 3-4 cm que dibujan la forma
@@ -20014,8 +20020,13 @@
       const curl = hairUniforms.uCurl.value * 0.3;   // la lámina no se riza: la onda la pone el dibujo del mechón
       // Dos capas de láminas de 3-4 cm: la interior da el volumen, la exterior el dibujo de los mechones.
       // Mechón del atlas: lisos (0, 1) u ondulados (2, 3) según el rizo del corte
-      const wavy = hairUniforms.uCurl.value > 0.35;
-      const pick = (sd) => wavy ? (sd < 0.5 ? 2 : 3) : (sd < 0.5 ? 0 : 1);
+      // Variedad: la curvatura del mechón sigue el rizo del corte (con dispersión) y la fila (largo/corto) su longitud
+      const curlV = hairUniforms.uCurl.value;
+      const baseCol = curlV < 0.2 ? 0.4 : (curlV < 0.6 ? 1.4 : 2.4);
+      const pick = (sd, arc) => {
+        const col = THREE.MathUtils.clamp(Math.round(baseCol + (sd - 0.5) * 1.8), 0, 3);
+        return (arc < 0.10 ? 4 : 0) + col;
+      };
       // Cortes cortos: láminas más cortas y estrechas, así que hacen falta MÁS para cubrir la cabeza
       const shortK = THREE.MathUtils.clamp(0.9 / Math.max(0.2, hairUniforms.uLength.value), 1.0, 2.6);
       const LAYERS = [
@@ -20028,12 +20039,14 @@
         const stride = Math.max(1, total / target);
         for (let f = li * 0.37 * stride; f < total; f += stride) {
           const anchor = unifiedScalpRoots[Math.floor(f)];
-          const len = baseLen * anchor.randScale * L.len;
+          const len = baseLen * anchor.randScale * L.len * (0.72 + 0.56 * ((anchor.strandSeed * 7.31 + li * 0.5) % 1));   // longitudes variadas
           const pts = generateHairStrandPoints(anchor, len, 11, curl);
           let arc = 0; for (let k = 1; k < pts.length; k++) arc += pts[k].distanceTo(pts[k - 1]);
-          const vStart = 1 - THREE.MathUtils.clamp(arc / 0.20, 0.35, 1.0);
           const sd = anchor.strandSeed;
-          geos.push(buildHairSheetCard(pts, L.width * HAIR_CONFIG.widthScale * (0.8 + 0.4 * sd), L.lift, L.variant(sd), L.norm, sd, vStart));
+          const v = L.variant(sd, arc);
+          // mechón largo en lámina algo corta: se usa el tramo final (con sus puntas) en vez de comprimirlo
+          const vStart = v < 4 ? 1 - THREE.MathUtils.clamp(arc / 0.20, 0.5, 1.0) : 0;
+          geos.push(buildHairSheetCard(pts, L.width * HAIR_CONFIG.widthScale * (0.8 + 0.4 * sd), L.lift, v, L.norm, sd, vStart));
         }
       });
       if (!geos.length) return;
