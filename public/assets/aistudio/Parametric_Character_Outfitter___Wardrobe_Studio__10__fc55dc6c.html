@@ -89,6 +89,15 @@
           <option value="fina">Fina</option>
         </select>
       </div>
+      <div class="flex flex-col gap-1 rounded-xl border border-amber-500/30 p-1.5">
+        <span class="text-[9px] text-amber-300 uppercase tracking-wider px-0.5">Piezas del catálogo (GLB)</span>
+        <select id="catalog-slot-select" class="bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer"></select>
+        <select id="catalog-piece-select" class="bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer"></select>
+        <div class="flex gap-1">
+          <button id="btn-catalog-clear" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Quita todas las piezas del catálogo cargadas">Quitar todas</button>
+          <button id="btn-catalog-hide-studio" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Oculta la armadura procedural del estudio para ver sólo las piezas GLB">Ocultar estudio</button>
+        </div>
+      </div>
       <div class="flex flex-col gap-1 rounded-xl border border-slate-700/60 p-1.5">
         <span class="text-[9px] text-slate-400 uppercase tracking-wider px-0.5">Textura de rostro</span>
         <select id="face-texture-select" class="bg-slate-950/90 border border-slate-700/70 rounded-xl px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-amber-400 cursor-pointer">
@@ -4064,6 +4073,64 @@
         if (match) return bonesMap[match];
       }
       return null;
+    }
+
+    // ===== Piezas del catálogo del juego (piezas/<ranura>/<idx>.glb) sobre el maniquí =====
+    // Cada GLB trae el esqueleto CreadorHumano con sus mallas colgadas de los huesos (Torso, Thigh_L, ...):
+    // se engancha cada malla al hueso del mismo nombre del maniquí, así sigue las poses y animaciones.
+    const CATALOG_BASE = '../../../piezas/';
+    const CATALOG_EQUIPPED = {};          // ranura -> { idx, objs: [Object3D] }
+    let _catalogData = null;
+
+    async function loadPiezasCatalog() {
+      if (_catalogData) return _catalogData;
+      const res = await fetch(CATALOG_BASE + 'catalogo.json');
+      if (!res.ok) throw new Error('No se encontró piezas/catalogo.json');
+      _catalogData = await res.json();
+      return _catalogData;
+    }
+
+    function removeCatalogPiece(slot) {
+      const cur = CATALOG_EQUIPPED[slot];
+      if (!cur) return;
+      cur.objs.forEach(o => { if (o.parent) o.parent.remove(o); });
+      delete CATALOG_EQUIPPED[slot];
+    }
+
+    async function equipCatalogPiece(slot, idx) {
+      removeCatalogPiece(slot);
+      if (!idx) return;
+      const loader = new GLTFLoader();
+      const gltf = await loader.loadAsync(`${CATALOG_BASE}${slot}/${idx}.glb`);
+      gltf.scene.updateMatrixWorld(true);
+      const attach = [];
+      gltf.scene.traverse(o => {
+        if (!o.isMesh) return;
+        // Hueso de referencia: el primer antecesor con nombre de hueso del esqueleto base
+        let b = o.parent;
+        while (b && !bonesMap[b.name] && b.parent) b = b.parent;
+        attach.push({ mesh: o, boneName: b ? b.name : null, local: (b ? new THREE.Matrix4().copy(b.matrixWorld).invert() : new THREE.Matrix4()).multiply(o.matrixWorld) });
+      });
+      const objs = [];
+      attach.forEach(({ mesh, boneName, local }) => {
+        const bone = (boneName && bonesMap[boneName]) || mannequinRoot;
+        if (!bone) return;
+        mesh.parent && mesh.parent.remove(mesh);
+        local.decompose(mesh.position, mesh.quaternion, mesh.scale);
+        mesh.castShadow = true; mesh.receiveShadow = true;
+        mesh.userData.isCatalogPiece = true;
+        mesh.userData.slot = slot;
+        bone.add(mesh);
+        objs.push(mesh);
+      });
+      CATALOG_EQUIPPED[slot] = { idx, objs };
+      return objs.length;
+    }
+
+    async function reattachCatalogPieces() {
+      for (const [slot, cur] of Object.entries(CATALOG_EQUIPPED)) {
+        try { await equipCatalogPiece(slot, cur.idx); } catch (e) { console.warn(e); }
+      }
     }
 
     function setupArmorSockets() {
@@ -20543,6 +20610,48 @@
         generateCreador3DHumanoGLB('keep', false);
       };
       if (faceTexSel) faceTexSel.addEventListener('change', (e) => applyFaceTextureKey(e.target.value));
+      // Visor de piezas del catálogo (piezas/*.glb)
+      const catSlotSel = document.getElementById('catalog-slot-select');
+      const catPieceSel = document.getElementById('catalog-piece-select');
+      const SLOT_LABELS = { helmet: 'Casco', shoulders: 'Hombreras', torso: 'Coraza', gloves: 'Guanteletes', belt: 'Cinturón', tassets: 'Escarcelas', cuisses: 'Musleras', knees: 'Rodilleras', boots: 'Botas', weapon: 'Arma', shield: 'Escudo' };
+      const fillCatalogPieces = () => {
+        const slot = catSlotSel.value;
+        const list = (_catalogData && _catalogData.ranuras[slot]) || [];
+        const cur = CATALOG_EQUIPPED[slot] ? CATALOG_EQUIPPED[slot].idx : 0;
+        catPieceSel.innerHTML = '<option value="0">— Ninguna —</option>' + list.filter(p => p.archivo)
+          .slice().sort((a, b) => b.idx - a.idx)
+          .map(p => `<option value="${p.idx}" ${p.idx === cur ? 'selected' : ''}>${p.idx}. ${p.nombre}</option>`).join('');
+      };
+      if (catSlotSel && catPieceSel) {
+        loadPiezasCatalog().then(cat => {
+          catSlotSel.innerHTML = Object.keys(cat.ranuras).filter(k => k !== 'underlayer')
+            .map(k => `<option value="${k}">${SLOT_LABELS[k] || k}</option>`).join('');
+          catSlotSel.value = 'tassets';
+          fillCatalogPieces();
+        }).catch(err => {
+          catSlotSel.innerHTML = '<option>Catálogo no disponible</option>';
+          catPieceSel.innerHTML = '<option>Abre el estudio desde un servidor (npm run dev)</option>';
+          console.warn(err);
+        });
+        catSlotSel.addEventListener('change', fillCatalogPieces);
+        catPieceSel.addEventListener('change', async () => {
+          const slot = catSlotSel.value, idx = +catPieceSel.value;
+          try {
+            const n = await equipCatalogPiece(slot, idx);
+            showToast(idx ? `Pieza ${SLOT_LABELS[slot] || slot} ${idx} cargada (${n} mallas)` : 'Pieza quitada');
+          } catch (e) { showToast('No se pudo cargar la pieza: ' + e.message); }
+        });
+      }
+      const btnCatClear = document.getElementById('btn-catalog-clear');
+      if (btnCatClear) btnCatClear.addEventListener('click', () => { Object.keys(CATALOG_EQUIPPED).forEach(removeCatalogPiece); fillCatalogPieces(); });
+      const btnHideStudio = document.getElementById('btn-catalog-hide-studio');
+      if (btnHideStudio) btnHideStudio.addEventListener('click', () => {
+        const hide = btnHideStudio.dataset.hidden !== '1';
+        btnHideStudio.dataset.hidden = hide ? '1' : '0';
+        btnHideStudio.textContent = hide ? 'Mostrar estudio' : 'Ocultar estudio';
+        Object.entries(armorSockets).forEach(([k, g]) => { if (g && k !== 'hair') g.visible = !hide; });
+        if (mannequinRoot) mannequinRoot.traverse(o => { if (o.isMesh && o.userData && o.userData.isArmorShell && !o.userData.isCatalogPiece) o.visible = !hide; });
+      });
       const noseSel = document.getElementById('nose-type-select');
       if (noseSel) noseSel.addEventListener('change', (e) => {
         if (!window.CreadorHumano) return;
@@ -28345,6 +28454,7 @@ function resetCharacter() {
 
       setupHairLabEngine();
       autoCalibrateGLBFit();
+      reattachCatalogPieces();   // las piezas del catálogo cargadas siguen puestas tras regenerar el cuerpo
 
       if (downloadToDisk) {
         showToast(`¡Cuerpo ${labelName} (.GLB) descargado!`);
