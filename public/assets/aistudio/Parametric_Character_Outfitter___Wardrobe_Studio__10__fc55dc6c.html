@@ -995,7 +995,8 @@
         { name: 'Colgantes Óseos, Cadenas & Plumas Negras', shortName: 'Talismanes', icon: 'feather' },
         { name: 'Escarcelas Aladas de Dragón & Aletas de Rubí (Soberano)', shortName: 'Escarcela Drac.', icon: 'flame' },
         { name: 'Escarcelas Foliadas de Mithril & Dagas Silvanas (Silvano)', shortName: 'Pétalos Mithril', icon: 'feather' },
-        { name: 'Escarcelas de Seda Estelar & Péndulos de Astrolabio (Serafín)', shortName: 'Péndulos Serafín', icon: 'sun' }
+        { name: 'Escarcelas de Seda Estelar & Péndulos de Astrolabio (Serafín)', shortName: 'Péndulos Serafín', icon: 'sun' },
+        { name: 'Escarcelas de Garras Abisales: Cuchillas en Abanico + Cuero (L2)', shortName: 'Garras Abisales', icon: 'flame' }
       ],
       cuisses: [
         { name: 'Sin Musleras', icon: 'ban' },
@@ -1010,7 +1011,8 @@
         { name: 'Musleras Vendadas con Correas & Alforja', shortName: 'Cazador', icon: 'grid' },
         { name: 'Quijotes Acanalados de Damasco & Filigrana Oro (Soberano)', shortName: 'Quijote Drac.', icon: 'shield' },
         { name: 'Musleras Élficas de Hojas de Mithril & Esmeralda (Silvano)', shortName: 'Quijote Élfico', icon: 'layers' },
-        { name: 'Quijotes Bordados de Terciopelo Astral & Oro Rosa (Serafín)', shortName: 'Calzas Serafín', icon: 'sparkles' }
+        { name: 'Quijotes Bordados de Terciopelo Astral & Oro Rosa (Serafín)', shortName: 'Calzas Serafín', icon: 'sparkles' },
+        { name: 'Musleras de Espolones Abisales sobre Cuero (L2)', shortName: 'Espolones Abisales', icon: 'flame' }
       ],
       knees: [
         { name: 'Sin Rodilleras', icon: 'ban' },
@@ -8736,10 +8738,155 @@
       });
     }
 
+    // ===== Piezas "abisales" estridentes (estilo L2 oscuro): cuchillas en abanico, garras y espolones =====
+    // Orienta una placa de filo (crece en +Y local, cara exterior en +Z local) con la punta hacia tipDir
+    // y la cara hacia faceDir (en el espacio del grupo).
+    function orientBlade(mesh, tipDir, faceDir) {
+      const y = tipDir.clone().normalize();
+      const z = faceDir.clone().addScaledVector(y, -faceDir.dot(y)).normalize();
+      const x = new THREE.Vector3().crossVectors(y, z).normalize();
+      mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+    }
+
+    function getHipAnchor(side) {
+      const sgn = side === 'l' ? 1 : -1;
+      const pBox = getWorldBoxOfParts(['pelvis']);
+      const hipBone = findBoneFlexible(side === 'l' ? ['Hip_L', 'Thigh_L', 'LeftUpLeg', 'mixamorigLeftUpLeg'] : ['Hip_R', 'Thigh_R', 'RightUpLeg', 'mixamorigRightUpLeg']);
+      const pos = new THREE.Vector3();
+      if (hipBone) hipBone.getWorldPosition(pos);
+      else if (pBox) { const c = pBox.getCenter(new THREE.Vector3()); pos.set(c.x + sgn * 0.10, pBox.min.y + 0.05, c.z); }
+      const hipHalfW = pBox ? (pBox.max.x - pBox.min.x) * 0.5 : 0.17;
+      return { pos, hipHalfW, sgn };
+    }
+
+    function buildAbyssalTassets() {
+      currentBuildingSlot = 'tassets';
+      const mainMat = getPBRMaterial('primary');
+      const trimMat = getPBRMaterial('trim');
+      const tScale = STATE.fit.tassetScale, tLen = STATE.fit.tassetLength, tFlare = STATE.fit.tassetFlare;
+      let gemMat = getGlowMaterial();
+      try { gemMat = getFacetedGemMaterial('amethyst', 'tassets'); } catch (e) { }
+      buildLeatherLoinPanels(trimMat, Math.max(0.8, tLen) * 1.1);
+      const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
+      ['l', 'r'].forEach(side => {
+        const { pos, hipHalfW, sgn } = getHipAnchor(side);
+        // Placa base lateral de cadera (ajustada al cuerpo)
+        pelvisMeshes.forEach(pMesh => {
+          createFormFittedShell(pMesh, mainMat, {
+            targetPart: 'pelvis', slotName: 'tassets', thicknessRatio: 0.075 * tScale,
+            yMin: 0.04, yMax: 0.50, angleMin: sgn * Math.PI * 0.5 - 0.62, angleMax: sgn * Math.PI * 0.5 + 0.62,
+            flareBottom: 0.30 * tFlare, vPointBottom: 0.16, foldStyle: 'triple_v', foldDepth: 0.06,
+            edgeRim: 0.0026 * tScale, frameMaterial: trimMat
+          });
+        });
+        const socket = side === 'l' ? armorSockets.tassetL : armorSockets.tassetR;
+        if (!socket) return;
+        const g = new THREE.Group();
+        g.name = `AbyssalTasset_${side}`;
+        const out = new THREE.Vector3(sgn, 0, 0);
+        const origin = new THREE.Vector3(sgn * (hipHalfW - Math.abs(pos.x - (getWorldBoxOfParts(['pelvis'])?.getCenter(new THREE.Vector3()).x || 0)) + 0.010), 0.03, 0);
+        // Abanico de 4 cuchillas curvas: nacen en la cadera y se abren hacia fuera, abajo y atrás
+        for (let i = 0; i < 4; i++) {
+          const f = i / 3;
+          const blade = new THREE.Mesh(createBeveledCuttingPlate({
+            width: (0.105 - 0.010 * i) * tScale, length: (0.24 + 0.04 * i) * tScale * Math.max(0.8, tLen),
+            thickness: 0.006, bevel: 0.32, ridge: 0.010, curveArch: 0.16, crossCup: 0.10,
+            sweepX: -0.20 * sgn, sharpness: 1.9, serrated: i === 3 ? 0.10 : 0.0
+          }), i % 2 === 0 ? mainMat : trimMat);
+          blade.position.copy(origin).add(new THREE.Vector3(sgn * (0.006 + 0.006 * i), 0.01 - 0.010 * i, 0.060 - 0.045 * i));
+          // abanico: la primera cuchilla apunta abajo-adelante-fuera, la última abajo-atrás-fuera
+          orientBlade(blade, new THREE.Vector3(sgn * (0.70 + 0.25 * tFlare + 0.15 * f), -1.0, 0.25 - 0.95 * f), new THREE.Vector3(sgn, 0.45, -0.10 * f));
+          g.add(blade);
+        }
+        // Garras ganchudas que sobresalen hacia fuera y hacia arriba
+        for (let k = 0; k < 3; k++) {
+          const claw = new THREE.Mesh(createBeveledCuttingPlate({
+            width: 0.026 * tScale, length: (0.095 - 0.012 * k) * tScale, thickness: 0.005,
+            bevel: 0.40, ridge: 0.006, curveArch: 0.30, sweepX: 0.35 * sgn, sharpness: 2.2
+          }), trimMat);
+          claw.position.copy(origin).add(new THREE.Vector3(sgn * 0.030, -0.03 - 0.055 * k, 0.020 - 0.040 * k));
+          orientBlade(claw, new THREE.Vector3(sgn * 1.0, 0.55 - 0.15 * k, -0.35), new THREE.Vector3(0, 1, 0.2));
+          g.add(claw);
+        }
+        // Rodela con gema en la cadera
+        const rondel = new THREE.Mesh(new THREE.CylinderGeometry(0.030 * tScale, 0.034 * tScale, 0.014, 8), trimMat);
+        rondel.position.copy(origin).add(new THREE.Vector3(sgn * 0.012, 0.0, 0.0));
+        rondel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), out);
+        g.add(rondel);
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.017 * tScale, 0), gemMat);
+        gem.position.copy(origin).add(new THREE.Vector3(sgn * 0.024, 0, 0));
+        gem.scale.set(0.7, 1.35, 0.7);
+        g.add(gem);
+        g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.userData.isArmorShell = true; } });
+        attachOrnamentWorld(socket, g, pos, new THREE.Quaternion(), 'tassets');
+      });
+    }
+
+    function buildAbyssalCuisses() {
+      currentBuildingSlot = 'cuisses';
+      const mainMat = getPBRMaterial('primary');
+      const trimMat = getPBRMaterial('trim');
+      const cBulk = STATE.fit.cuissesScale, cLen = STATE.fit.cuissesLength, cOffY = STATE.fit.cuissesOffsetY;
+      ['thigh_l', 'thigh_r'].forEach(partName => {
+        const isL = partName.endsWith('_l');
+        const sgn = isL ? 1 : -1;
+        const span = STATE.fit.cuissesSpan;
+        const yTop = span ? span.top : Math.min(0.97, 0.94 * cLen);
+        const yBot = span ? span.bot : Math.max(0.10, 0.16 / cLen);
+        let mainPlate = null;
+        getMeshesByAnatomy([partName]).forEach(thMesh => {
+          createFormFittedShell(thMesh, getArmorLeatherMaterial(), {
+            targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.020 * cBulk,
+            yMin: Math.max(0.02, yBot - 0.06), yMax: Math.min(0.99, yTop + 0.02), offsetY: cOffY,
+            bevelRadius: 0.004, edgeRim: 0.002 * cBulk, frameMaterial: trimMat
+          });
+          mainPlate = createFormFittedShell(thMesh, mainMat, {
+            targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.050 * cBulk,
+            yMin: yBot, yMax: yTop, angleMin: sgn * Math.PI * 0.5 - 0.95, angleMax: sgn * Math.PI * 0.5 + 0.95,
+            ridgeCenterZ: 0.30, flareTop: 0.16, vPointBottom: 0.16, foldStyle: 'triple_v', foldDepth: 0.06,
+            fluteCount: 3, fluteDepth: 0.012, offsetY: cOffY, bevelRadius: 0.008, edgeRim: 0.0028 * cBulk, frameMaterial: trimMat
+          });
+        });
+        if (!mainPlate) return;
+        addShellRelief(mainPlate, t => [0.5, 0.06 + 0.88 * t], 0.0034 * cBulk, trimMat, 20);
+        // Espolones curvos a lo largo de la cara externa, cada vez más largos hacia la cadera
+        [0.22, 0.42, 0.62, 0.82].forEach((v, k) => {
+          const sp = shellPointAt(mainPlate, 0.5, v, 0.002);
+          if (!sp) return;
+          const spur = new THREE.Mesh(createBeveledCuttingPlate({
+            width: (0.020 + 0.004 * k) * cBulk, length: (0.060 + 0.022 * k) * cBulk, thickness: 0.0045,
+            bevel: 0.40, ridge: 0.006, curveArch: 0.22, sweepX: 0.0, sharpness: 2.3
+          }), k % 2 ? mainMat : trimMat);
+          spur.position.copy(sp.p).addScaledVector(sp.n, 0.004);
+          // punta hacia fuera y hacia atrás-arriba (gancho)
+          const tip = sp.n.clone().multiplyScalar(1.0).add(new THREE.Vector3(0, 0.45, 0));
+          const tipDir = tip.clone().normalize();
+          const face = new THREE.Vector3(0, 0, 1).addScaledVector(tipDir, -tipDir.z).normalize();
+          orientBlade(spur, tipDir, face.lengthSq() > 1e-4 ? face : new THREE.Vector3(0, 1, 0));
+          spur.userData.isArmorShell = true;
+          mainPlate.add(spur);
+        });
+        // Aleta superior grande en el borde de la cadera
+        const top = shellPointAt(mainPlate, 0.5, 0.96, 0.003);
+        if (top) {
+          const fin = new THREE.Mesh(createBeveledCuttingPlate({ width: 0.050 * cBulk, length: 0.15 * cBulk, thickness: 0.005, bevel: 0.34, ridge: 0.008, curveArch: 0.18, sweepX: -0.25, sharpness: 1.9 }), trimMat);
+          fin.position.copy(top.p);
+          const finFace = new THREE.Vector3().crossVectors(top.n, new THREE.Vector3(0, 1, 0));
+          orientBlade(fin, top.n.clone().add(new THREE.Vector3(0, 0.9, -0.5)), finFace.lengthSq() > 1e-4 ? finFace : new THREE.Vector3(0, 0, 1));
+          fin.userData.isArmorShell = true;
+          mainPlate.add(fin);
+        }
+        let gemMat = getGlowMaterial();
+        try { gemMat = getFacetedGemMaterial('amethyst', 'cuisses'); } catch (e) { }
+        addShellJewel(mainPlate, 0.5, 0.52, 0.011 * cBulk, gemMat, trimMat, gemMat, 6);
+      });
+    }
+
     function buildArticulatedTassets() {
       const tassetType = STATE.equipment.tassets;
       if (tassetType === 0) return;
       if (tassetType === 10) { buildRavenboneTassets(); return; }
+      if (tassetType === 14) { buildAbyssalTassets(); return; }
 
       currentBuildingSlot = 'tassets';
       const mainMat = getPBRMaterial('primary');
@@ -9225,6 +9372,7 @@
       const cuissesType = STATE.equipment.cuisses;
       if (cuissesType === 0) return;
       if (cuissesType === 9) { buildRavenboneCuisses(); return; }
+      if (cuissesType === 13) { buildAbyssalCuisses(); return; }
       currentBuildingSlot = 'cuisses';
       const mainMat = getPBRMaterial('primary');
       const trimMat = getPBRMaterial('trim');
