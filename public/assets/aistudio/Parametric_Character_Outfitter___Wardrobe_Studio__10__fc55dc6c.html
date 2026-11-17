@@ -332,7 +332,7 @@
           <span class="text-xs font-semibold text-slate-300 block">Placas & Extremos</span>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Curvatura / Suavizado</span><span id="val-fit-smoothness" class="text-indigo-400 font-mono">1.10x</span></div><input id="slider-fit-smoothness" type="range" min="0.05" max="4.50" step="0.05" value="1.10" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Solapamiento de Juntas</span><span id="val-fit-joint-overlap" class="text-indigo-400 font-mono">1.00x</span></div><input id="slider-fit-joint-overlap" type="range" min="0.05" max="4.00" step="0.05" value="1.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
-          <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Grosor de Chapa Metálica</span><span id="val-fit-thin" class="text-indigo-400 font-mono">0.50x</span></div><input id="slider-fit-thin" type="range" min="0.25" max="1.00" step="0.05" value="0.50" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
+          <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Grosor de Chapa Metálica</span><span id="val-fit-thin" class="text-indigo-400 font-mono">0.25x</span></div><input id="slider-fit-thin" type="range" min="0.25" max="1.00" step="0.05" value="0.25" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Relieve de Placas & Molduras</span><span id="val-fit-relief" class="text-indigo-400 font-mono">1.50x</span></div><input id="slider-fit-relief" type="range" min="0.60" max="2.60" step="0.05" value="1.50" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Holgura Global</span><span id="val-fit-bulk" class="text-indigo-400 font-mono">1.00x</span></div><input id="slider-fit-bulk" type="range" min="0.10" max="4.00" step="0.02" value="1.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Grosor Peto / Torso</span><span id="val-fit-torso" class="text-indigo-400 font-mono">1.00x</span></div><input id="slider-fit-torso" type="range" min="0.10" max="4.00" step="0.02" value="1.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
@@ -790,7 +790,7 @@
         weapon: 1,
         shield: 1
       },
-      fit: { plateRelief: 1.5, metalThin: 0.5, 
+      fit: { plateRelief: 1.5, metalThin: 0.25, 
         globalBulk: 1.00, 
         torsoScale: 1.00, 
         torsoOffsetY: 0.00, 
@@ -4722,11 +4722,16 @@
       const RB = STATE.fit.plateRelief ?? 1.5;
       // Chapa metálica fina (las de tela/cuero no se tocan): más ceñida al cuerpo y ribetes enrollados finos
       const isSoftMat = Boolean(material && material.userData && material.userData.isSoft);
-      const THIN = isSoftMat ? 1.0 : (STATE.fit.metalThin ?? 0.5);
-      if (THIN !== 1) {
+      const THIN = isSoftMat ? 1.0 : (STATE.fit.metalThin ?? 0.25);
+      // La finura NO acerca la placa al cuerpo: se mantiene (y amplía) la holgura y solo se adelgazan
+      // el canto, el bisel y los ribetes, de modo que la chapa se lee como lámina fina separada del cuerpo.
+      const thinT = isSoftMat ? 1.0 : THREE.MathUtils.clamp((THIN - 0.25) / 0.75, 0, 1);
+      const edgeKeep = options.edgeKeep ?? (isSoftMat ? 0.38 : THREE.MathUtils.lerp(0.90, 0.38, thinT));   // el canto apenas se curva hacia el cuerpo
+      if (!isSoftMat) {
         options = Object.assign({}, options, {
-          thicknessRatio: (options.thicknessRatio ?? 0.024) * (0.40 + 0.60 * THIN),
+          thicknessRatio: (options.thicknessRatio ?? 0.024) * (1.12 + 0.18 * (1 - thinT)),   // holgura extra
           edgeRim: (options.edgeRim || 0) * THIN,
+          bevelRadius: (options.bevelRadius ?? 0.015) * (0.30 + 0.70 * thinT),
         });
       }
       if (RB !== 1) {
@@ -5146,7 +5151,7 @@
           // Grosor real de placa forjada con bisel completo sobre la cota/jubón interior
           const fitThicknessMult = partKey === 'torso' ? 0.96 : 1.0;
           const fitBevelMult = partKey === 'torso' ? 0.96 : 1.0;
-          const totalR = (radius * domeScale) + (actualThickness * fitThicknessMult * (0.38 + 0.62 * chamferRamp)) + (edgeBevel * fitBevelMult) + extraFlare + extraRidge + flutingDisp + foldSurfaceDisp + stridentOutwardDisp;
+          const totalR = (radius * domeScale) + (actualThickness * fitThicknessMult * (edgeKeep + (1 - edgeKeep) * chamferRamp)) + (edgeBevel * fitBevelMult) + extraFlare + extraRidge + flutingDisp + foldSurfaceDisp + stridentOutwardDisp;
           const px = cx + Math.sin(angle) * totalR;
           const py = subYMin + effNormY * subHeight + offsetY * subHeight;
           const pz = cz + Math.cos(angle) * totalR + offsetZ;
@@ -9091,8 +9096,9 @@
           const yMid = ((opts.yMin ?? 0) + opts.yMax) * 0.5;
           const step = THREE.MathUtils.clamp(1.0 - yMid, 0, 1);
           opts = Object.assign({}, opts, {
-            thicknessRatio: (opts.thicknessRatio || 0.06) + 0.085 * step * tScale,
+            thicknessRatio: (opts.thicknessRatio || 0.06) + 0.11 * step * tScale,
             flareBottom: (opts.flareBottom || 0) + 0.10 * step,
+          edgeKeep: 0.45,   // canto inferior recogido: cada lámina se lee separada de la siguiente
             yMax: mat === trimMat ? opts.yMax : Math.max((opts.yMin ?? 0) + 0.04, opts.yMax - 0.012)
           });
         }
@@ -9121,7 +9127,7 @@
         // Escarcelas colgantes: más largas, separadas del muslo y acampanadas hacia fuera
         const thighSpanRatio = Math.min(0.80, 0.60 * tLen);
         const thBotY = Math.max(0.18, 1.0 - thighSpanRatio);
-        const baseThick = 0.066 * tScale;
+        const baseThick = 0.090 * tScale;   // escarcelas con más holgura respecto al muslo
         const flareAmt = 0.24 * tFlare;
 
         // Placa superior de cadera con reborde dorado
@@ -9501,7 +9507,7 @@
     function addShellRelief(shellMesh, curveFn, radius, mat, samples = 18, lift = null) {
       if (!shellMesh) return;
       radius *= 1 + 0.7 * ((STATE.fit.plateRelief ?? 1.5) - 1);   // molduras en relieve más marcadas
-      if (!(mat && mat.userData && mat.userData.isSoft)) radius *= 0.45 + 0.55 * (STATE.fit.metalThin ?? 0.5);   // moldura fina sobre chapa
+      if (!(mat && mat.userData && mat.userData.isSoft)) radius *= 0.45 + 0.55 * (STATE.fit.metalThin ?? 0.25);   // moldura fina sobre chapa
       const pts = [];
       for (let i = 0; i <= samples; i++) {
         const [u, v] = curveFn(i / samples);
@@ -10658,7 +10664,7 @@
 
     /* === GENERADOR PROCEDURAL DE PLANCHAS CORTANTES CON BISELES DE 45° Y QUILLA CENTRAL === */
     function createBeveledCuttingPlate(opts = {}) {
-      const thinF = STATE.fit.metalThin ?? 0.5;
+      const thinF = STATE.fit.metalThin ?? 0.25;
       if (thinF !== 1) opts = Object.assign({}, opts, { thickness: (opts.thickness ?? 0.008) * (0.35 + 0.65 * thinF), ridge: (opts.ridge ?? 0.010) * (0.6 + 0.4 * thinF) });
       return _createBeveledCuttingPlateRaw(opts);
     }
@@ -22977,8 +22983,8 @@ function sampleFaceColors(img, anchors, Fpx) {
   };
   const hex = (p) => p ? '#' + p.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('') : null;
   const hair = [].concat(patch(-1.32, -0.95), patch(1.32, -0.95), patch(0, -1.78), patch(-0.85, -1.5), patch(0.85, -1.5));
-  // Piel: color de la FRENTE (es el que se extiende al resto de la cabeza, cuello y cuerpo)
-  const skin = [].concat(patch(0, -0.62, 0.08), patch(-0.32, -0.70, 0.05), patch(0.32, -0.70, 0.05));
+  // Piel: tono MEDIO de mejillas y frente, convertido al color de cuerpo que se ve igual bajo la luz del estudio
+  const skin = [].concat(patch(0, -0.62, 0.06), patch(-0.50, 0.35, 0.06), patch(0.50, 0.35, 0.06));
   let lips = [];
   if (full) {
     const mx = (anchors[4][0] + anchors[5][0]) * 0.5, my = (anchors[4][1] + anchors[5][1]) * 0.5;
@@ -22990,7 +22996,7 @@ function sampleFaceColors(img, anchors, Fpx) {
   }
   return {
     hairRoot: hex(pick(hair, 0.2)), hairTip: hex(pick(hair, 0.5)), hairHigh: hex(pick(hair, 0.88)),
-    skin: hex(pick(skin, 0.5)), lips: lips.length ? hex(pick(lips, 0.5)) : null, eyes: hex(pick(iris, 0.4)),
+    skin: (() => { const m = pick(skin, 0.5); return m ? faceMidToBodySkin(m) : null; })(), lips: lips.length ? hex(pick(lips, 0.5)) : null, eyes: hex(pick(iris, 0.4)),
   };
 }
 
@@ -23002,35 +23008,35 @@ const FACE_TEXTURES = {
     url: 'textures/rostro_guerrero.png', size: [410, 543],
     eyeL: [132.3, 219.0], eyeR: [277.7, 219.0], chinY: 464.0, eyeWidth: 60.2,
     browY: 190.9, noseY: 327.4, mouthL: [147.2, 379.7], mouthR: [265.6, 379.7],
-    colors: {'hairRoot': '#1b0c09', 'hairTip': '#241711', 'hairHigh': '#44352e', 'skin': '#d9a888', 'lips': '#d18f77', 'eyes': '#6b4a32'},
+    colors: {'hairRoot': '#1b0c09', 'hairTip': '#241711', 'hairHigh': '#44352e', 'skin': '#8b452a', 'lips': '#d18f77', 'eyes': '#6b4a32'},
   },
   ref_drow_hombre: {
     label: 'Elfo oscuro', gender: 'hombre', hairCut: 'raya_medio_lisa',
     url: 'textures/rostro_drow_hombre.png', size: [410, 543],
     eyeL: [121.0, 219.0], eyeR: [289.0, 219.0], chinY: 464.0, eyeWidth: 74.7,
     browY: 184.0, noseY: 338.0, mouthL: [145.7, 389.3], mouthR: [271.7, 389.3],
-    colors: {'hairRoot': '#797782', 'hairTip': '#b4b2bd', 'hairHigh': '#ebeaf2', 'skin': '#9a9cb6', 'lips': '#675d76', 'eyes': '#d0506e'},
+    colors: {'hairRoot': '#797782', 'hairTip': '#b4b2bd', 'hairHigh': '#ebeaf2', 'skin': '#494862', 'lips': '#675d76', 'eyes': '#d0506e'},
   },
   ref_anciano: {
     label: 'Anciano guerrero', gender: 'hombre', hairCut: 'raya_medio_lisa', beardExt: 0.50,
     url: 'textures/rostro_anciano.png', size: [410, 543],
     eyeL: [137.1, 219.0], eyeR: [272.9, 219.0], chinY: 464.0, eyeWidth: 57.4,
     browY: 192.2, noseY: 326.2, mouthL: [152.4, 377.9], mouthR: [267.2, 377.9],
-    colors: {'hairRoot': '#89827c', 'hairTip': '#a1978e', 'hairHigh': '#f8e4c3', 'skin': '#ebbe9f', 'lips': '#e6b098', 'eyes': '#7f93a8'},
+    colors: {'hairRoot': '#89827c', 'hairTip': '#a1978e', 'hairHigh': '#f8e4c3', 'skin': '#d45b34', 'lips': '#e6b098', 'eyes': '#7f93a8'},
   },
   ref_elfa: {
     label: 'Elfa de la luz', gender: 'mujer', hairCut: 'trenzas_laterales',
     url: 'textures/rostro_elfa.png', size: [410, 543],
     eyeL: [119.1, 219.0], eyeR: [290.9, 219.0], chinY: 464.0, eyeWidth: 81.7,
     browY: 180.4, noseY: 330.4, mouthL: [149.8, 379.9], mouthR: [256.2, 379.9],
-    colors: {'hairRoot': '#6c6263', 'hairTip': '#b69f8d', 'hairHigh': '#e7dac9', 'skin': '#f6e2d8', 'lips': '#f0a9a5', 'eyes': '#5f9ad6'},
+    colors: {'hairRoot': '#6c6263', 'hairTip': '#b69f8d', 'hairHigh': '#e7dac9', 'skin': '#ae9f9c', 'lips': '#f0a9a5', 'eyes': '#5f9ad6'},
   },
   ref_drow_mujer: {
     label: 'Elfa oscura', gender: 'mujer', hairCut: 'trenzas_laterales',
     url: 'textures/rostro_drow_mujer.png', size: [410, 543],
     eyeL: [116.2, 219.0], eyeR: [293.8, 219.0], chinY: 464.0, eyeWidth: 79.5,
     browY: 180.3, noseY: 334.1, mouthL: [149.1, 381.8], mouthR: [257.8, 381.8],
-    colors: {'hairRoot': '#191724', 'hairTip': '#262231', 'hairHigh': '#626375', 'skin': '#e3cdd2', 'lips': '#c27fa0', 'eyes': '#8a52d0'},
+    colors: {'hairRoot': '#191724', 'hairTip': '#262231', 'hairHigh': '#626375', 'skin': '#8a6a7e', 'lips': '#c27fa0', 'eyes': '#8a52d0'},
   },
   ref_mujer: {
     label: 'Guerrera de trenzas', gender: 'mujer', hairCut: 'trenzas_laterales',
@@ -23043,7 +23049,7 @@ const FACE_TEXTURES = {
     browY: 137, noseY: 252,
     mouthL: [152, 297], mouthR: [236, 297],
     // Colores medidos en la ilustración original (pelo raíz/medio/reflejos, piel, labios, iris)
-    colors: { hairRoot: '#644d3d', hairTip: '#99806f', hairHigh: '#d6bfaa', skin: '#f4dcc6', lips: '#e2998c', eyes: '#4c372d' },
+    colors: { hairRoot: '#644d3d', hairTip: '#99806f', hairHigh: '#d6bfaa', skin: '#e0aa87', lips: '#e2998c', eyes: '#4c372d' },
   },
 };
 const _FACE_TEX_CACHE = {};
@@ -23067,12 +23073,71 @@ function getFaceTextureDef(key, caraCfg = null) {
   return FACE_TEXTURES[key] || null;
 }
 
+/** Tono medio de piel de una textura de rostro (mediana por luminancia de mejillas y frente), en sRGB 0-255. */
+function faceTextureMidSkin(d, W, H, def) {
+  if (!def || !def.eyeL || !def.eyeR) return null;
+  const sx = W / ((def.size && def.size[0]) || W), sy = H / ((def.size && def.size[1]) || H);
+  const ex = (def.eyeL[0] + def.eyeR[0]) * 0.5, ey = (def.eyeL[1] + def.eyeR[1]) * 0.5;
+  const F = Math.max(10, (def.chinY || ey + 200) - ey);
+  const hw = Math.abs(def.eyeR[0] - def.eyeL[0]) * 0.5;
+  const pts = [];
+  const patch = (cx, cy, r) => {
+    for (let dy = -r; dy <= r; dy += Math.max(1, r / 4)) for (let dx = -r; dx <= r; dx += Math.max(1, r / 4)) {
+      const x = Math.round((cx + dx) * sx), y = Math.round((cy + dy) * sy);
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const k = (y * W + x) * 4; if (d[k + 3] < 250) continue;
+      pts.push([d[k], d[k + 1], d[k + 2]]);
+    }
+  };
+  const r = F * 0.06;
+  patch(ex - hw * 1.05, ey + F * 0.30, r); patch(ex + hw * 1.05, ey + F * 0.30, r);   // mejillas
+  patch(ex, ey - F * 0.45, r);                                                       // frente
+  if (pts.length < 8) return null;
+  const lum = (p) => p[0] * 0.3 + p[1] * 0.59 + p[2] * 0.11;
+  pts.sort((a, b) => lum(a) - lum(b));
+  const lo = Math.floor(pts.length * 0.3), hi = Math.max(lo + 1, Math.floor(pts.length * 0.7));
+  const m = [0, 0, 0]; for (let i = lo; i < hi; i++) { m[0] += pts[i][0]; m[1] += pts[i][1]; m[2] += pts[i][2]; }
+  return m.map(v => v / (hi - lo));
+}
+
+/** Color de piel del CUERPO que, con la iluminación del estudio, se ve igual que el tono medio de la textura
+ *  (calibrado midiendo render de mejilla vs cuello en los rostros predeterminados). */
+function faceMidToBodySkin(mid) {
+  const lin = (v) => Math.pow(v / 255, 2.2);
+  const c = mid.map(lin); const L = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+  const K = FACE_SKIN_FIT.k, S = FACE_SKIN_FIT.s;
+  return '#' + c.map(v => Math.max(0, Math.min(1, K * (L + S * (v - L))))).map(v => Math.round(Math.pow(v, 1 / 2.2) * 255).toString(16).padStart(2, '0')).join('');
+}
+const FACE_SKIN_FIT = { k: 0.44, s: 1.8 };
+
 function applyFaceReferenceTexture(headGroup, canon, def) {
   if (!_FACE_TEX_CACHE[def.url]) {
-    const tex = new THREE.TextureLoader().load(def.url);
+    // Se carga en un lienzo para fundir el borde semitransparente hacia el tono MEDIO de la cara (mejillas):
+    // así el contorno no deja un halo claro (tono de frente) sobre la piel del cráneo y el cuello.
+    const tex = new THREE.Texture();
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
     tex.anisotropy = 4;
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
+        const id = g.getImageData(0, 0, c.width, c.height); const d = id.data;
+        const mid = faceTextureMidSkin(d, c.width, c.height, def);
+        if (mid) {
+          for (let i = 0; i < d.length; i += 4) {
+            const a = d[i + 3]; if (a >= 252) continue;
+            const t = Math.pow(a / 255, 0.6);
+            d[i] = mid[0] + (d[i] - mid[0]) * t; d[i + 1] = mid[1] + (d[i + 1] - mid[1]) * t; d[i + 2] = mid[2] + (d[i + 2] - mid[2]) * t;
+          }
+          g.putImageData(id, 0, 0);
+        }
+        tex.image = c;
+      } catch (e) { tex.image = img; }
+      tex.needsUpdate = true;
+    };
+    img.src = def.url;
     _FACE_TEX_CACHE[def.url] = tex;
   }
   const tex = _FACE_TEX_CACHE[def.url];
