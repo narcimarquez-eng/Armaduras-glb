@@ -535,6 +535,10 @@
               <span>🌪️ Despeinado con Volumen</span>
               <span class="text-[8px] text-slate-400 font-normal">Hacia Atrás + Mechones en la Frente</span>
             </button>
+            <button data-cut="glb_despeinado_ficha" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🖼️ Despeinado (Ficha Texturizada)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Modelado en Python + Textura de la Ilustración</span>
+            </button>
             <button data-cut="militar" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
               <span>🪖 Corte Militar</span>
               <span class="text-[8px] text-slate-400 font-normal">Muy Corto Uniforme</span>
@@ -19969,6 +19973,14 @@
     }
 
     function applyHairCutPreset(cutKey, silent = false) {
+      if (HAIR_GLB_STYLES[cutKey]) {
+        hairGlbKey = cutKey;
+        HAIR_CONFIG.cutStyle = cutKey;
+        rebuildCurrentHair();
+        if (!silent) showToast(`Peinado modelado: ${HAIR_GLB_STYLES[cutKey].name}`);
+        return;
+      }
+      hairGlbKey = null;
       const preset = HAIR_CUT_PRESETS[cutKey];
       if (!preset) return;
       HAIR_CONFIG.cutStyle = cutKey;
@@ -20027,8 +20039,57 @@
       }
     }
 
+    // Peinados modelados en Python a partir de una ficha de referencia (malla + textura proyectada de la ilustración)
+    const HAIR_GLB_STYLES = {
+      glb_despeinado_ficha: { name: 'Despeinado (ficha, texturizado)', url: 'peinados/despeinado_ficha.glb' }
+    };
+    const HAIR_GLB_FIT = 1.06;  // ajuste fino de escala respecto a la separación de las orejas (pelo por fuera del cráneo)
+    let hairGlbKey = null, hairGlbObj = null;
+    const _hairGlbCache = {};
+    function attachHairGlb() {
+      if (hairGlbObj && hairGlbObj.parent) hairGlbObj.parent.remove(hairGlbObj);
+      hairGlbObj = null;
+      if (!hairGlbKey || !armorSockets.hair) return;
+      const def = HAIR_GLB_STYLES[hairGlbKey];
+      const place = (scene) => {
+        const obj = scene.clone(true);
+        let sep = 0.15, eyeDy = 0.02;
+        obj.traverse(o => {
+          if (o.userData && o.userData.orejas_separacion_m) { sep = o.userData.orejas_separacion_m; eyeDy = o.userData.linea_ojos_y_m || eyeDy; }
+          if (o.isMesh) {
+            o.material = o.material.clone(); o.material.side = THREE.DoubleSide; o.material.alphaTest = 0.42;
+            o.castShadow = true; o.receiveShadow = true; o.userData.isHairGlb = true;
+          }
+        });
+        const sock = armorSockets.hair; sock.updateMatrixWorld(true);
+        const ears = [];
+        if (mannequinRoot) mannequinRoot.traverse(o => { if (/^ear_[01]$/.test(o.name)) ears.push(o.getWorldPosition(new THREE.Vector3())); });
+        if (ears.length >= 2) {
+          const a = sock.worldToLocal(ears[0].clone()), b = sock.worldToLocal(ears[1].clone());
+          obj.scale.setScalar(a.distanceTo(b) / sep * HAIR_GLB_FIT);
+          obj.position.copy(a).add(b).multiplyScalar(0.5);
+          obj.position.z -= 0.006;   // la nuca del cráneo del estudio queda algo más atrás que la de la ficha
+        }
+        obj.name = 'HairGLB_' + hairGlbKey;
+        sock.add(obj); hairGlbObj = obj;
+      };
+      if (_hairGlbCache[def.url]) place(_hairGlbCache[def.url]);
+      else new THREE.GLTFLoader().load(def.url, (g) => { _hairGlbCache[def.url] = g.scene; if (hairGlbKey && HAIR_GLB_STYLES[hairGlbKey].url === def.url) place(g.scene); },
+        undefined, (e) => { console.warn('Peinado GLB no disponible', e); });
+    }
+
     function rebuildCurrentHair() {
       initHairProceduralTextures();
+      // Peinado modelado (GLB): sustituye a los mechones procedurales; se conserva el cuero cabelludo
+      if (hairGlbKey) {
+        syncScalpAndBeardWithHairColor();
+        clearHairMesh();
+        if (hairMeshGroup) { hairMeshGroup.visible = HAIR_CONFIG.visible; if (HAIR_CONFIG.visible) hairMeshGroup.add(buildHairLabScalpCapMesh()); }
+        attachHairGlb();
+        if (hairGlbObj) hairGlbObj.visible = HAIR_CONFIG.visible;
+        return;
+      }
+      attachHairGlb();
 
       // Pintar el cuero cabelludo y la barba exactamente del mismo color del pelo activo
       syncScalpAndBeardWithHairColor();
