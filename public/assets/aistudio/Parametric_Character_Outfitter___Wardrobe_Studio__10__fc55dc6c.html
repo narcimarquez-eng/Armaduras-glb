@@ -9092,14 +9092,36 @@
         }
         // Láminas escalonadas (como las hombreras): cada nivel más bajo sale un poco más del cuerpo y deja
         // una franja de sombra con el de encima, así se lee cada lámina por separado
-        if (opts.targetPart && opts.targetPart.startsWith('thigh') && opts.yMax != null) {
+        const isThighLame = opts.targetPart && opts.targetPart.startsWith('thigh') && opts.yMax != null;
+        // Placa de muslo de una pieza -> se trocea en láminas sueltas con hueco entre ellas (como piezas que se
+        // mueven por separado); la última conserva el remate inferior (cola de golondrina, pico, festón...)
+        if (isThighLame && mat !== trimMat && !opts._lame) {
+          const y0 = opts.yMin ?? 0, y1 = opts.yMax, span = y1 - y0;
+          if (span > 0.36) {
+            const K = THREE.MathUtils.clamp(Math.round(span / 0.15), 3, 5);
+            const G = 0.032;   // hueco entre láminas
+            const st = (span + G) / K;
+            let last = null;
+            for (let k = 0; k < K; k++) {
+              const top = y1 - k * st, bot = Math.max(y0, top - st + G);
+              const isLast = k === K - 1;
+              const o = Object.assign({}, opts, { _lame: true, _gapDone: true, yMin: isLast ? y0 : bot, yMax: top,
+                thicknessRatio: (opts.thicknessRatio || 0.06) * (1 + 0.035 * k) });
+              if (!isLast) Object.assign(o, { foldStyle: 'v_point', foldDepth: 0, vPointBottom: 0, steppedLames: 0, swallowDepth: 0 });
+              else o.steppedLames = 0;
+              last = fitTas(mesh, mat, o);
+            }
+            return last;
+          }
+        }
+        if (isThighLame) {
           const yMid = ((opts.yMin ?? 0) + opts.yMax) * 0.5;
           const step = THREE.MathUtils.clamp(1.0 - yMid, 0, 1);
           opts = Object.assign({}, opts, {
             thicknessRatio: (opts.thicknessRatio || 0.06) + 0.11 * step * tScale,
             flareBottom: (opts.flareBottom || 0) + 0.10 * step,
-          edgeKeep: 0.45,   // canto inferior recogido: cada lámina se lee separada de la siguiente
-            yMax: mat === trimMat ? opts.yMax : Math.max((opts.yMin ?? 0) + 0.04, opts.yMax - 0.012)
+            edgeKeep: 0.72, bevelRadius: 0.007,   // plancha de canto vivo, apenas recogido
+            yMax: (mat === trimMat || opts._gapDone) ? opts.yMax : Math.max((opts.yMin ?? 0) + 0.04, opts.yMax - 0.012)
           });
         }
         const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * tScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, opts));
@@ -9159,8 +9181,8 @@
             const lames = 3;
             const step = (1.0 - thBotY) / lames;
             for (let l = 0; l < lames; l++) {
-              const lMax = 1.0 - l * step * 0.80;
-              const lMin = Math.max(thBotY, lMax - step * 1.12);
+              const lMax = 1.0 - l * step * 1.0;
+              const lMin = Math.max(thBotY, lMax - step * 0.80);
               fitTas(thMesh, mainMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.02 + l * 0.05),
@@ -9234,8 +9256,8 @@
             const bands = 3;
             const bStep = (1.0 - thBotY) / bands;
             for (let b = 0; b < bands; b++) {
-              const bMax = 1.0 - b * bStep * 0.84;
-              const bMin = Math.max(thBotY, bMax - bStep * 1.08);
+              const bMax = 1.0 - b * bStep * 1.0;
+              const bMin = Math.max(thBotY, bMax - bStep * 0.80);
               fitTas(thMesh, b % 2 === 0 ? mainMat : trimMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.04 + b * 0.05),
@@ -9300,8 +9322,8 @@
             const scTiers = 3;
             const scStep = (1.0 - thBotY) / scTiers;
             for (let sc = 0; sc < scTiers; sc++) {
-              const scMax = 1.0 - sc * scStep * 0.82;
-              const scMin = Math.max(thBotY, scMax - scStep * 1.14);
+              const scMax = 1.0 - sc * scStep * 1.0;
+              const scMin = Math.max(thBotY, scMax - scStep * 0.80);
               fitTas(thMesh, sc % 2 === 0 ? mainMat : glowMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.06 + sc * 0.06),
@@ -9338,8 +9360,8 @@
             const dcStep = (1.0 - thBotY) / dcLames;
             const fStyle = tassetType === 11 ? 'triple_v' : 'swallow_tail';
             for (let l = 0; l < dcLames; l++) {
-              const lMax = 1.0 - l * dcStep * 0.80;
-              const lMin = Math.max(thBotY, lMax - dcStep * 1.14);
+              const lMax = 1.0 - l * dcStep * 1.0;
+              const lMin = Math.max(thBotY, lMax - dcStep * 0.80);
               fitTas(thMesh, mainMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.06 + l * 0.05),
@@ -9365,8 +9387,8 @@
             const elvLames = 2;
             const elvStep = (1.0 - thBotY) / elvLames;
             for (let l = 0; l < elvLames; l++) {
-              const lMax = 1.0 - l * elvStep * 0.78;
-              const lMin = Math.max(thBotY, lMax - elvStep * 1.12);
+              const lMax = 1.0 - l * elvStep * 1.0;
+              const lMin = Math.max(thBotY, lMax - elvStep * 0.80);
               fitTas(thMesh, mainMat, {
                 targetPart: thighPart, slotName: 'tassets',
                 thicknessRatio: baseThick * (1.04 + l * 0.05),
