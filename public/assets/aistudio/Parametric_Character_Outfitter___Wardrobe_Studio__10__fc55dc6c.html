@@ -19922,7 +19922,7 @@
     /* TÉCNICA 4: VOLUMETRIC CLUMP LOCKS */
     // Lámina de pelo: superficie FINA (sin grosor) y ancha que sigue el recorrido del mechón, curvada a lo ancho
     // como el cráneo; la forma real del mechón (puntas, pelos sueltos) la da la textura transparente del atlas
-    function buildHairSheetCard(points, width, lift, variant, layerNorm, strandSeed) {
+    function buildHairSheetCard(points, width, lift, variant, layerNorm, strandSeed, vStart = 0) {
       const curve = new THREE.CatmullRomCurve3(points);
       const NS = 16, K = 6;
       const pos = [], nor = [], uvs = [], tng = [], sdat = [], idx = [];
@@ -19945,10 +19945,13 @@
         const Nt = Ns.clone().multiplyScalar(ca).addScaledVector(B, -sa);
         for (let k = 0; k < K; k++) {
           const q = (k / (K - 1)) * 2 - 1;
-          v.copy(P).addScaledVector(Bt, q * w * 0.5).addScaledVector(Nt, -q * q * w * 0.16);   // bordes hacia el cráneo
+          // Lámina DOBLADA a lo ancho (lomo hacia fuera, bordes hacia el cráneo) y abombada a lo largo: da volumen
+          const fold = (1 - Math.abs(q)) * w * 0.30 - q * q * w * 0.10;
+          const belly = Math.sin(t * Math.PI) * w * 0.35;
+          v.copy(P).addScaledVector(Bt, q * w * 0.5).addScaledVector(Nt, fold + belly);
           pos.push(v.x, v.y, v.z);
           nor.push(Nt.x, Nt.y, Nt.z);
-          uvs.push(k / (K - 1), t);
+          uvs.push(k / (K - 1), vStart + (1 - vStart) * t);   // láminas cortas: solo el tramo final del mechón (con sus puntas)
           tng.push(T.x, T.y, T.z);
           sdat.push(layerNorm, strandSeed);
         }
@@ -19967,20 +19970,33 @@
       return remapCardUvToAtlas(geo, variant);
     }
 
-    /* TÉCNICA 5: LÁMINAS DE PELO (método de 'hair cards' de juego): muchas láminas anchas y finas que dibujan el
-       peinado por capas (de dentro hacia fuera) y llevan encima la textura de mechones del atlas con transparencia */
+    /* TÉCNICA 5: LÁMINAS DE PELO (método de 'hair cards' de juego): láminas anchas de 3-4 cm que dibujan la forma
+       del peinado; cada una lleva un MECHÓN GRANDE pintado (atlas de mechones anchos) y el resto de la lámina es
+       transparente, así que al solaparse unas cuantas se forma el pelo sin necesidad de miles de tiras */
+    let _hairClumpAtlasTex = null;
+    function getHairClumpAtlas() {
+      if (!_hairClumpAtlasTex) {
+        _hairClumpAtlasTex = new THREE.TextureLoader().load('textures/hair_atlas_clumps.png', () => { if (HAIR_CONFIG.technique === 'locks') rebuildCurrentHair(); });
+        _hairClumpAtlasTex.flipY = false;
+        _hairClumpAtlasTex.wrapS = _hairClumpAtlasTex.wrapT = THREE.ClampToEdgeWrapping;
+        _hairClumpAtlasTex.anisotropy = 4;
+      }
+      return _hairClumpAtlasTex;
+    }
     function generateStylizedLocks() {
       clearHairMesh();
       if (!HAIR_CONFIG.visible) return;
       if (unifiedScalpRoots.length === 0) rebuildUnifiedScalpRoots();
       const total = unifiedScalpRoots.length;
       const baseLen = 0.155 * hairUniforms.uLength.value;
-      const curl = hairUniforms.uCurl.value * 0.6;
-      // capas: interior (tupida, pegada), media (normal) y exterior (pelos sueltos, más separada y más larga)
+      const curl = hairUniforms.uCurl.value * 0.3;   // la lámina no se riza: la onda la pone el dibujo del mechón
+      // Dos capas de láminas de 3-4 cm: la interior da el volumen, la exterior el dibujo de los mechones.
+      // Mechón del atlas: lisos (0, 1) u ondulados (2, 3) según el rizo del corte
+      const wavy = hairUniforms.uCurl.value > 0.35;
+      const pick = (sd) => wavy ? (sd < 0.5 ? 2 : 3) : (sd < 0.5 ? 0 : 1);
       const LAYERS = [
-        { count: 170, width: 0.050, lift: 0.0015, len: 0.92, variant: () => 0, norm: 0.55 },
-        { count: 190, width: 0.042, lift: 0.0045, len: 1.00, variant: () => 1, norm: 0.80 },
-        { count: 150, width: 0.034, lift: 0.0075, len: 1.06, variant: (sd) => (sd < 0.55 ? 2 : 3), norm: 1.00 },
+        { count: 140, width: 0.044, lift: 0.0020, len: 0.95, variant: pick, norm: 0.75 },
+        { count: 100, width: 0.038, lift: 0.0080, len: 1.04, variant: pick, norm: 1.00 },
       ];
       const geos = [];
       LAYERS.forEach((L, li) => {
@@ -19988,14 +20004,18 @@
         const stride = Math.max(1, total / target);
         for (let f = li * 0.37 * stride; f < total; f += stride) {
           const anchor = unifiedScalpRoots[Math.floor(f)];
-          const pts = generateHairStrandPoints(anchor, baseLen * anchor.randScale * L.len, 11, curl);
+          const len = baseLen * anchor.randScale * L.len;
+          const pts = generateHairStrandPoints(anchor, len, 11, curl);
+          let arc = 0; for (let k = 1; k < pts.length; k++) arc += pts[k].distanceTo(pts[k - 1]);
+          const vStart = 1 - THREE.MathUtils.clamp(arc / 0.20, 0.35, 1.0);
           const sd = anchor.strandSeed;
-          geos.push(buildHairSheetCard(pts, L.width * HAIR_CONFIG.widthScale * (0.8 + 0.4 * sd), L.lift, L.variant(sd), L.norm, sd));
+          geos.push(buildHairSheetCard(pts, L.width * HAIR_CONFIG.widthScale * (0.8 + 0.4 * sd), L.lift, L.variant(sd), L.norm, sd, vStart));
         }
       });
       if (!geos.length) return;
       const merged = mergeIndexedGeometries(geos);
       const mat = createAnisotropicHairShader(true, 0.20);
+      mat.uniforms.uAlphaMap = { value: getHairClumpAtlas() };   // atlas propio de mechones grandes
       mat.side = THREE.DoubleSide;
       const mesh = new THREE.Mesh(merged, mat);
       mesh.castShadow = true;
