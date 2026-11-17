@@ -4727,9 +4727,10 @@
       // el canto, el bisel y los ribetes, de modo que la chapa se lee como lámina fina separada del cuerpo.
       const thinT = isSoftMat ? 1.0 : THREE.MathUtils.clamp((THIN - 0.25) / 0.75, 0, 1);
       const edgeKeep = options.edgeKeep ?? (isSoftMat ? 0.38 : THREE.MathUtils.lerp(0.90, 0.38, thinT));   // el canto apenas se curva hacia el cuerpo
+      const isBeltSlot = (options.slotName || currentBuildingSlot) === 'belt';
       if (!isSoftMat) {
         options = Object.assign({}, options, {
-          thicknessRatio: (options.thicknessRatio ?? 0.024) * (1.12 + 0.18 * (1 - thinT)),   // holgura extra
+          thicknessRatio: (options.thicknessRatio ?? 0.024) * (isBeltSlot ? 1.0 : (1.12 + 0.18 * (1 - thinT))),   // holgura extra (el cinto va ceñido)
           edgeRim: (options.edgeRim || 0) * THIN,
           bevelRadius: (options.bevelRadius ?? 0.015) * (0.30 + 0.70 * thinT),
         });
@@ -7753,7 +7754,7 @@
       for (let h = 0; h < HB; h++) {
         for (let k = 0; k < AB; k++) {
           const a = -Math.PI + (k / AB) * Math.PI * 2;
-          rGrid[h * AB + k] = basePelvisR(a);
+          rGrid[h * AB + k] = basePelvisR(a) * 0.86;   // la elipse de la caja es más ancha que el cuerpo: solo de respaldo
         }
       }
 
@@ -8394,7 +8395,7 @@
         opts = Object.assign({}, opts, {
           yMin: BC + (opts.yMin - BC) * BK, yMax: BC + (opts.yMax - BC) * BK,
           vPointBottom: (opts.vPointBottom || 0) * 0.6,
-          thicknessRatio: 0.058 * bScale + ((opts.thicknessRatio || 0.08) - 0.078 * bScale) * 0.22,
+          thicknessRatio: 0.034 * bScale + ((opts.thicknessRatio || 0.08) - 0.078 * bScale) * 0.15,   // ceñido a la cadera
           flareTop: (opts.flareTop || 0) * 0.4, flareBottom: (opts.flareBottom || 0) * 0.4,
           ridgeCenterZ: (opts.ridgeCenterZ || 0) * 0.35, foldDepth: (opts.foldDepth || 0) * 0.5,
         });
