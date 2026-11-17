@@ -21667,9 +21667,18 @@ function buildSculptedTorsoGeometry(torsoCfg) {
       // Transición continua entre pelvis, caja torácica y base cervical
       const ribBlend = THREE.MathUtils.smoothstep(t, 0.32, 0.72);
       const neckTaper = THREE.MathUtils.smoothstep(t, 0.84, 0.985) * 0.08;
-      const lowerDepth = 0.68 * THREE.MathUtils.lerp(1, cd, 0.65);
-      const upperDepth = 0.75 * cd;
-      return THREE.MathUtils.lerp(lowerDepth, upperDepth, ribBlend) - neckTaper;
+      const lowerDepth = 0.68 * THREE.MathUtils.lerp(1, cd, 0.40);
+      const upperDepth = 0.75 * THREE.MathUtils.lerp(1, cd, 0.50);
+      // El radio del perfil ya escala con la anchura (cadera/cintura/pecho): en un cuerpo real la profundidad
+      // crece mucho menos que la anchura, así que se compensa (un torso más ancho no se vuelve un barril)
+      const wMul = THREE.MathUtils.lerp(
+        THREE.MathUtils.lerp(hw, ww, THREE.MathUtils.smoothstep(t, 0.18, 0.38)),
+        cw, THREE.MathUtils.smoothstep(t, 0.38, 0.72));
+      const widthComp = Math.pow(Math.max(0.5, wMul), -0.70);
+      // Perfil lateral casi rectangular (canon): el tórax apenas tiene más fondo que el abdomen
+      // (antes 1,5 veces: perfil de barril con la cintura pinzada)
+      const sideShape = 1.0 - 0.16 * Math.exp(-Math.pow((t - 0.72) / 0.13, 2)) + 0.10 * Math.exp(-Math.pow((t - 0.40) / 0.11, 2));
+      return (THREE.MathUtils.lerp(lowerDepth, upperDepth, ribBlend) - neckTaper) * widthComp * sideShape;
     },
     offsetZ: (t) => {
       // Curva anatómica natural de la columna humana
@@ -21699,7 +21708,7 @@ function buildSculptedTorsoGeometry(torsoCfg) {
           const pecLat =
             Math.exp(-Math.pow((absX - 0.086 * cw) / (0.082 * cw), 2)) *
             THREE.MathUtils.smoothstep(absX, 0.008, 0.042 * cw);
-          dz += pecVert * pecLat * (0.008 + mDef * 0.017) * cd * frontMask;
+          dz += pecVert * pecLat * (0.006 + mDef * 0.010) * THREE.MathUtils.lerp(1, cd, 0.5) * frontMask;
         }
 
         // Fosa supraesternal (horquilla del esternón) en la base anterior del cuello
@@ -21741,6 +21750,13 @@ function buildSculptedTorsoGeometry(torsoCfg) {
             THREE.MathUtils.smoothstep(absX, 0.008, 0.026 * ww);
           dz += abEnvelope * (0.40 + 0.60 * abRowWave) * abLat * (0.005 + mDef * 0.012) * cd * frontMask;
         }
+      }
+
+      // Espalda más plana que el pecho (sin joroba): se aplana la mitad posterior, sobre todo en la espalda
+      // alta y el trapecio, donde el radio del hombro empujaba una masa redonda detrás del cuello
+      if (z < 0) {
+        const flat = 0.10 + 0.14 * THREE.MathUtils.smoothstep(t, 0.55, 0.80) + 0.10 * THREE.MathUtils.smoothstep(t, 0.82, 0.96);
+        dz += -z * flat;
       }
 
       if (z < 0 && t > 0.16 && t < 0.97) {
