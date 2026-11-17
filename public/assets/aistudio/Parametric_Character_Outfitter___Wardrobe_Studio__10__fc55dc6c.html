@@ -531,6 +531,10 @@
               <span>🦅 Peinado hacia Atrás</span>
               <span class="text-[8px] text-slate-400 font-normal">Frente Despejada</span>
             </button>
+            <button data-cut="despeinado_heroe" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🌪️ Despeinado con Volumen</span>
+              <span class="text-[8px] text-slate-400 font-normal">Hacia Atrás + Mechones en la Frente</span>
+            </button>
             <button data-cut="militar" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
               <span>🪖 Corte Militar</span>
               <span class="text-[8px] text-slate-400 font-normal">Muy Corto Uniforme</span>
@@ -18221,6 +18225,13 @@
         length: 0.50, curl: 0.14, crossCenter: 0.0, volume: 1.05, bangs: 0.0,
         density: 1.75, widthScale: 1.18, helical3D: 0.08, inwardTip: 0.0
       },
+      despeinado_heroe: {
+        // Corto-medio despeinado: volumen arriba peinado hacia atrás y a un lado, mechones sueltos sobre la frente,
+        // laterales cortos hacia atrás y nuca tapada (referencia de la ficha de personaje)
+        name: 'Despeinado con Volumen',
+        length: 0.66, curl: 0.14, crossCenter: 0.0, volume: 1.25, bangs: 0.0,
+        density: 1.80, widthScale: 1.20, helical3D: 0.30, inwardTip: 0.05
+      },
       militar: {
         name: 'Corte Militar',
         length: 0.16, curl: 0.0, crossCenter: 0.0, volume: 1.0, bangs: 0.0,
@@ -18252,7 +18263,8 @@
       { root: '#190d2e', tip: '#7c3aed', high: '#e879f9', name: 'Violeta Arcano' },
       { root: '#062419', tip: '#10b981', high: '#a7f3d0', name: 'Esmeralda Élfico' },
       { root: '#082026', tip: '#00d2ff', high: '#b8f7ff', name: 'Cian Neón' },
-      { root: '#1f1209', tip: '#3b2212', high: '#e11d48', name: 'Moreno con Mechas Rubí' }
+      { root: '#1f1209', tip: '#3b2212', high: '#e11d48', name: 'Moreno con Mechas Rubí' },
+      { root: '#140c08', tip: '#3a281d', high: '#7d5f4b', name: 'Castaño Oscuro Natural' }
     ];
 
     const HAIR_CONFIG = {
@@ -18705,6 +18717,7 @@
       const isPartStyle = (cutStyle === 'raya_medio_lisa' || cutStyle === 'trenzas_laterales');
       // Cortos peinados (sin flequillo): cada mechón se tumba sobre el cráneo hacia atrás o hacia su lado
       const isShortCut = (cutStyle === 'corto_clasico' || cutStyle === 'peinado_atras' || cutStyle === 'militar');
+      const isTousled = cutStyle === 'despeinado_heroe';
       const allowBangsForCut = !isPartStyle && !isShortCut && (cutStyle !== 'cresta_vikinga') && (cutStyle !== 'coleta_alta' || bangsFactor > 0.25);
       const isBangStrand = isFrontHairlineRim &&
         allowBangsForCut &&
@@ -18727,7 +18740,11 @@
       // Raya al lado del corto clásico (a ~3 cm a la izquierda del personaje)
       const sidePartX = 0.030;
       if (cutStyle === 'corto_clasico' && rootPos.z > -0.04) partingSign = rootPos.x > sidePartX ? 1 : -1;
-      if (isShortCut) {
+      if (isTousled && !isBangStrand) {
+        // Arriba: barrido hacia atrás y algo hacia la derecha, con mechones cruzados; lados: hacia atrás
+        if (rootPos.y > 0.17) lateralDirX = 0.22 + anchor.weaveAngle * 0.40 + (rootPos.x - 0.01) * 2.0;
+        else lateralDirX = rootNorm.x * 0.20 + anchor.weaveAngle * 0.10;
+      } else if (isShortCut) {
         if (cutStyle === 'corto_clasico' && rootPos.z > -0.04 && rootPos.y > 0.17) {
           lateralDirX = partingSign * (0.55 + 0.35 * Math.exp(-Math.pow((rootPos.x - sidePartX) / 0.03, 2)));
         } else {
@@ -18784,6 +18801,11 @@
         }
       } else if (cutStyle === 'afro_rizo') {
         effectiveLen = totalLength * 0.72;
+      } else if (isTousled) {
+        // Largo arriba, laterales cortos y nuca media; puntas irregulares (desfilado)
+        const heightRatio = THREE.MathUtils.clamp((rootPos.y - 0.07) / 0.15, 0.0, 1.0);
+        const nape = rootPos.z < -0.05 && rootPos.y < 0.15 ? 0.15 : 0.0;
+        effectiveLen = totalLength * (0.30 + nape + 0.70 * heightRatio) * (0.80 + 0.40 * anchor.strandSeed);
       } else if (isShortCut) {
         // Más largo arriba y degradado en laterales y nuca
         const heightRatio = THREE.MathUtils.clamp((rootPos.y - 0.06) / 0.18, 0.0, 1.0);
@@ -18807,6 +18829,10 @@
       } else if (cutStyle === 'afro_rizo') {
         backwardBias = rootNorm.z * 0.45 - (isAnteriorScalp ? 0.25 : 0.0);
         upwardLift = (rootNorm.y * 0.55 + 0.22) * volLift;
+      } else if (isTousled) {
+        // Volumen: sale hacia arriba y luego se tumba hacia atrás
+        backwardBias = rootPos.y > 0.17 ? -0.80 : -1.0;
+        upwardLift = rootPos.y > 0.17 ? (0.16 + 0.12 * anchor.strandSeed) * volLift : 0.02;
       } else if (isShortCut) {
         backwardBias = cutStyle === 'corto_clasico' ? -0.45 : -1.0;
         upwardLift = cutStyle === 'peinado_atras' ? 0.06 : 0.02;
@@ -18859,6 +18885,7 @@
         let gravityFactor = 2.35;
         if (cutStyle === 'largo_lacio' || cutStyle === 'bob_flequillo' || isPartStyle) gravityFactor = 2.65;
         else if (isShortCut) gravityFactor = rootPos.y > 0.16 ? 0.30 : 0.75;   // arriba se tumba hacia atrás, no cae sobre la frente
+        else if (isTousled && !isBangStrand) gravityFactor = rootPos.y > 0.17 ? 0.42 : 0.95;
         else if (cutStyle === 'afro_rizo') gravityFactor = 0.42;
         else if (cutStyle === 'cresta_vikinga' && absX <= 0.058) gravityFactor = 0.08;
         else if (cutStyle === 'corto_guerrero') gravityFactor = 1.55;
@@ -18897,7 +18924,7 @@
 
         // Apertura automática en cortina (Curtain Parting) en el hemisferio frontal para que jamás caiga sobre la cara
         // Nota: En THREE.MathUtils.smoothstep(x, min, max), 'x' es el primer parámetro
-        if (cutStyle !== 'cresta_vikinga' && !isShortCut && !isBangStrand && currentPos.z > 0.010 && currentPos.y < 0.202 && currentPos.y > 0.015) {
+        if (cutStyle !== 'cresta_vikinga' && !isShortCut && !isTousled && !isBangStrand && currentPos.z > 0.010 && currentPos.y < 0.202 && currentPos.y > 0.015) {
           const vertProx = THREE.MathUtils.smoothstep(0.202 - currentPos.y, 0.0, 0.035);
           const depthProx = THREE.MathUtils.smoothstep(currentPos.z, 0.010, 0.052);
           const centerCloseness = Math.max(0.0, 1.0 - Math.abs(currentPos.x) / 0.102);
@@ -18930,7 +18957,13 @@
           }
         }
 
-        if (isShortCut) {
+        if (isTousled && !isBangStrand) {
+          // Despeinado: sigue la dirección de peinado deslizando sobre el cráneo, con mechones que se cruzan
+          getCraniumOutwardNormal(currentPos, surfNormal);
+          segDir.copy(tangentDir).addScaledVector(new THREE.Vector3(0, -1, 0), (rootPos.y > 0.17 ? 0.18 : 0.45) * frac).add(curlVec)
+            .addScaledVector(strandBinormal, Math.sin(frac * 5.0 + anchor.randPhase) * 0.22 * frac);
+          segDir.addScaledVector(surfNormal, -segDir.dot(surfNormal) + 0.02);
+        } else if (isShortCut) {
           // Corte corto: el mechón conserva su dirección de peinado y se desliza PEGADO al cráneo
           // (dirección proyectada sobre el plano tangente; casi sin gravedad)
           getCraniumOutwardNormal(currentPos, surfNormal);
@@ -18966,9 +18999,10 @@
           }
 
           currentPos.addScaledVector(segDir, subStepLen);
-          if (isShortCut && currentPos.y > 0.032) {
-            // Mantener el mechón a ras del cuero cabelludo (capa fina, no un casco)
-            const hS = getAnatomicalCraniumHull(currentPos.x, currentPos.y, currentPos.z, 0.0032 + 0.0012 * frac);
+          if ((isShortCut || (isTousled && !isBangStrand)) && currentPos.y > 0.032) {
+            // Mantener el mechón a ras del cuero cabelludo (capa fina, no un casco); el despeinado lleva volumen arriba
+            const tousVol = isTousled ? (0.0035 + 0.0200 * Math.sin(Math.min(1, frac * 1.6) * Math.PI * 0.5) * THREE.MathUtils.clamp((rootPos.y - 0.12) / 0.08, 0.15, 1.0) * (0.75 + 0.5 * anchor.strandSeed)) : 0;
+            const hS = getAnatomicalCraniumHull(currentPos.x, currentPos.y, currentPos.z, isTousled ? tousVol : (0.0032 + 0.0012 * frac));
             const dS = Math.hypot((currentPos.x - hS.cx) / hS.rx, (currentPos.y - hS.cy) / hS.ry, (currentPos.z - hS.cz) / hS.rz) || 1;
             currentPos.set(hS.cx + (currentPos.x - hS.cx) / dS, hS.cy + (currentPos.y - hS.cy) / dS, hS.cz + (currentPos.z - hS.cz) / dS);
           }
@@ -28846,7 +28880,7 @@ function resetCharacter() {
 
       // Adaptar también el corte, longitud, rizado y paleta multicapa de cabello según el arquetipo generado
       const archetypeHairMap = {
-        hombre: ['corto_clasico', 'peinado_atras', 'militar', 'corto_guerrero', 'ondulado_volumen', 'raya_medio_lisa'],
+        hombre: ['despeinado_heroe', 'corto_clasico', 'peinado_atras', 'militar', 'corto_guerrero', 'ondulado_volumen', 'raya_medio_lisa'],
         mujer: ['trenzas_laterales', 'raya_medio_lisa', 'largo_lacio', 'ondulado_volumen', 'rizado_3d', 'bob_flequillo', 'coleta_alta'],
         anciano: ['corto_clasico', 'peinado_atras', 'raya_medio_lisa', 'corto_guerrero'],
         anciana: ['bob_flequillo', 'coleta_alta', 'ondulado_volumen'],
