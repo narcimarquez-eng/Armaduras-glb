@@ -6218,7 +6218,7 @@
       group.position.copy(pMesh.position); group.rotation.copy(pMesh.rotation); group.scale.copy(pMesh.scale);
       const surfs = [];
       specs.forEach((sp, i) => {
-        const out = (i === 0 ? 0.006 : 0.010) * bScale;
+        const out = (i === 0 ? 0.004 : 0.0055) * bScale;   // embellecedores casi a ras de la banda
         const surf = (u, v) => {
           const a = (u - 0.5) * Math.PI * 2; // u = 0.5 delante
           const vBot = sp.yMin - (sp.vPointBottom || 0) * Math.pow(Math.max(0, Math.cos(a)), 1.55);
@@ -6230,12 +6230,12 @@
           return p;
         };
         const axis = surf(0.5, 0.5).lerp(surf(0.0, 0.5), 0.5);
-        const g = createArmorPlatePatch(surf, { uSegs: 72, vSegs: 6, thickness: 0.0045 * bScale, refCenter: axis, wrapU: true });
+        const g = createArmorPlatePatch(surf, { uSegs: 72, vSegs: 6, thickness: 0.0028 * bScale, refCenter: axis, wrapU: true });
         group.add(new THREE.Mesh(g, sp.mat));
         const rimMat = sp.mat === trimMat ? mainMat : trimMat;
-        const r1 = createRolledRimAlongRow(g, 0, 0.0024 * bScale, { closed: true });
+        const r1 = createRolledRimAlongRow(g, 0, 0.0013 * bScale, { closed: true });
         if (r1) group.add(new THREE.Mesh(r1, rimMat));
-        const r2 = createRolledRimAlongRow(g, g.userData.rows - 1, 0.0024 * bScale, { closed: true });
+        const r2 = createRolledRimAlongRow(g, g.userData.rows - 1, 0.0013 * bScale, { closed: true });
         if (r2) group.add(new THREE.Mesh(r2, rimMat));
         surfs.push(surf);
       });
@@ -6245,9 +6245,9 @@
         if (Math.abs(u - 0.5) < 0.09) continue;
         const p = main(u, 0.62);
         const n = new THREE.Vector3(Math.sin((u - 0.5) * Math.PI * 2), 0, Math.cos((u - 0.5) * Math.PI * 2));
-        const st = new THREE.Mesh(new THREE.SphereGeometry(0.0034 * bScale, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), trimMat);
+        const st = new THREE.Mesh(new THREE.SphereGeometry(0.0024 * bScale, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.45), trimMat);
         st.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
-        st.position.copy(p).addScaledVector(n, 0.0025 * bScale);
+        st.position.copy(p).addScaledVector(n, 0.0012 * bScale);
         group.add(st);
       }
       group.traverse(n => { if (n.isMesh) { n.userData.isArmorShell = true; n.castShadow = true; n.receiveShadow = true; if (n.geometry) n.geometry.userData = {}; } });
@@ -7830,7 +7830,9 @@
         return (s0 * (1 - th) + s1 * th) * (1.012 + Math.max(0, bScale - 1.0) * 0.025) + (STATE.fit.mageRobe ? 0.012 : 0);
       };
       const waistPt = (a, vn, outExtra = 0.008) => {
-        const r = envWorldR(vn, a) + outExtra * bScale;
+        // Cinto más estrecho (≈60% de alto) y ceñido: los adornos quedan casi a ras de la banda
+        vn = vn >= 0.40 ? 0.70 + (vn - 0.70) * 0.6 : vn + 0.12;
+        const r = envWorldR(vn, a) + outExtra * 0.5 * bScale;
         const y = (vn - 0.5 + bOffY) * pSize.y;
         return new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r + bOffZ);
       };
@@ -7966,11 +7968,11 @@
           const vBot = 0.42 - 0.16 * vApex;
           return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.011 + 0.008 * vApex);
         };
-        const crownGeo = createArmorPlatePatch(crownSurf, { uSegs: 64, vSegs: 8, thickness: 0.005 * bScale, refCenter: new THREE.Vector3(0, 0.22 * pSize.y, 0), wrapU: true });
+        const crownGeo = createArmorPlatePatch(crownSurf, { uSegs: 64, vSegs: 8, thickness: 0.005 * 0.6 * bScale, refCenter: new THREE.Vector3(0, 0.22 * pSize.y, 0), wrapU: true });
         beltGroup.add(new THREE.Mesh(crownGeo, goldMat));
-        const rTop = createRolledRimAlongRow(crownGeo, crownGeo.userData.rows - 1, 0.0045 * bScale, { closed: true });
+        const rTop = createRolledRimAlongRow(crownGeo, crownGeo.userData.rows - 1, 0.0045 * 0.5 * bScale, { closed: true });
         if (rTop) beltGroup.add(new THREE.Mesh(rTop, goldMat));
-        const rBot = createRolledRimAlongRow(crownGeo, 0, 0.0042 * bScale, { closed: true });
+        const rBot = createRolledRimAlongRow(crownGeo, 0, 0.0042 * 0.5 * bScale, { closed: true });
         if (rBot) beltGroup.add(new THREE.Mesh(rBot, goldMat));
 
         [-1, 1].forEach(sd => {
@@ -7994,7 +7996,7 @@
             const y = (vn - 0.5 + bOffY) * pSize.y;
             return new THREE.Vector3(Math.sin(a) * rSafe, y, Math.cos(a) * rSafe + bOffZ);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(wingSurf, { uSegs: 12, vSegs: 6, thickness: 0.0045 * bScale, refCenter: new THREE.Vector3(0, 0, 0) }), goldMat));
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(wingSurf, { uSegs: 12, vSegs: 6, thickness: 0.0045 * 0.6 * bScale, refCenter: new THREE.Vector3(0, 0, 0) }), goldMat));
         });
 
         const gemCenter = waistPt(0, 0.72, 0.026);
@@ -8018,7 +8020,7 @@
           return safeFrontBannerPt(x, y, z, 0.024);
         };
         const cClothList = [];
-        const cMesh = new THREE.Mesh(createArmorPlatePatch(centralSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), ivoryMat);
+        const cMesh = new THREE.Mesh(createArmorPlatePatch(centralSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), ivoryMat);
         beltGroup.add(cMesh); cClothList.push(cMesh);
         const spearCurve = new THREE.CatmullRomCurve3([
           centralSurf(0.5, 0.05), centralSurf(0.28, 0.32), centralSurf(0.5, 0.88), centralSurf(0.72, 0.32), centralSurf(0.5, 0.05)
@@ -8043,10 +8045,10 @@
             return safeDropPt(a, 0.34, v * drop, minClear, flare);
           };
           const sClothList = [];
-          const sGeo = createArmorPlatePatch(sideSurf, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
+          const sGeo = createArmorPlatePatch(sideSurf, { uSegs: 16, vSegs: 20, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
           const sideM = new THREE.Mesh(sGeo, ivoryMat);
           beltGroup.add(sideM); sClothList.push(sideM);
-          const hemRim = createRolledRimAlongRow(sGeo, sGeo.userData.rows - 1, 0.0042 * bScale);
+          const hemRim = createRolledRimAlongRow(sGeo, sGeo.userData.rows - 1, 0.0042 * 0.5 * bScale);
           if (hemRim) { const hrM = new THREE.Mesh(hemRim, goldMat); beltGroup.add(hrM); sClothList.push(hrM); }
           for (let f = 1; f < 11; f++) {
             const fp = sideSurf(f / 11, 1.0);
@@ -8077,7 +8079,7 @@
           const vBot = 0.42 - 0.20 * vApex;
           return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.006 + 0.004 * vApex);
         };
-        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(leafBeltSurf, { uSegs: 60, vSegs: 8, thickness: 0.005 * bScale, refCenter: new THREE.Vector3(0, 0.15 * pSize.y, 0), wrapU: true }), bronzeMat));
+        beltGroup.add(new THREE.Mesh(createArmorPlatePatch(leafBeltSurf, { uSegs: 60, vSegs: 8, thickness: 0.005 * 0.6 * bScale, refCenter: new THREE.Vector3(0, 0.15 * pSize.y, 0), wrapU: true }), bronzeMat));
 
         for (let lf = -3; lf <= 3; lf++) {
           const ang = lf * 0.13;
@@ -8105,7 +8107,7 @@
             const rSafe = Math.max(envWorldR(vn, a) + 0.007 * bScale + pleat, thighEnvR(yw, a) + 0.012 * bScale);
             return new THREE.Vector3(Math.sin(a) * rSafe, (vn - 0.5 + bOffY) * pSize.y, Math.cos(a) * rSafe + bOffZ);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(sashSurf, { uSegs: 16, vSegs: 10, thickness: 0.0042, refCenter: new THREE.Vector3(0, 0, 0) }), emeraldMat));
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(sashSurf, { uSegs: 16, vSegs: 10, thickness: 0.0042 * 0.6, refCenter: new THREE.Vector3(0, 0, 0) }), emeraldMat));
 
           // Faldones laterales exteriores asimétricos +45% más largos y con holgura garantizada
           const drapeSurf = (u, v) => {
@@ -8115,7 +8117,7 @@
             return safeDropPt(a, 0.36, v * drop, 0.020 + v * 0.020, flare);
           };
           const dClothList = [];
-          const dMesh = new THREE.Mesh(createArmorPlatePatch(drapeSurf, { uSegs: 16, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), sd < 0 ? emeraldMat : oliveGoldMat);
+          const dMesh = new THREE.Mesh(createArmorPlatePatch(drapeSurf, { uSegs: 16, vSegs: 20, thickness: 0.0042 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), sd < 0 ? emeraldMat : oliveGoldMat);
           beltGroup.add(dMesh); dClothList.push(dMesh);
           for (let f = 1; f < 10; f++) {
             const fp = drapeSurf(f / 10, 1.0);
@@ -8136,7 +8138,7 @@
             const z = ribTop.z + v * 0.030 + Math.sin(v * Math.PI * 2) * 0.005;
             return safeFrontBannerPt(x, y, z, 0.024);
           };
-          const rMesh = new THREE.Mesh(createArmorPlatePatch(ribSurf, { uSegs: 6, vSegs: 20, thickness: 0.0042, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), vineMat);
+          const rMesh = new THREE.Mesh(createArmorPlatePatch(ribSurf, { uSegs: 6, vSegs: 20, thickness: 0.0042 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), vineMat);
           beltGroup.add(rMesh);
           sovereignClothGroups.push({ meshes: [rMesh], opts: { kind: 'front_banner', side: sd, uMode: 'x', nu: 5, nv: 11, pinFraction: 0.08, restReturn: 14.0, damping: 0.945, footKickBoost: 1.30 } });
         });
@@ -8170,7 +8172,7 @@
             const vBot = (0.74 - yOff) - 0.22 * vApex;
             return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.010 + (2 - band) * 0.003 + 0.004 * vApex);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(bandSurf, { uSegs: 60, vSegs: 5, thickness: 0.0045 * bScale, refCenter: new THREE.Vector3(0, 0.1 * pSize.y, 0), wrapU: true }), band < 2 ? runeMetalMat : silverMat));
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(bandSurf, { uSegs: 60, vSegs: 5, thickness: 0.0045 * 0.6 * bScale, refCenter: new THREE.Vector3(0, 0.1 * pSize.y, 0), wrapU: true }), band < 2 ? runeMetalMat : silverMat));
         }
 
         [-0.46, -0.23, 0.23, 0.46].forEach(aa => {
@@ -8219,7 +8221,7 @@
           return safeFrontBannerPt(x, y, z, 0.024);
         };
         const aClothList = [];
-        const aMesh = new THREE.Mesh(createArmorPlatePatch(astralCenterSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat);
+        const aMesh = new THREE.Mesh(createArmorPlatePatch(astralCenterSurf, { uSegs: 12, vSegs: 18, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat);
         beltGroup.add(aMesh); aClothList.push(aMesh);
         for (let t = 0; t <= 8; t++) {
           const tp = astralCenterSurf(t / 8, 1.0);
@@ -8234,7 +8236,7 @@
             return safeDropPt(a, 0.38, v * drop, 0.022 + v * 0.020, flare);
           };
           const spList = [];
-          const spM = new THREE.Mesh(createArmorPlatePatch(sidePanel, { uSegs: 16, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat);
+          const spM = new THREE.Mesh(createArmorPlatePatch(sidePanel, { uSegs: 16, vSegs: 20, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) }), cosmosMat);
           beltGroup.add(spM); spList.push(spM);
           spList.push(...addTassel(sidePanel(0.5, 1.0), 0.080 * bScale, 0.0110 * bScale, silverMat, lavenderMat));
           sovereignClothGroups.push({ meshes: spList, opts: { kind: 'robe_side', side: sd, uMode: 'polar', nu: 7, nv: 12, pinFraction: 0.08, restReturn: 13.5, damping: 0.945, footKickBoost: 1.35 } });
@@ -8266,9 +8268,9 @@
           const vBot = 0.44 - 0.22 * vApex;
           return waistPt(a, THREE.MathUtils.lerp(vBot, vTop, v), 0.010 + 0.006 * vApex);
         };
-        const fbGeo = createArmorPlatePatch(flameBeltSurf, { uSegs: 60, vSegs: 7, thickness: 0.005 * bScale, refCenter: new THREE.Vector3(0, 0.15 * pSize.y, 0), wrapU: true });
+        const fbGeo = createArmorPlatePatch(flameBeltSurf, { uSegs: 60, vSegs: 7, thickness: 0.005 * 0.6 * bScale, refCenter: new THREE.Vector3(0, 0.15 * pSize.y, 0), wrapU: true });
         beltGroup.add(new THREE.Mesh(fbGeo, goldMat));
-        const rFlameTop = createRolledRimAlongRow(fbGeo, fbGeo.userData.rows - 1, 0.0042 * bScale, { closed: true });
+        const rFlameTop = createRolledRimAlongRow(fbGeo, fbGeo.userData.rows - 1, 0.0042 * 0.5 * bScale, { closed: true });
         if (rFlameTop) beltGroup.add(new THREE.Mesh(rFlameTop, goldMat));
 
         const buckleGem = new THREE.Mesh(new THREE.OctahedronGeometry(0.024 * bScale, 0), rubyMat);
@@ -8286,7 +8288,7 @@
             const rSafe = Math.max(envWorldR(vn, a) + (0.010 + (2 - row) * 0.004) * bScale, thighEnvR(yw, a) + (0.016 + (2 - row) * 0.003) * bScale);
             return new THREE.Vector3(Math.sin(a) * rSafe, (vn - 0.5 + bOffY) * pSize.y, Math.cos(a) * rSafe + bOffZ);
           };
-          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(scaleFlap, { uSegs: 36, vSegs: 5, thickness: 0.0045, refCenter: new THREE.Vector3(0, 0, 0) }), scaleMat));
+          beltGroup.add(new THREE.Mesh(createArmorPlatePatch(scaleFlap, { uSegs: 36, vSegs: 5, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, 0, 0) }), scaleMat));
         }
 
         const cStart = waistPt(0, 0.34, 0.024);
@@ -8312,10 +8314,10 @@
           return safeFrontBannerPt(x, y, z, 0.026);
         };
         const cfList = [];
-        const cfGeo = createArmorPlatePatch(centerFlameSurf, { uSegs: 10, vSegs: 18, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
+        const cfGeo = createArmorPlatePatch(centerFlameSurf, { uSegs: 10, vSegs: 18, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
         const cfM = new THREE.Mesh(cfGeo, flameMat);
         beltGroup.add(cfM); cfList.push(cfM);
-        const cfRim = createRolledRimAlongRow(cfGeo, cfGeo.userData.rows - 1, 0.0038 * bScale);
+        const cfRim = createRolledRimAlongRow(cfGeo, cfGeo.userData.rows - 1, 0.0038 * 0.5 * bScale);
         if (cfRim) { const cfRimM = new THREE.Mesh(cfRim, goldMat); beltGroup.add(cfRimM); cfList.push(cfRimM); }
         sovereignClothGroups.push({ meshes: cfList, opts: { kind: 'front_banner', uMode: 'x', nu: 6, nv: 11, pinFraction: 0.08, restReturn: 14.0, damping: 0.945 } });
 
@@ -8327,7 +8329,7 @@
             return safeDropPt(a, 0.34, v * drop, 0.020 + v * 0.020, flare);
           };
           const wfList = [];
-          const wfGeo = createArmorPlatePatch(wingFlameSurf, { uSegs: 14, vSegs: 20, thickness: 0.0045, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
+          const wfGeo = createArmorPlatePatch(wingFlameSurf, { uSegs: 14, vSegs: 20, thickness: 0.0045 * 0.6, refCenter: new THREE.Vector3(0, -bannerLen * 0.4, 0) });
           const wfM = new THREE.Mesh(wfGeo, flameMat);
           beltGroup.add(wfM); wfList.push(wfM);
           wfList.push(...addTassel(wingFlameSurf(0.88, 1.0), 0.088 * bScale, 0.0115 * bScale, goldMat, goldMat));
@@ -8343,6 +8345,9 @@
     }
 
     const BELTS_WITH_CULERA = new Set([2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 15, 16]);
+    // Cinturones de armadura pesada: metálicos pero finos; el resto son de cuero con embellecedores a ras
+    const HEAVY_BELTS = new Set([1, 4, 5, 7, 10, 13, 16]);
+
     function buildArticulatedBelt() {
       const beltType = STATE.equipment.belt;
       if (beltType === 0 || (STATE.fit.mageRobe && beltType < 10)) return;
@@ -8377,12 +8382,25 @@
       // (sigue su forma real por encima): así la hebilla y la decoración siempre quedan a la vista
       const usePetoEnvelope = STATE.equipment.torso > 0 && pelvisMeshes.length > 0;
       const envSpecs = [];
+      // Cinturón más estrecho y ceñido: bandas comprimidas hacia la línea de cintura, capas casi a ras
+      // (los embellecedores no sobresalen) y, salvo los de armadura pesada, banda principal de CUERO
+      const heavyBelt = HEAVY_BELTS.has(beltType);
+      const leatherMat = heavyBelt ? null : getArmorLeatherMaterial();
       const fitBelt = (mesh, mat, opts) => {
+        const BC = 0.80, BK = 0.55;
+        opts = Object.assign({}, opts, {
+          yMin: BC + (opts.yMin - BC) * BK, yMax: BC + (opts.yMax - BC) * BK,
+          vPointBottom: (opts.vPointBottom || 0) * 0.6,
+          thicknessRatio: 0.058 * bScale + ((opts.thicknessRatio || 0.08) - 0.078 * bScale) * 0.22,
+          flareTop: (opts.flareTop || 0) * 0.4, flareBottom: (opts.flareBottom || 0) * 0.4,
+          ridgeCenterZ: (opts.ridgeCenterZ || 0) * 0.35, foldDepth: (opts.foldDepth || 0) * 0.5,
+        });
+        if (leatherMat && (mat === mainMat || mat === clothMat)) mat = leatherMat;
         if (usePetoEnvelope) {
           envSpecs.push({ yMin: opts.yMin, yMax: opts.yMax, vPointBottom: opts.vPointBottom || 0, mat, offsetY: opts.offsetY || 0, offsetZ: opts.offsetZ || 0 });
           return null;
         }
-        const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0024 * bScale, frameMaterial: mat === trimMat ? mainMat : trimMat }, opts));
+        const sh = createFormFittedShell(mesh, mat, Object.assign({ edgeRim: 0.0013 * bScale, frameMaterial: mat === trimMat ? (leatherMat || mainMat) : trimMat }, opts));
         if (sh) beltShells.push(sh);
         return sh;
       };
@@ -8646,13 +8664,13 @@
       });
 
       // 2. Hebilla Heráldica 3D + Tabardo Colgante (Banner frontal entre las escarcelas como en la imagen de referencia)
-      const envBelt = usePetoEnvelope ? buildEnvelopeBeltBands(pelvisMeshes[0], envSpecs, { mainMat, trimMat }, bScale) : null;
+      const envBelt = usePetoEnvelope ? buildEnvelopeBeltBands(pelvisMeshes[0], envSpecs, { mainMat: leatherMat || mainMat, trimMat }, bScale) : null;
 
       // Tachones dorados alrededor de la banda principal (dejando libre la hebilla)
       if (beltShells[0] && beltShells[0].geometry.userData.grid && beltShells[0].geometry.userData.grid.isFullWrap) {
         const studs = [];
         for (let u = 0.04; u < 0.97; u += 0.05) if (Math.abs(u - 0.5) > 0.10) studs.push([u, 0.70]);
-        addShellRivets(beltShells[0], studs, 0.0034 * bScale, trimMat);
+        addShellRivets(beltShells[0], studs, 0.0022 * bScale, trimMat);
       }
 
       const pelvisBox = getWorldBoxOfParts(['pelvis']);
@@ -14082,7 +14100,8 @@
         const half = Math.PI * des.span;
         pelvisMeshes.forEach(pMesh => {
           // Faldones superpuestos: uno solo para los cortes lisos, varios para los lamelares
-          const top0 = 0.94, bot0 = opts.plate ? 0.0 : 0.14;
+          // Con cinturón: arranca bajo la banda del cinto (que ahora es estrecha) y no asoma por encima
+          const top0 = opts.slot === 'belt' ? 0.74 : 0.94, bot0 = opts.plate ? 0.0 : 0.14;
           const step = (top0 - bot0) / des.lames;
           for (let L = 0; L < des.lames; L++) {
             const isLast = L === des.lames - 1;
@@ -14097,7 +14116,7 @@
               vPointBottom: isLast ? des.vTip : 0.04,
               foldStyle: des.fold, foldDepth: des.depth, foldWaves: des.waves || 3.0,
               fluteCount: isLast ? (des.flutes || 0) : 0, fluteDepth: 0.012,
-              bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
+              bevelRadius: 0.007, edgeRim: 0.0026, frameMaterial: trimMat
             });
             if (!sh || !isLast) {
               if (sh && des.rivets) addShellRivets(sh, [[0.30, 0.80], [0.50, 0.84], [0.70, 0.80]], 0.0030, trimMat);
@@ -22188,8 +22207,8 @@
        ========================================================================= */
     window.CreadorHumano = (function(THREE) {
 // Proporciones heroicas humanas (~7,5 cabezas, piernas ≈ 53 % de la altura, figura esbelta)
-// leg: pierna (muslo+tibia) alargada para que glúteo+pierna midan un 20% más que antes (1.15)
-const BODY_PROPORTIONS = { leg: 1.41, legThick: 0.93, torso: 0.96, head: 0.90 };
+// leg: pierna (muslo+tibia) alargada para que glúteo+pierna midan un 10% más que antes (1.15); grosor +10% (0.93)
+const BODY_PROPORTIONS = { leg: 1.28, legThick: 1.02, torso: 0.96, head: 0.90 };
       
 /**
  * Crea una geometría orgánica de revolución (LatheGeometry) con sección transversal elíptica
