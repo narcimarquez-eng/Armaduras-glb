@@ -4727,7 +4727,7 @@
       // el canto, el bisel y los ribetes, de modo que la chapa se lee como lámina fina separada del cuerpo.
       const thinT = isSoftMat ? 1.0 : THREE.MathUtils.clamp((THIN - 0.25) / 0.75, 0, 1);
       const edgeKeep = options.edgeKeep ?? (isSoftMat ? 0.38 : THREE.MathUtils.lerp(0.90, 0.38, thinT));   // el canto apenas se curva hacia el cuerpo
-      const isBeltSlot = (options.slotName || currentBuildingSlot) === 'belt';
+      const isBeltSlot = options.snug || (options.slotName || currentBuildingSlot) === 'belt';
       if (!isSoftMat) {
         options = Object.assign({}, options, {
           thicknessRatio: (options.thicknessRatio ?? 0.024) * (isBeltSlot ? 1.0 : (1.12 + 0.18 * (1 - thinT))),   // holgura extra (el cinto va ceñido)
@@ -6222,7 +6222,7 @@
       group.position.copy(pMesh.position); group.rotation.copy(pMesh.rotation); group.scale.copy(pMesh.scale);
       const surfs = [];
       specs.forEach((sp, i) => {
-        const out = (i === 0 ? 0.004 : 0.0055) * bScale;   // embellecedores casi a ras de la banda
+        const out = (i === 0 ? 0.0075 : 0.0090) * bScale;   // sobre el peto sin atravesarlo; embellecedores casi a ras
         const surf = (u, v) => {
           const a = (u - 0.5) * Math.PI * 2; // u = 0.5 delante
           const vBot = sp.yMin - (sp.vPointBottom || 0) * Math.pow(Math.max(0, Math.cos(a)), 1.55);
@@ -14084,13 +14084,13 @@
         // Lámina inferior que baja por detrás hasta el pliegue del glúteo (la pelvis sola se queda corta)
         ['thigh_l', 'thigh_r'].forEach(part => {
           const sg2 = part.endsWith('_l') ? 1 : -1;
-          const bc2 = sg2 * Math.PI * 0.82;
+          const bc2 = sg2 * Math.PI * 0.94;
           getMeshesByAnatomy([part]).forEach(thMesh => {
             const sh = createFormFittedShell(thMesh, mainMat, {
-              targetPart: part, slotName: currentBuildingSlot, thicknessRatio: 0.060,
-              yMin: 0.62, yMax: 1.0, angleMin: bc2 - 0.95 - sg2 * 0.30, angleMax: bc2 + 0.95 - sg2 * 0.30,
+              targetPart: part, slotName: currentBuildingSlot, thicknessRatio: 0.040, snug: true,
+              yMin: 0.66, yMax: 0.97, angleMin: bc2 - 0.70 + sg2 * 0.10, angleMax: bc2 + 0.70 + sg2 * 0.10,   // centrada detrás, sobre el glúteo
               // Placa LISA con canto biselado (sin dientes ni pliegues); el diseño lo ponen los grabados
-              flareBottom: des.flare * 0.8, vPointBottom: Math.min(0.06, des.vTip * 0.4), foldDepth: 0,
+              flareBottom: des.flare * 0.30, vPointBottom: Math.min(0.06, des.vTip * 0.4), foldDepth: 0,
               bevelRadius: 0.009, edgeRim: 0.0026, frameMaterial: trimMat
             });
             if (sh) {
@@ -14114,11 +14114,12 @@
             const yBot = isLast ? bot0 : Math.max(bot0, yTop - step * 1.18);
             const sh = createFormFittedShell(pMesh, opts.plate ? ((L % 2 === 1) ? trimMat : mainMat) : ((des.lames > 1 && L % 2 === 1) ? mainMat : clothMat), {
               targetPart: 'pelvis', slotName: 'tassets',
-              thicknessRatio: 0.038 - L * 0.003,
+              // Ceñida al glúteo (sin holgura extra) y solapada sobre la lámina de abajo
+              thicknessRatio: 0.026 + (des.lames - 1 - L) * 0.004, snug: true,
               yMin: yBot, yMax: yTop,
               angleMin: bc - half, angleMax: bc + half,
               // Láminas lisas como capas: canto recto biselado, sin pliegues en diente de sierra
-              flareBottom: isLast ? des.flare : des.flare * 0.45,
+              flareBottom: isLast ? des.flare * 0.35 : des.flare * 0.18,
               vPointBottom: isLast ? Math.min(0.08, des.vTip * 0.5) : 0.0,
               foldDepth: 0, fluteCount: 0,
               bevelRadius: 0.009, edgeRim: 0.0026, frameMaterial: trimMat
@@ -14163,27 +14164,50 @@
       const flapLen = Math.max(0.10, pSize.y * 0.80);
       const topY = pSize.y * 0.20; // justo bajo la banda del cinturón
 
+      const flapBody = getMeshesByAnatomy(['pelvis', 'thigh_l', 'thigh_r']);
+      flapBody.forEach(m => m.updateMatrixWorld(true));
+      const _flapRay = new THREE.Raycaster();
       const group = new THREE.Group();
       group.name = 'Light_Cloth_Side_Flaps';
       const clothFlapsBySide = [];
       [-1, 1].forEach(s => {
-        // Tela con pliegues verticales que se ensanchan hacia el bajo
-        const geo = new THREE.PlaneGeometry(flapW, flapLen, 8, 16);
+        // Tela con pliegues verticales que se ensanchan hacia el bajo, APOYADA en la cadera y el muslo reales:
+        // cada columna se proyecta desde fuera contra el cuerpo y cuelga sin meterse hacia dentro
+        const NUc = 8, NVc = 16;
+        const geo = new THREE.PlaneGeometry(1, 1, NUc, NVc);
         const pos = geo.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          const uNorm = pos.getX(i) / flapW + 0.5;
-          const vNorm = 0.5 - pos.getY(i) / flapLen;
-          pos.setZ(i, Math.sin(uNorm * Math.PI * 3.0) * 0.006 * (0.4 + 0.6 * vNorm));
+        const colMax = new Array(NUc + 1).fill(0);
+        for (let j = 0; j <= NVc; j++) {
+          for (let i = 0; i <= NUc; i++) {
+            const k = j * (NUc + 1) + i;
+            const uNorm = i / NUc, vNorm = j / NVc;
+            const y = topY - vNorm * flapLen;
+            const z = (uNorm - 0.5) * flapW * (1 + 0.25 * vNorm);
+            _flapRay.set(new THREE.Vector3(pCenter.x + s * 1.0, pCenter.y + y, pCenter.z + z), new THREE.Vector3(-s, 0, 0));
+            const hit = _flapRay.intersectObjects(flapBody, true)[0];
+            let ax = hit ? Math.abs(hit.point.x - pCenter.x) : pSize.x * 0.50;
+            ax = Math.max(ax + 0.010, colMax[i] - 0.002 * vNorm);   // cuelga: nunca se recoge bajo la cadera
+            colMax[i] = ax;
+            const fold = Math.sin(uNorm * Math.PI * 3.0) * 0.005 * (0.4 + 0.6 * vNorm);
+            pos.setXYZ(k, s * (ax + fold), y, z);
+          }
         }
         geo.computeVertexNormals();
+        // Normales hacia fuera del cuerpo
+        const midK = Math.floor(NVc / 2) * (NUc + 1) + Math.floor(NUc / 2);
+        if (Math.sign(geo.attributes.normal.getX(midK)) !== s) {
+          const ix = geo.index.array;
+          for (let t = 0; t < ix.length; t += 3) { const tmp = ix[t + 1]; ix[t + 1] = ix[t + 2]; ix[t + 2] = tmp; }
+          geo.index.needsUpdate = true;
+          geo.computeVertexNormals();
+        }
         const flap = new THREE.Mesh(geo, clothMat);
-        flap.rotation.y = s * Math.PI * 0.5; // plano en el costado, con la normal hacia fuera
-        flap.position.set(s * pSize.x * 0.50, topY - flapLen * 0.5, 0);
         group.add(flap);
 
-        // Orla dorada en el dobladillo
-        const hem = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, flapW, 1, 1, 8), trimMat);
-        hem.position.set(s * pSize.x * 0.50, topY - flapLen, 0);
+        // Orla dorada en el dobladillo, siguiendo el bajo de la tela
+        const hemPts = [];
+        for (let i = 0; i <= NUc; i++) hemPts.push(new THREE.Vector3().fromBufferAttribute(pos, NVc * (NUc + 1) + i));
+        const hem = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemPts), 16, 0.0035, 6, false), trimMat);
         group.add(hem);
         clothFlapsBySide.push({ side: s, meshes: [flap, hem] });
       });
