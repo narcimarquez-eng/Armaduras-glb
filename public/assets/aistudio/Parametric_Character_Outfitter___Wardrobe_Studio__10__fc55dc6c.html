@@ -18384,6 +18384,13 @@
       proceduralHairCardTex.wrapS = THREE.ClampToEdgeWrapping;
       proceduralHairCardTex.wrapT = THREE.ClampToEdgeWrapping;
       hairUniforms.uAlphaMap.value = proceduralHairCardTex;
+      // Atlas de tarjetas pintado (convertido con tools/piezas/crear_atlas_pelo.py): sustituye al generado por código
+      // en cuanto carga; si falta el archivo se queda el procedural
+      new THREE.TextureLoader().load('textures/hair_atlas_cards.png', (t) => {
+        if (hairUniforms.uAlphaMap.value !== proceduralHairCardTex) return;   // el usuario ya cargó un atlas propio
+        t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; t.needsUpdate = true;
+        hairUniforms.uAlphaMap.value = t;
+      }, undefined, () => {});
 
       // 2. Textura de Folículos Volumétricos para Técnica 2 (Shells)
       const cs = document.createElement('canvas');
