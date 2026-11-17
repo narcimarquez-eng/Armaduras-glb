@@ -19637,7 +19637,7 @@
             } else if (uIsScalpCap > 0.5) {
               // Casquete con fibras del atlas peinadas de la coronilla al borde: lo que asoma entre mechones parece pelo
               vec4 capTex = texture2D(uAlphaMap, vec2(0.25 + fract(vUv.x * 28.0) * 0.25, clamp(0.08 + vUv.y * 1.9, 0.0, 0.97)));
-              strandTexLum = 0.74 + 0.34 * capTex.r * capTex.a;
+              strandTexLum = mix(0.74 + 0.34 * capTex.r * capTex.a, 0.30 + 0.95 * capTex.r, uTexContrast * capTex.a);
             } else {
               strandTexLum = 0.80 + 0.20 * sin(vUv.x * 31.4159);
             }
@@ -20270,7 +20270,13 @@
 
       // Añadir el cuero cabelludo 3D del mismo color y shader que el cabello debajo de los mechones
       if (hairMeshGroup && HAIR_CONFIG.visible) {
-        hairMeshGroup.add(buildHairLabScalpCapMesh());
+        const cap = buildHairLabScalpCapMesh();
+        // Láminas de pelo: el cuero cabelludo lleva pintada la misma textura de mechones (no un color liso)
+        if (HAIR_CONFIG.technique === 'locks' && cap.material && cap.material.uniforms) {
+          cap.material.uniforms.uAlphaMap = { value: getHairClumpAtlas() };
+          cap.material.uniforms.uTexContrast.value = 1.0;
+        }
+        hairMeshGroup.add(cap);
         addBraidsForCurrentStyle();
       }
     }
