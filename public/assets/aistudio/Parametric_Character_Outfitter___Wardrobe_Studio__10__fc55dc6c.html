@@ -22616,13 +22616,14 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     [chinLowY, 0.30 - 0.01 * fem],
   ]);
   // Perfil frontal (profundidad relativa a la máxima del cráneo)
+  // (perfil de referencia: los labios quedan ~1,5 cm y la barbilla ~3 cm por detrás de la punta de la nariz)
   const faceZ = makeProfile([
     [CY, 1.0],
-    [canon.noseBaseY, 0.985],
-    [canon.mouthY, 0.968],
-    [canon.lowerLipY, 0.952],
-    [chinLowY + 0.012, 0.93 + (chinLF - 1.0) * 0.06],
-    [chinLowY, 0.84],
+    [canon.noseBaseY, 0.972],
+    [canon.mouthY, 0.915],
+    [canon.lowerLipY, 0.880],
+    [chinLowY + 0.012, 0.825 + (chinLF - 1.0) * 0.06],
+    [chinLowY, 0.72],
   ]);
   const baseShape = (y) => {
     const u = clampV((y - CY) / RY, -1, 1);
@@ -26718,7 +26719,8 @@ function rebuildCharacter() {
   rig.torso.add(rig.neck);
 
   const neckLen = 0.11;
-  rig.head.position.set(0, neckLen * 0.72, 0.008);
+  // La cabeza se apoya algo por delante del eje del cuello (perfil natural: el cuello nace bajo la oreja, no bajo la barbilla)
+  rig.head.position.set(0, neckLen * 0.72, 0.028);
   rig.head.scale.setScalar(headK); // cabeza, cara, cabello y coronas escalan juntos
   rig.neck.add(rig.head);
 
@@ -26831,6 +26833,18 @@ function rebuildCharacter() {
     }
   );
   neckGeo.translate(0, -0.014, 0);
+  {
+    // La parte trasera alta del cuello sube hacia la nuca (sigue a la cabeza, que se apoya algo adelantada):
+    // sin escalón entre el cuello y el occipital en la vista de perfil
+    neckGeo.computeBoundingBox();
+    const nb = neckGeo.boundingBox, np = neckGeo.attributes.position;
+    for (let i = 0; i < np.count; i++) {
+      const t = (np.getY(i) - nb.min.y) / Math.max(1e-4, nb.max.y - nb.min.y);
+      const z = np.getZ(i);
+      if (z < 0) np.setZ(i, z + 0.020 * THREE.MathUtils.smoothstep(t, 0.45, 1.0) * Math.min(1, -z / 0.05));
+    }
+    neckGeo.computeVertexNormals();
+  }
   const neckMesh = new THREE.Mesh(neckGeo, MAT.skin); neckMesh.name = "Neck_Mesh"; neckMesh.userData.isPrincipalAnatomy = true;
   neckMesh.castShadow = true;
   neckMesh.receiveShadow = true;
