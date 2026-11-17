@@ -22157,11 +22157,13 @@ const FACE_MASK_POLY_F = (() => {
   return half.concat(half.slice(1, -1).reverse().map(([x, y]) => [-x, y]));
 })();
 
-function _traceFaceMask(ctx, cx, cy, Fpx, fem = 0) {
+function _traceFaceMask(ctx, cx, cy, Fpx, fem = 0, chinExt = 1.76) {
   ctx.beginPath();
   FACE_MASK_POLY_F.forEach(([x, y], i) => {
     const jaw = Math.max(0, Math.min(1, (y - 0.4) / 1.2));
-    const px = cx + x * (1 - 0.06 * fem * jaw) * Fpx, py = cy + y * Fpx;
+    // la parte inferior se alarga hasta chinExt·F bajo los ojos (la barbilla está a 1,75F: queda entera)
+    const yy = y <= 0.8 ? y : 0.8 + (y - 0.8) * (chinExt - 0.8) / (1.76 - 0.8);
+    const px = cx + x * (1 - 0.06 * fem * jaw) * Fpx, py = cy + yy * Fpx;
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   });
   ctx.closePath();
@@ -22272,7 +22274,7 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
   const cxPx = (eL[0] + eR[0]) * 0.5;
   const scale = Math.min(1, 140 / Fpx);   // resolución máxima ≈ 140 px por F
   const x0 = cxPx - 1.45 * Fpx, y0 = eyeYpx - 1.55 * Fpx;
-  const w = 2.9 * Fpx, h = 3.45 * Fpx;
+  const w = 2.9 * Fpx, h = 3.85 * Fpx;   // hasta ~0,4F por debajo de la barbilla (barbilla y barba completas)
   const c = document.createElement('canvas');
   c.width = Math.round(w * scale) + 4; c.height = Math.round(h * scale) + 4;
   const ctx = c.getContext('2d');
@@ -22281,7 +22283,7 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
   const mc = m.getContext('2d');
   mc.filter = `blur(${Math.max(2, Math.round(0.06 * Fpx * scale))}px)`;
   mc.fillStyle = '#fff';
-  _traceFaceMask(mc, 2 + (cxPx - x0) * scale, 2 + (eyeYpx - y0) * scale, Fpx * scale * 0.96);
+  _traceFaceMask(mc, 2 + (cxPx - x0) * scale, 2 + (eyeYpx - y0) * scale, Fpx * scale * 0.96, 0, 2.0);
   mc.fill();
   // Borde difuminado hacia el tono de la frente (laterales y frente; la barbilla se respeta)
   let foreheadHex = null;
@@ -22294,7 +22296,8 @@ function createFaceTextureFromImage(img, anchors, label = 'Textura cargada') {
     ic.fillStyle = '#fff';
     ic.beginPath();
     FACE_MASK_POLY_F.forEach(([x, y], i) => {
-      const px = cxS + x * FS * (y < 1.0 ? 0.86 : 0.95), py = cyS + (y < 0 ? y * 0.88 : y * 1.03) * FS;
+      const yy = y <= 0.8 ? y : 0.8 + (y - 0.8) * (2.0 - 0.8) / (1.76 - 0.8);
+      const px = cxS + x * FS * (y < 1.0 ? 0.86 : 0.95), py = cyS + (y < 0 ? y * 0.88 : yy * 1.04) * FS;
       if (i === 0) ic.moveTo(px, py); else ic.lineTo(px, py);
     });
     ic.closePath(); ic.fill();
@@ -22381,36 +22384,36 @@ const FACE_TEXTURES = {
   maniqui: null,   // se genera bajo demanda (getFaceTextureDef)
   // Rostros predeterminados (ilustraciones de referencia recortadas con la máscara facial; anclajes medidos a mano)
   ref_guerrero: {
-    label: 'Guerrero barbado', gender: 'hombre', hairCut: 'raya_medio_lisa',
-    url: 'textures/rostro_guerrero.png', size: [410, 487],
+    label: 'Guerrero barbado', gender: 'hombre', hairCut: 'raya_medio_lisa', beardExt: 0.30,
+    url: 'textures/rostro_guerrero.png', size: [410, 543],
     eyeL: [132.3, 219.0], eyeR: [277.7, 219.0], chinY: 464.0, eyeWidth: 60.2,
     browY: 190.9, noseY: 327.4, mouthL: [147.2, 379.7], mouthR: [265.6, 379.7],
     colors: {'hairRoot': '#1b0c09', 'hairTip': '#241711', 'hairHigh': '#44352e', 'skin': '#d9a888', 'lips': '#d18f77', 'eyes': '#6b4a32'},
   },
   ref_drow_hombre: {
     label: 'Elfo oscuro', gender: 'hombre', hairCut: 'raya_medio_lisa',
-    url: 'textures/rostro_drow_hombre.png', size: [410, 487],
+    url: 'textures/rostro_drow_hombre.png', size: [410, 543],
     eyeL: [121.0, 219.0], eyeR: [289.0, 219.0], chinY: 464.0, eyeWidth: 74.7,
     browY: 184.0, noseY: 338.0, mouthL: [145.7, 389.3], mouthR: [271.7, 389.3],
     colors: {'hairRoot': '#797782', 'hairTip': '#b4b2bd', 'hairHigh': '#ebeaf2', 'skin': '#9a9cb6', 'lips': '#675d76', 'eyes': '#d0506e'},
   },
   ref_anciano: {
-    label: 'Anciano guerrero', gender: 'hombre', hairCut: 'raya_medio_lisa',
-    url: 'textures/rostro_anciano.png', size: [410, 487],
+    label: 'Anciano guerrero', gender: 'hombre', hairCut: 'raya_medio_lisa', beardExt: 0.50,
+    url: 'textures/rostro_anciano.png', size: [410, 543],
     eyeL: [137.1, 219.0], eyeR: [272.9, 219.0], chinY: 464.0, eyeWidth: 57.4,
     browY: 192.2, noseY: 326.2, mouthL: [152.4, 377.9], mouthR: [267.2, 377.9],
     colors: {'hairRoot': '#89827c', 'hairTip': '#a1978e', 'hairHigh': '#f8e4c3', 'skin': '#ebbe9f', 'lips': '#e6b098', 'eyes': '#7f93a8'},
   },
   ref_elfa: {
     label: 'Elfa de la luz', gender: 'mujer', hairCut: 'trenzas_laterales',
-    url: 'textures/rostro_elfa.png', size: [410, 487],
+    url: 'textures/rostro_elfa.png', size: [410, 543],
     eyeL: [119.1, 219.0], eyeR: [290.9, 219.0], chinY: 464.0, eyeWidth: 81.7,
     browY: 180.4, noseY: 330.4, mouthL: [149.8, 379.9], mouthR: [256.2, 379.9],
     colors: {'hairRoot': '#6c6263', 'hairTip': '#b69f8d', 'hairHigh': '#e7dac9', 'skin': '#f6e2d8', 'lips': '#f0a9a5', 'eyes': '#5f9ad6'},
   },
   ref_drow_mujer: {
     label: 'Elfa oscura', gender: 'mujer', hairCut: 'trenzas_laterales',
-    url: 'textures/rostro_drow_mujer.png', size: [410, 487],
+    url: 'textures/rostro_drow_mujer.png', size: [410, 543],
     eyeL: [116.2, 219.0], eyeR: [293.8, 219.0], chinY: 464.0, eyeWidth: 79.5,
     browY: 180.3, noseY: 334.1, mouthL: [149.1, 381.8], mouthR: [257.8, 381.8],
     colors: {'hairRoot': '#191724', 'hairTip': '#262231', 'hairHigh': '#626375', 'skin': '#e3cdd2', 'lips': '#c27fa0', 'eyes': '#8a52d0'},
@@ -22498,6 +22501,65 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
     ov.castShadow = false;
     m.parent.add(ov);
   });
+  // Barba pintada que cae por debajo de la barbilla 3D: lámina curvada bajo el mentón que recibe la misma
+  // proyección (la silueta de la barba la da la transparencia de la textura)
+  if (def.beardExt > 0) {
+    const cran = headGroup.children.find((o) => o.name === 'Head_Cranium_Mesh');
+    const ray = new THREE.Raycaster();
+    cran.updateMatrixWorld(true);
+    const frontZ = (x, y) => {
+      ray.set(new THREE.Vector3(x, y, 1), new THREE.Vector3(0, 0, -1));
+      const h = ray.intersectObject(cran, false)[0];
+      return h ? h.point.z : null;
+    };
+    const F = canon.F;
+    const yTop = canon.chinY + 0.30 * F, yBot = canon.chinY - def.beardExt * F;
+    const zChin = frontZ(0, canon.chinY + 0.04 * F) || 0.09;
+    const NX = 20, NY = 18, P = [], UV = [], UV1 = [], IDX = [];
+    for (let j = 0; j <= NY; j++) {
+      const t = j / NY, y = THREE.MathUtils.lerp(yTop, yBot, t);
+      const halfW = THREE.MathUtils.lerp(0.040, 0.022, Math.pow(t, 0.8));
+      for (let i = 0; i <= NX; i++) {
+        const u = i / NX, x = (u * 2 - 1) * halfW;
+        let z = y > canon.chinY ? frontZ(x, y) : null;
+        if (z == null) z = zChin - 0.35 * Math.max(0, canon.chinY - y) - 0.012 * Math.pow(x / 0.04, 2);
+        z += 0.0025;   // ligeramente por delante de la piel (volumen de la barba)
+        P.push(x, y, z);
+        UV.push((cxPx + x * k) / W, 1.0 - (eyePx + (canon.eyeY - y) * k) / H);
+        UV1.push(u, t);
+      }
+    }
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+      const a = j * (NX + 1) + i, b = a + 1, c = a + NX + 2, d = a + NX + 1;
+      IDX.push(a, d, b, b, d, c);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2));
+    g.setAttribute('uv1', new THREE.Float32BufferAttribute(UV1, 2));
+    g.setIndex(IDX); g.computeVertexNormals();
+    // Desvanecido de la lámina en los laterales y arriba (sin bordes rectos junto a la mandíbula)
+    if (!_FACE_TEX_CACHE.__beardFade) {
+      const fc = document.createElement('canvas'); fc.width = 64; fc.height = 64;
+      const fx = fc.getContext('2d'), id = fx.createImageData(64, 64);
+      for (let yy = 0; yy < 64; yy++) for (let xx = 0; xx < 64; xx++) {
+        const u = xx / 63, t = yy / 63;
+        const side = Math.min(1, Math.min(u, 1 - u) / 0.28);
+        const top = Math.min(1, t / 0.30);
+        const a = Math.round(255 * Math.pow(side, 1.3) * top);
+        const o = (yy * 64 + xx) * 4; id.data[o] = id.data[o + 1] = id.data[o + 2] = a; id.data[o + 3] = 255;
+      }
+      fx.putImageData(id, 0, 0);
+      const ft = new THREE.CanvasTexture(fc); ft.flipY = false; ft.channel = 1;
+      _FACE_TEX_CACHE.__beardFade = ft;
+    }
+    const sheet = new THREE.Mesh(g, mat.clone());
+    sheet.material.alphaMap = _FACE_TEX_CACHE.__beardFade;
+    sheet.material.side = THREE.DoubleSide;
+    sheet.name = 'face_tex_overlay_beard_sheet';
+    sheet.renderOrder = 3;
+    headGroup.add(sheet);
+  }
   // Cejas y pestañas ya vienen pintadas en la textura
   headGroup.children.forEach((o) => { if (/^(brow_|eye_lash_)/.test(o.name)) o.visible = false; });
 }
