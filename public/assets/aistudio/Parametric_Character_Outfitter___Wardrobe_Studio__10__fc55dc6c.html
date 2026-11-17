@@ -21630,7 +21630,7 @@ function createMuscleBellyGeometry(length, maxRadius, flattenZ = 0.65, peakT = 0
  * Genera el Torso Humano Esculpido (Pelvis -> Cintura -> Caja Torácica -> Hombros/Clavículas)
  * con surco espinal posterior, línea alba frontal y forma en V dorsal.
  */
-function buildSculptedTorsoGeometry(torsoCfg) {
+function buildSculptedTorsoGeometry(torsoCfg, gluteSize = 1.0) {
   const h = 0.62 * torsoCfg.height * BODY_PROPORTIONS.torso;
   const cw = torsoCfg.chestWidth;
   const ww = torsoCfg.waistWidth;
@@ -21643,7 +21643,7 @@ function buildSculptedTorsoGeometry(torsoCfg) {
     [0.0, 0.002],
     [0.05, 0.142 * hw],  // Base pélvica / pubis
     [0.18, 0.168 * hw],  // Caderas / cresta ilíaca
-    [0.38, 0.138 * ww],  // Cintura estrecha (umbilical)
+    [0.38, 0.140 * (ww * 0.70 + cw * 0.30)],  // Cintura (sigue en parte al pecho: V natural, no avispa)
     [0.56, 0.162 * ((ww + cw) * 0.5)], // Costillas inferiores / serratos
     [0.72, 0.186 * cw],  // Pecho / dorsal ancho
     [0.82, 0.181 * cw],  // Línea axilar / inserción pectoral-deltoidea
@@ -21750,6 +21750,14 @@ function buildSculptedTorsoGeometry(torsoCfg) {
             THREE.MathUtils.smoothstep(absX, 0.008, 0.026 * ww);
           dz += abEnvelope * (0.40 + 0.60 * abRowWave) * abLat * (0.005 + mDef * 0.012) * cd * frontMask;
         }
+      }
+
+      // Glúteos esculpidos en la pelvis posterior (dos lóbulos con el surco interglúteo y el pliegue inferior)
+      if (z < 0 && t < 0.30) {
+        const gl = Math.exp(-Math.pow((absX - 0.072 * hw) / (0.060 * hw), 2)) * Math.exp(-Math.pow((t - 0.115) / 0.075, 2));
+        const cleft = Math.exp(-Math.pow(absX / 0.010, 2)) * THREE.MathUtils.smoothstep(t, 0.24, 0.05);
+        const backness = THREE.MathUtils.smoothstep(-z, 0.0, 0.06);
+        dz -= (gl * (0.030 + 0.010 * mDef) * gluteSize - cleft * 0.012) * backness;
       }
 
       // Espalda más plana que el pecho (sin joroba): se aplana la mitad posterior, sobre todo en la espalda
@@ -24369,7 +24377,7 @@ function buildSculptedUpperArmGeometry(side, length, armThick, bicepFactor = 1.0
   const profile = [
     [0.0, 0.002],
     [0.05, 0.052 * armThick], // Cabeza humeral bajo el acromion
-    [0.17, 0.068 * armThick * (0.95 + mDef * 0.14)], // Vientre del deltoides
+    [0.17, 0.063 * armThick * (0.95 + mDef * 0.10)], // Vientre del deltoides
     [0.38, 0.052 * armThick], // Inserción deltoidea en V (tuberosidad deltoidea)
     [0.58, 0.056 * armThick * (0.92 + bicepFactor * 0.10)], // Vientre bicipital/tricipital
     [0.84, 0.045 * armThick], // Tercio distal del brazo
@@ -24391,14 +24399,14 @@ function buildSculptedUpperArmGeometry(side, length, armThick, bicepFactor = 1.0
       if (t > 0.03 && t < 0.44) {
         const deltEnv = Math.sin(((t - 0.03) / 0.41) * Math.PI);
         const outerRatio = Math.max(0, (dir * x) / Math.max(0.01, Math.hypot(x, z)));
-        dx += dir * deltEnv * (0.35 + 0.65 * outerRatio) * (0.013 + mDef * 0.013) * armThick;
+        dx += dir * deltEnv * (0.35 + 0.65 * outerRatio) * (0.008 + mDef * 0.008) * armThick;
 
         if (z > 0) {
           const antFactor = Math.pow(Math.max(0, Math.sin(angle)), 1.3);
           dz += deltEnv * antFactor * (0.008 + mDef * 0.009) * armThick;
         } else {
           const postFactor = Math.pow(Math.max(0, -Math.sin(angle)), 1.3);
-          dz -= deltEnv * postFactor * (0.007 + mDef * 0.008) * armThick;
+          dz -= deltEnv * postFactor * (0.004 + mDef * 0.004) * armThick;
         }
       }
 
@@ -26162,6 +26170,15 @@ function buildProceduralItems(config, mats, rigRefs) {
         scaleX: () => 1.14,
         scaleZ: () => 0.72 * THREE.MathUtils.lerp(1, config.torso.chestDepth, 0.65),
         offsetZ: () => 0.006,
+        // La prenda cubre los glúteos esculpidos en la pelvis (mismo relieve, algo holgado)
+        sculptFn: (x, y, z, t) => {
+          if (z >= 0) return [0, 0, 0];
+          const gs = config.piernas?.gluteSize ?? 1.0;
+          const md = config.torso.muscleDef ?? 0.5;
+          const gl = Math.exp(-Math.pow((Math.abs(x) - 0.072 * hw) / (0.066 * hw), 2)) * Math.exp(-Math.pow((t - 0.42) / 0.36, 2));
+          const backness = THREE.MathUtils.smoothstep(-z, 0.0, 0.06);
+          return [0, 0, -gl * ((0.030 + 0.010 * md) * gs + 0.004) * backness];
+        },
       }
     );
     briefGeo.translate(0, -0.308 * config.torso.height, 0);
@@ -26894,32 +26911,13 @@ function rebuildCharacter() {
   // ==========================================================================
   // 2. ESCULTURA DEL TORSO Y CUELLO (MALLA ORGÁNICA CONTINUA SIN ESFERAS SUELTAS)
   // ==========================================================================
-  const torsoGeo = buildSculptedTorsoGeometry(c.torso);
+  const torsoGeo = buildSculptedTorsoGeometry(c.torso, c.piernas.gluteSize ?? 1.0);
   const torsoMesh = new THREE.Mesh(torsoGeo, MAT.skin); torsoMesh.name = "Torso_Chest_Mesh"; torsoMesh.userData.isPrincipalAnatomy = true; torsoMesh.userData.isUnifiedTorsoPelvis = true;
   torsoMesh.castShadow = true;
   torsoMesh.receiveShadow = true;
   rig.torso.add(torsoMesh);
 
-  // Glúteos integrados en la pelvis posterior
-  const gluteScale = c.piernas.gluteSize ?? 1.0;
-  for (let i = 0; i < 2; i++) {
-    const dir = i === 0 ? 1 : -1;
-    const glute = new THREE.Mesh(new THREE.SphereGeometry(0.088, 24, 24), MAT.skin); glute.name = `Glute_${i}`; glute.userData.isDetailOrCloth = true;
-    glute.scale.set(
-      0.92 * (c.torso.hipWidth ?? 1.0) * gluteScale,
-      1.04 * gluteScale,
-      (0.72 + mDef * 0.18) * gluteScale
-    );
-    glute.position.set(
-      dir * 0.076 * (c.torso.hipWidth ?? 1.0),
-      hipY + 0.038,
-      -0.062 * c.torso.chestDepth
-    );
-    glute.castShadow = true;
-    glute.receiveShadow = true;
-    glute.userData.zone = 'piernas';
-    rig.torso.add(glute);
-  }
+  // (Glúteos: esculpidos directamente en la malla de la pelvis, ver buildSculptedTorsoGeometry)
 
   // Cuello anatómico con esternocleidomastoideos y transición suave a clavículas
   const neckGeo = createAnatomicalLathe(
