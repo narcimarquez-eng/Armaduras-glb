@@ -5071,7 +5071,10 @@
               stridentOutwardDisp += spineGroove;
             }
           } else {
-            const sampled = sampleProfileAt(profile, Math.max(0, Math.min(1, effNormY)), angle);
+            // Pelvis/glúteo: perfil filtrado para que cinturones, culeras y faldones salgan lisos (sin ondas de los cortes)
+            const sampled = partKey === 'pelvis'
+              ? sampleProfileSmooth(profile, Math.max(0, Math.min(1, effNormY)), angle)
+              : sampleProfileAt(profile, Math.max(0, Math.min(1, effNormY)), angle);
             radius = sampled.radius;
             cx = sampled.cx;
             cz = sampled.cz;
@@ -14085,8 +14088,9 @@
             const sh = createFormFittedShell(thMesh, mainMat, {
               targetPart: part, slotName: currentBuildingSlot, thicknessRatio: 0.060,
               yMin: 0.62, yMax: 1.0, angleMin: bc2 - 0.95 - sg2 * 0.30, angleMax: bc2 + 0.95 - sg2 * 0.30,
-              flareBottom: des.flare * 0.8, vPointBottom: des.vTip, foldStyle: des.fold, foldDepth: des.depth,
-              bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
+              // Placa LISA con canto biselado (sin dientes ni pliegues); el diseño lo ponen los grabados
+              flareBottom: des.flare * 0.8, vPointBottom: Math.min(0.06, des.vTip * 0.4), foldDepth: 0,
+              bevelRadius: 0.009, edgeRim: 0.0026, frameMaterial: trimMat
             });
             if (sh) {
               addShellRelief(sh, t => [0.18 + 0.64 * t, 0.62], 0.0030, trimMat, 16);
@@ -14112,13 +14116,14 @@
               thicknessRatio: 0.038 - L * 0.003,
               yMin: yBot, yMax: yTop,
               angleMin: bc - half, angleMax: bc + half,
+              // Láminas lisas como capas: canto recto biselado, sin pliegues en diente de sierra
               flareBottom: isLast ? des.flare : des.flare * 0.45,
-              vPointBottom: isLast ? des.vTip : 0.04,
-              foldStyle: des.fold, foldDepth: des.depth, foldWaves: des.waves || 3.0,
-              fluteCount: isLast ? (des.flutes || 0) : 0, fluteDepth: 0.012,
-              bevelRadius: 0.007, edgeRim: 0.0026, frameMaterial: trimMat
+              vPointBottom: isLast ? Math.min(0.08, des.vTip * 0.5) : 0.0,
+              foldDepth: 0, fluteCount: 0,
+              bevelRadius: 0.009, edgeRim: 0.0026, frameMaterial: trimMat
             });
             if (!sh || !isLast) {
+              if (sh) addShellRelief(sh, t => [0.14 + 0.72 * t, 0.30], 0.0022, trimMat, 18);   // filete grabado
               if (sh && des.rivets) addShellRivets(sh, [[0.30, 0.80], [0.50, 0.84], [0.70, 0.80]], 0.0030, trimMat);
               continue;
             }
