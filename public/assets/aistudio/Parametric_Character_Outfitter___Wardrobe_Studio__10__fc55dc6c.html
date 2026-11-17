@@ -20182,8 +20182,12 @@
       const unifiedHairCol = rootCol.clone().lerp(tipCol, 0.14);
       const unifiedHex = '#' + unifiedHairCol.getHexString();
 
+      // Láminas de pelo: el cuero cabelludo toma el tono MEDIO del mechón (su textura es clara, no de raíz),
+      // así no se ve una zona más oscura entre láminas; cejas y barba siguen con el tono de raíz
+      const scalpHex = (HAIR_CONFIG.technique === 'locks')
+        ? '#' + rootCol.clone().lerp(tipCol, 0.55).multiplyScalar(0.92).getHexString() : unifiedHex;
       if (window.CreadorHumano && window.CreadorHumano.CONFIG) {
-        window.CreadorHumano.CONFIG.colors.hair = unifiedHex;
+        window.CreadorHumano.CONFIG.colors.hair = scalpHex;
         window.CreadorHumano.CONFIG.colors.beard = unifiedHex;
         if (window.CreadorHumano.syncMaterialColors) {
           window.CreadorHumano.syncMaterialColors();
@@ -20289,6 +20293,8 @@
           cap.material.uniforms.uAlphaMap = { value: getHairClumpAtlas() };
           cap.material.uniforms.uTexContrast.value = 1.0;
         }
+        // El casquete tapa siempre la textura de rostro proyectada (que lleva piel pintada hasta la frente alta)
+        if (cap.material) { cap.material.polygonOffset = true; cap.material.polygonOffsetFactor = -8; cap.material.polygonOffsetUnits = -8; }
         hairMeshGroup.add(cap);
         addBraidsForCurrentStyle();
       }
@@ -23543,6 +23549,7 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
     map: tex, transparent: true, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
     roughness: 0.62, metalness: 0.0,
+    vertexColors: true, vertexAlpha: true,
   });
   const targets = [];
   headGroup.children.forEach((o) => {
@@ -23556,9 +23563,15 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
     const g = m.geometry.clone();
     const P = g.attributes.position;
     const uv = new Float32Array(P.count * 2);
+    const vcol = new Float32Array(P.count * 4);
     const off = m.position;
     for (let i = 0; i < P.count; i++) {
       const X = P.getX(i) + off.x, Y = P.getY(i) + off.y, Z = P.getZ(i) + off.z;
+      // Por encima del nacimiento del pelo la textura se desvanece: el cuero cabelludo conserva el color del pelo
+      // (la ilustración trae piel pintada hasta la frente alta y asomaba entre los mechones)
+      const hl = (canon.hairlineY ?? (canon.eyeY + 0.08)) - Math.pow(Math.abs(X) / 0.115, 2.0) * 0.024;
+      vcol[i * 4] = vcol[i * 4 + 1] = vcol[i * 4 + 2] = 1;
+      vcol[i * 4 + 3] = 1 - THREE.MathUtils.smoothstep(Y, hl - 0.010, hl + 0.004);
       uv[i * 2] = (cxPx + X * k) / W;
       uv[i * 2 + 1] = 1.0 - (eyePx + (canon.eyeY - Y) * k) / H;
       // Detrás de la cara: la coordenada se lleva hacia fuera POR SU MISMO LADO (zona transparente del borde).
@@ -23566,6 +23579,7 @@ function applyFaceReferenceTexture(headGroup, canon, def) {
       if (Z < 0.02) uv[i * 2] = X >= 0 ? 1.6 : -0.6;
     }
     g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setAttribute('color', new THREE.BufferAttribute(vcol, 4));
     const ov = new THREE.Mesh(g, mat);
     ov.name = `face_tex_overlay_${m.name}`;
     ov.position.copy(m.position); ov.rotation.copy(m.rotation); ov.scale.copy(m.scale);
