@@ -41,6 +41,7 @@
     <div class="flex items-center space-x-1.5 sm:space-x-2 pointer-events-auto">
       <button id="btn-random-human-top" title="Generar un cuerpo humano 3D aleatorio (.GLB) y amoldar la armadura" class="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-xs shadow-lg shadow-amber-600/30 border border-amber-400/40 transition active:scale-95"><i data-lucide="person-standing" class="w-3.5 h-3.5"></i><span>Cuerpo Random (.GLB)</span></button>
       <button id="btn-quick-random" class="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 border border-indigo-400/30 transition active:scale-95"><i data-lucide="shuffle" class="w-3.5 h-3.5"></i><span>Armadura Random</span></button>
+      <button id="btn-random-colors" title="Cambia sólo los colores y las molduras de la armadura actual" class="flex items-center gap-1.5 px-3 py-2 rounded-xl glass-btn text-slate-100 font-semibold text-xs transition active:scale-95"><i data-lucide="palette" class="w-3.5 h-3.5"></i><span>Colores Random</span></button>
       <button id="btn-download-html" title="Descargar este archivo HTML" class="glass-btn px-2.5 py-2 rounded-xl text-emerald-300 hover:text-white flex items-center gap-1 text-xs font-medium border-emerald-500/30"><i data-lucide="download" class="w-3.5 h-3.5"></i><span class="hidden md:inline">Bajar HTML</span></button>
       <button id="btn-download-light-glb" title="Descargar personaje + armadura en un GLB ligero (texturas JPEG, mallas fusionadas, animaciones)" class="glass-btn px-2.5 py-2 rounded-xl text-amber-300 hover:text-white flex items-center gap-1 text-xs font-medium border-amber-500/30"><i data-lucide="feather" class="w-3.5 h-3.5"></i><span class="hidden md:inline">GLB Ligero</span></button>
       <button id="btn-snapshot" title="Tomar captura PNG" class="glass-btn p-2 rounded-xl text-slate-300 hover:text-white"><i data-lucide="camera" class="w-4 h-4"></i></button>
@@ -224,6 +225,14 @@
           <div class="grid grid-cols-4 gap-1.5" id="slot-gloves"></div>
         </div>
 
+        <div class="space-y-1.5 rounded-xl border border-amber-500/30 p-2 bg-amber-950/10">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-semibold text-amber-200 flex items-center gap-1.5"><i data-lucide="package" class="w-3.5 h-3.5 text-amber-400"></i> Pack Pantalón (set completo)</span>
+          </div>
+          <select id="pants-pack-select" class="w-full bg-slate-950 border border-slate-700/70 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 outline-none"></select>
+          <p class="text-[9px] text-slate-500">Equipa a la vez cinturón, escarcelas, musleras y rodilleras del mismo set.</p>
+        </div>
+
         <div class="space-y-1.5">
           <div class="flex items-center justify-between text-xs">
             <span class="font-semibold text-slate-200 flex items-center gap-1.5"><i data-lucide="minimize-2" class="w-3.5 h-3.5 text-indigo-400"></i> Cinturón Anatómico & Bragueta</span>
@@ -323,6 +332,7 @@
           <span class="text-xs font-semibold text-slate-300 block">Placas & Extremos</span>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Curvatura / Suavizado</span><span id="val-fit-smoothness" class="text-indigo-400 font-mono">1.10x</span></div><input id="slider-fit-smoothness" type="range" min="0.05" max="4.50" step="0.05" value="1.10" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Solapamiento de Juntas</span><span id="val-fit-joint-overlap" class="text-indigo-400 font-mono">1.00x</span></div><input id="slider-fit-joint-overlap" type="range" min="0.05" max="4.00" step="0.05" value="1.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
+          <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Relieve de Placas & Molduras</span><span id="val-fit-relief" class="text-indigo-400 font-mono">1.50x</span></div><input id="slider-fit-relief" type="range" min="0.60" max="2.60" step="0.05" value="1.50" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Holgura Global</span><span id="val-fit-bulk" class="text-indigo-400 font-mono">1.00x</span></div><input id="slider-fit-bulk" type="range" min="0.10" max="4.00" step="0.02" value="1.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Grosor Peto / Torso</span><span id="val-fit-torso" class="text-indigo-400 font-mono">1.00x</span></div><input id="slider-fit-torso" type="range" min="0.10" max="4.00" step="0.02" value="1.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
           <div class="space-y-1"><div class="flex justify-between text-xs text-slate-300"><span>Ajuste Vertical Coraza (Y)</span><span id="val-fit-torso-y" class="text-indigo-400 font-mono">0.00</span></div><input id="slider-fit-torso-y" type="range" min="-0.40" max="0.40" step="0.01" value="0.00" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer" /></div>
@@ -779,7 +789,7 @@
         weapon: 1,
         shield: 1
       },
-      fit: { 
+      fit: { plateRelief: 1.5, 
         globalBulk: 1.00, 
         torsoScale: 1.00, 
         torsoOffsetY: 0.00, 
@@ -1594,6 +1604,49 @@
     ];
 
     // Aplica una armadura por clase y rango: equipo, ajuste, overrides de forma y material
+    // ===== Variedad del aleatorio: molduras distintas, texturas por pieza y colores =====
+    const TRIM_PATTERNS = ['forged_commander_steel', 'spiral_filigree', 'ornate', 'emerald_elven_filigree', 'laurel_leaf_plate',
+      'runic_plate', 'triskele_full_plate', 'paladin_sun_gold', 'dynasty_celestial_rose', 'celestial_astral_constellation',
+      'crusader_templar_cross', 'seraphim_feather_gold'];
+    const ARMOR_SLOTS_FOR_VARIETY = ['helmet', 'shoulders', 'torso', 'gloves', 'belt', 'tassets', 'cuisses', 'knees', 'boots', 'shield', 'underlayer'];
+
+    function resetArmorVariety() {
+      STATE.trimPattern = 'forged_commander_steel';
+      STATE.slotTrims = {};
+      STATE.colorShift = null;
+      STATE.slotColorShift = {};
+    }
+
+    function randomizeArmorColors() {
+      const r = (a, b) => a + Math.random() * (b - a);
+      const pastel = Math.random() < 0.25;
+      STATE.colorShift = {
+        h: r(-0.5, 0.5), s: r(0.0, 0.38), l: pastel ? r(0.0, 0.10) : r(-0.12, 0.06),
+        th: r(-0.12, 0.12), ts: r(-0.05, 0.25), tl: r(-0.06, 0.08)
+      };
+      // A veces, piezas con un tono algo distinto (combinación de dos colores en la armadura)
+      STATE.slotColorShift = {};
+      if (Math.random() < 0.45) {
+        const alt = { ...STATE.colorShift, h: STATE.colorShift.h + r(0.25, 0.6) * (Math.random() < 0.5 ? -1 : 1), s: STATE.colorShift.s * 0.8 };
+        ['belt', 'tassets', 'gloves', 'boots'].forEach(k => { if (Math.random() < 0.6) STATE.slotColorShift[k] = alt; });
+      }
+    }
+
+    function randomizeArmorVariety(baseTp) {
+      // Molduras: un patrón principal y, en algunas piezas, uno secundario
+      const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+      STATE.trimPattern = pick(TRIM_PATTERNS);
+      STATE.slotTrims = {};
+      const alt = pick(TRIM_PATTERNS);
+      ARMOR_SLOTS_FOR_VARIETY.forEach(k => { if (Math.random() < 0.30) STATE.slotTrims[k] = alt; });
+      // Texturas: la mitad de las piezas con otra textura de la misma familia
+      if (baseTp) {
+        const fam = TEXTURE_PRESETS.filter(t => t.category === baseTp.category && t.id !== baseTp.id);
+        ARMOR_SLOTS_FOR_VARIETY.forEach(k => { STATE.slotTextures[k] = (fam.length && Math.random() < 0.45) ? pick(fam).id : null; });
+      }
+      randomizeArmorColors();
+    }
+
     function applyArmorLook(look) {
       const cls = ARMOR_CLASSES[look.cls];
       const rank = ARMOR_RANKS[look.rank];
@@ -1617,6 +1670,8 @@
 
       // Material: en rangos D y C reducimos el brillo metálico para priorizar aspecto de cuero curtido y dibujos simples
       Object.keys(STATE.slotTextures).forEach(k => { STATE.slotTextures[k] = null; });
+      resetArmorVariety();
+      if (look.randomVariety) randomizeArmorVariety(tp);
       STATE.materialType = tp.id; STATE.primaryColor = tp.primary; STATE.secondaryColor = tp.secondary;
       STATE.clothColor = tp.cloth;
       STATE.metalness = STATE.fit.simpleLeatherMode ? Math.min(tp.metalness, 0.28) : tp.metalness;
@@ -1678,7 +1733,7 @@
             shield: Math.floor(Math.random() * ITEMS_DB.shield.length)
           };
 
-      applyArmorLook({ rank, cls: clsKey, name: tp.name, tex: tp.id, gear, cape, strapStyle });
+      applyArmorLook({ rank, cls: clsKey, name: tp.name, tex: tp.id, gear, cape, strapStyle, randomVariety: true });
     }
 
     /* =========================================================================
@@ -3449,7 +3504,9 @@
       const activeBump = slotTp ? slotTp.bump : (STATE.bumpDepth || 1.0);
       const activeTiling = slotTp ? slotTp.tiling : (STATE.textureTiling || 1.0);
 
-      const texType = role === 'trim' ? 'forged_commander_steel' : activeSurfaceTex;
+      // Moldura: patrón propio por pieza o global (filigrana, volutas, runas, laureles…), no siempre el acero liso
+      const trimPattern = (STATE.slotTrims && slotKey && STATE.slotTrims[slotKey]) || STATE.trimPattern || 'forged_commander_steel';
+      const texType = role === 'trim' ? trimPattern : activeSurfaceTex;
       const pack = generateAdvancedTexturePack(texType);
       const repeatVal = Math.max(0.25, activeTiling);
 
@@ -3463,13 +3520,25 @@
         normalMap.repeat.set(repeatVal, repeatVal);
       }
 
-      let col = new THREE.Color(activePrimary);
+      // Variación de color (aleatorio): giro de tono, saturación y luz por pieza o global
+      const cShift = (STATE.slotColorShift && slotKey && STATE.slotColorShift[slotKey]) || STATE.colorShift || null;
+      const shiftCol = (hex, isTrim) => {
+        const c = new THREE.Color(hex);
+        if (!cShift) return c;
+        const hsl = {}; c.getHSL(hsl);
+        const dh = isTrim ? (cShift.th || 0) : (cShift.h || 0);
+        const ds = isTrim ? (cShift.ts || 0) : (cShift.s || 0);
+        const dl = isTrim ? (cShift.tl || 0) : (cShift.l || 0);
+        c.setHSL((hsl.h + dh + 1) % 1, THREE.MathUtils.clamp(hsl.s + ds, 0, 1), THREE.MathUtils.clamp(hsl.l + dl, 0.05, 0.92));
+        return c;
+      };
+      let col = shiftCol(activePrimary, false);
       let metal = activeMetalness;
       let rough = activeRoughness;
-      let normScale = 0.28 * activeBump;
+      let normScale = 0.28 * activeBump * (1 + 0.6 * ((STATE.fit.plateRelief ?? 1.5) - 1));
 
       if (role === 'trim') {
-        col = new THREE.Color(activeSecondary);
+        col = shiftCol(activeSecondary, true);
         metal = Math.min(1.0, activeMetalness + 0.06);
         rough = Math.max(0.14, activeRoughness - 0.06);
         normScale = 0.18 * activeBump;
@@ -4642,6 +4711,17 @@
 
     function createFormFittedShell(sourceMesh, material, options = {}) {
       if (!sourceMesh || !sourceMesh.geometry) return null;
+      // Relieve global de placas: más separación del cuerpo, pliegues/acanaladuras/cresta más hondos y ribete más grueso
+      const RB = STATE.fit.plateRelief ?? 1.5;
+      if (RB !== 1) {
+        options = Object.assign({}, options, {
+          thicknessRatio: (options.thicknessRatio ?? 0.024) * (1 + 0.45 * (RB - 1)),
+          foldDepth: (options.foldDepth || 0) * RB,
+          fluteDepth: (options.fluteDepth ?? 0.010) * RB,
+          ridgeCenterZ: (options.ridgeCenterZ || 0) * (1 + 0.8 * (RB - 1)),
+          edgeRim: (options.edgeRim || 0) * (1 + 0.7 * (RB - 1)),
+        });
+      }
       const {
         thicknessRatio = 0.024, // Chapa metálica forjada fina y limpia
         yMin = 0.0,
@@ -8242,6 +8322,7 @@
       });
     }
 
+    const BELTS_WITH_CULERA = new Set([2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 15, 16]);
     function buildArticulatedBelt() {
       const beltType = STATE.equipment.belt;
       if (beltType === 0 || (STATE.fit.mageRobe && beltType < 10)) return;
@@ -8254,6 +8335,11 @@
       const glowMat = getGlowMaterial();
 
       const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
+      // Cinturones con culera trasera que cubre los glúteos (la armadura ligera ya la trae con sus faldones)
+      if (BELTS_WITH_CULERA.has(beltType) && !STATE.fit.clothSides) {
+        buildBeltCulera({ mainMat, trimMat, clothMat }, { plate: true, slot: 'belt' });
+        currentBuildingSlot = 'belt';
+      }
       if (beltType >= 10 && beltType <= 16) {
         buildSovereignOrnateBelt(beltType, pelvisMeshes, { mainMat, trimMat, clothMat, glowMat });
         return;
@@ -9387,6 +9473,7 @@
     // Tubo dorado en relieve que sigue una curva (u(t), v(t)) sobre la placa
     function addShellRelief(shellMesh, curveFn, radius, mat, samples = 18, lift = null) {
       if (!shellMesh) return;
+      radius *= 1 + 0.7 * ((STATE.fit.plateRelief ?? 1.5) - 1);   // molduras en relieve más marcadas
       const pts = [];
       for (let i = 0; i <= samples; i++) {
         const [u, v] = curveFn(i / samples);
@@ -9409,6 +9496,7 @@
     }
 
     function addShellRivets(shellMesh, pointsUV, r, mat) {
+      r *= 1 + 0.5 * ((STATE.fit.plateRelief ?? 1.5) - 1);
       pointsUV.forEach(([u, v]) => {
         const sp = shellPointAt(shellMesh, u, v, r * 0.2);
         if (!sp) return;
@@ -13871,6 +13959,92 @@
     }
 
     /* === LIGERA: faldones de tela a los lados, colgando del cinturón igual que el tabardo === */
+    // Culera (faldones traseros sobre los glúteos) según el cinturón equipado.
+    // opts.plate: placas de metal (cinturones pesados) en lugar de tela; opts.slot: ranura de material.
+    function buildBeltCulera(mats, opts = {}) {
+      const { mainMat, trimMat, clothMat } = mats;
+      // Culera: dos faldones curvos que siguen el glúteo (uno por nalga, para no cruzar el eje trasero).
+      // Se amoldan a la malla como las escarcelas, así que nunca quedan como un plano recto.
+      // El corte y el adorno los marca el cinturón equipado, así cada cinturón trae su culera.
+      const des = CULERA_DESIGNS[STATE.equipment.belt] || CULERA_DESIGNS[1];
+      const prevSlot = currentBuildingSlot;
+      currentBuildingSlot = opts.slot || 'tassets';
+      let culGem = trimMat, culDm = trimMat;
+      try {
+        if (des.gem) culGem = getFacetedGemMaterial(des.gem, currentBuildingSlot);
+        culDm = getFacetedGemMaterial('diamond', currentBuildingSlot);
+      } catch (e) { }
+      const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
+      if (opts.plate) {
+        // Lámina inferior que baja por detrás hasta el pliegue del glúteo (la pelvis sola se queda corta)
+        ['thigh_l', 'thigh_r'].forEach(part => {
+          const sg2 = part.endsWith('_l') ? 1 : -1;
+          const bc2 = sg2 * Math.PI * 0.82;
+          getMeshesByAnatomy([part]).forEach(thMesh => {
+            const sh = createFormFittedShell(thMesh, mainMat, {
+              targetPart: part, slotName: currentBuildingSlot, thicknessRatio: 0.060,
+              yMin: 0.62, yMax: 1.0, angleMin: bc2 - 0.95 - sg2 * 0.30, angleMax: bc2 + 0.95 - sg2 * 0.30,
+              flareBottom: des.flare * 0.8, vPointBottom: des.vTip, foldStyle: des.fold, foldDepth: des.depth,
+              bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
+            });
+            if (sh) {
+              addShellRelief(sh, t => [0.18 + 0.64 * t, 0.62], 0.0030, trimMat, 16);
+              if (des.rivets) addShellRivets(sh, [[0.28, 0.82], [0.5, 0.86], [0.72, 0.82]], 0.0030, trimMat);
+            }
+          });
+        });
+      }
+      [1, -1].forEach(sg => {
+        const bc = sg * Math.PI * 0.80;          // centro sobre la nalga
+        const half = Math.PI * des.span;
+        pelvisMeshes.forEach(pMesh => {
+          // Faldones superpuestos: uno solo para los cortes lisos, varios para los lamelares
+          const top0 = 0.94, bot0 = opts.plate ? 0.0 : 0.14;
+          const step = (top0 - bot0) / des.lames;
+          for (let L = 0; L < des.lames; L++) {
+            const isLast = L === des.lames - 1;
+            const yTop = top0 - L * step * 0.88;
+            const yBot = isLast ? bot0 : Math.max(bot0, yTop - step * 1.18);
+            const sh = createFormFittedShell(pMesh, opts.plate ? ((L % 2 === 1) ? trimMat : mainMat) : ((des.lames > 1 && L % 2 === 1) ? mainMat : clothMat), {
+              targetPart: 'pelvis', slotName: 'tassets',
+              thicknessRatio: 0.038 - L * 0.003,
+              yMin: yBot, yMax: yTop,
+              angleMin: bc - half, angleMax: bc + half,
+              flareBottom: isLast ? des.flare : des.flare * 0.45,
+              vPointBottom: isLast ? des.vTip : 0.04,
+              foldStyle: des.fold, foldDepth: des.depth, foldWaves: des.waves || 3.0,
+              fluteCount: isLast ? (des.flutes || 0) : 0, fluteDepth: 0.012,
+              bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
+            });
+            if (!sh || !isLast) {
+              if (sh && des.rivets) addShellRivets(sh, [[0.30, 0.80], [0.50, 0.84], [0.70, 0.80]], 0.0030, trimMat);
+              continue;
+            }
+            // Relieve dorado del faldón más bajo
+            const R = 0.0030;
+            if (des.relief === 'bands') {
+              [0.34, 0.60].forEach(v0 => addShellRelief(sh, t => [0.16 + 0.68 * t, v0], R * 1.4, trimMat, 18));
+            } else if (des.relief === 'chevron') {
+              [0.30, 0.52, 0.74].forEach(v0 => addShellRelief(sh, t => [0.22 + 0.56 * t, v0 + 0.09 * Math.abs(t * 2 - 1)], R, trimMat, 16));
+            } else if (des.relief === 'vine') {
+              addShellRelief(sh, t => [0.5 + 0.12 * Math.sin(t * Math.PI * 3), 0.16 + 0.70 * t], R, trimMat, 26);
+            } else if (des.relief === 'sun') {
+              for (let r = 0; r < 5; r++) {
+                const a0 = 0.26 + r * 0.12;
+                addShellRelief(sh, t => [a0, 0.34 + 0.40 * t], R * 0.9, trimMat, 10);
+              }
+            } else if (des.relief === 'cross') {
+              addShellRelief(sh, t => [0.5, 0.20 + 0.62 * t], R * 1.5, trimMat, 18);
+              addShellRelief(sh, t => [0.26 + 0.48 * t, 0.56], R * 1.5, trimMat, 14);
+            }
+            if (des.rivets) addShellRivets(sh, [[0.26, 0.86], [0.50, 0.90], [0.74, 0.86]], 0.0034, trimMat);
+            if (des.gem) addShellJewel(sh, 0.5, des.gemV || 0.62, 0.0105, culGem, trimMat, culDm, 6);
+          }
+        });
+      });
+      currentBuildingSlot = prevSlot;
+    }
+
     function buildClothSideFlaps(mats) {
       const { mainMat, trimMat, clothMat } = mats;
       const pelvisBox = getWorldBoxOfParts(['pelvis']);
@@ -13914,67 +14088,7 @@
         });
       });
 
-      // Culera: dos faldones curvos que siguen el glúteo (uno por nalga, para no cruzar el eje trasero).
-      // Se amoldan a la malla como las escarcelas, así que nunca quedan como un plano recto.
-      // El corte y el adorno los marca el cinturón equipado, así cada cinturón trae su culera.
-      const des = CULERA_DESIGNS[STATE.equipment.belt] || CULERA_DESIGNS[1];
-      const prevSlot = currentBuildingSlot;
-      currentBuildingSlot = 'tassets';
-      let culGem = trimMat, culDm = trimMat;
-      try {
-        if (des.gem) culGem = getFacetedGemMaterial(des.gem, 'tassets');
-        culDm = getFacetedGemMaterial('diamond', 'tassets');
-      } catch (e) { }
-      const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
-      [1, -1].forEach(sg => {
-        const bc = sg * Math.PI * 0.80;          // centro sobre la nalga
-        const half = Math.PI * des.span;
-        pelvisMeshes.forEach(pMesh => {
-          // Faldones superpuestos: uno solo para los cortes lisos, varios para los lamelares
-          const top0 = 0.94, bot0 = 0.14;
-          const step = (top0 - bot0) / des.lames;
-          for (let L = 0; L < des.lames; L++) {
-            const isLast = L === des.lames - 1;
-            const yTop = top0 - L * step * 0.88;
-            const yBot = isLast ? bot0 : Math.max(bot0, yTop - step * 1.18);
-            const sh = createFormFittedShell(pMesh, (des.lames > 1 && L % 2 === 1) ? mainMat : clothMat, {
-              targetPart: 'pelvis', slotName: 'tassets',
-              thicknessRatio: 0.038 - L * 0.003,
-              yMin: yBot, yMax: yTop,
-              angleMin: bc - half, angleMax: bc + half,
-              flareBottom: isLast ? des.flare : des.flare * 0.45,
-              vPointBottom: isLast ? des.vTip : 0.04,
-              foldStyle: des.fold, foldDepth: des.depth, foldWaves: des.waves || 3.0,
-              fluteCount: isLast ? (des.flutes || 0) : 0, fluteDepth: 0.012,
-              bevelRadius: 0.007, edgeRim: 0.0042, frameMaterial: trimMat
-            });
-            if (!sh || !isLast) {
-              if (sh && des.rivets) addShellRivets(sh, [[0.30, 0.80], [0.50, 0.84], [0.70, 0.80]], 0.0030, trimMat);
-              continue;
-            }
-            // Relieve dorado del faldón más bajo
-            const R = 0.0030;
-            if (des.relief === 'bands') {
-              [0.34, 0.60].forEach(v0 => addShellRelief(sh, t => [0.16 + 0.68 * t, v0], R * 1.4, trimMat, 18));
-            } else if (des.relief === 'chevron') {
-              [0.30, 0.52, 0.74].forEach(v0 => addShellRelief(sh, t => [0.22 + 0.56 * t, v0 + 0.09 * Math.abs(t * 2 - 1)], R, trimMat, 16));
-            } else if (des.relief === 'vine') {
-              addShellRelief(sh, t => [0.5 + 0.12 * Math.sin(t * Math.PI * 3), 0.16 + 0.70 * t], R, trimMat, 26);
-            } else if (des.relief === 'sun') {
-              for (let r = 0; r < 5; r++) {
-                const a0 = 0.26 + r * 0.12;
-                addShellRelief(sh, t => [a0, 0.34 + 0.40 * t], R * 0.9, trimMat, 10);
-              }
-            } else if (des.relief === 'cross') {
-              addShellRelief(sh, t => [0.5, 0.20 + 0.62 * t], R * 1.5, trimMat, 18);
-              addShellRelief(sh, t => [0.26 + 0.48 * t, 0.56], R * 1.5, trimMat, 14);
-            }
-            if (des.rivets) addShellRivets(sh, [[0.26, 0.86], [0.50, 0.90], [0.74, 0.86]], 0.0034, trimMat);
-            if (des.gem) addShellJewel(sh, 0.5, des.gemV || 0.62, 0.0105, culGem, trimMat, culDm, 6);
-          }
-        });
-      });
-      currentBuildingSlot = prevSlot;
+      buildBeltCulera({ mainMat, trimMat, clothMat });
     }
 
     function buildAllFittedArmor() {
@@ -19800,6 +19914,24 @@
       if (window.lucide) lucide.createIcons();
     }
 
+    // Packs de pantalón: cinturón + escarcelas + musleras + rodilleras de un mismo set
+    const PANTS_PACKS = [
+      { name: 'Paladín Solar', belt: 1, tassets: 1, cuisses: 1, knees: 1 },
+      { name: 'Real Heráldico', belt: 2, tassets: 5, cuisses: 5, knees: 5 },
+      { name: 'Guerra con Malla', belt: 3, tassets: 3, cuisses: 7, knees: 4 },
+      { name: 'Gótico Abisal', belt: 4, tassets: 2, cuisses: 2, knees: 3 },
+      { name: 'Comandante (Laterales + Cuero)', belt: 5, tassets: 3, cuisses: 3, knees: 4 },
+      { name: 'Dinastía L2 (Laterales + Cuero)', belt: 6, tassets: 6, cuisses: 6, knees: 6 },
+      { name: 'Brigantina D&D', belt: 7, tassets: 8, cuisses: 7, knees: 7 },
+      { name: 'Dark Crystal L2', belt: 8, tassets: 9, cuisses: 8, knees: 8 },
+      { name: 'Segador Ravenbone', belt: 9, tassets: 10, cuisses: 9, knees: 9 },
+      { name: 'Soberano Dracónico', belt: 10, tassets: 11, cuisses: 10, knees: 10 },
+      { name: 'Cazador Silvano', belt: 11, tassets: 12, cuisses: 11, knees: 11 },
+      { name: 'Archimago Serafín', belt: 12, tassets: 13, cuisses: 12, knees: 12 },
+      { name: 'Élfico Biselado', belt: 14, tassets: 4, cuisses: 4, knees: 5 },
+      { name: 'Garras Abisales (Escamas & Llamas)', belt: 16, tassets: 14, cuisses: 13, knees: 3 },
+    ];
+
     function buildUI() {
       Object.keys(ITEMS_DB).forEach(slot => {
         const container = document.getElementById(`slot-${slot}`);
@@ -20150,6 +20282,43 @@
         });
       }
 
+      const sRelief = document.getElementById('slider-fit-relief');
+      if (sRelief) {
+        let reliefTimer = null;
+        sRelief.addEventListener('input', () => {
+          STATE.fit.plateRelief = parseFloat(sRelief.value);
+          const v = document.getElementById('val-fit-relief'); if (v) v.textContent = STATE.fit.plateRelief.toFixed(2) + 'x';
+          clearTimeout(reliefTimer); reliefTimer = setTimeout(updateWardrobePieces, 250);
+        });
+      }
+      const pantsSel = document.getElementById('pants-pack-select');
+      if (pantsSel) {
+        pantsSel.innerHTML = '<option value="">— Elegir pack —</option>' + PANTS_PACKS.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+        pantsSel.addEventListener('change', () => {
+          const pk = PANTS_PACKS[+pantsSel.value];
+          if (!pk) return;
+          ['belt', 'tassets', 'cuisses', 'knees'].forEach(k => { if (ITEMS_DB[k] && pk[k] < ITEMS_DB[k].length) STATE.equipment[k] = pk[k]; });
+          // Que los selectores de cada ranura reflejen el pack
+          ['belt', 'tassets', 'cuisses', 'knees'].forEach(k => {
+            const cont = document.getElementById(`slot-${k}`);
+            if (!cont) return;
+            cont.querySelectorAll('button').forEach((b, i) => b.classList.toggle('active', i === STATE.equipment[k]));
+            const lbl = document.getElementById(`label-${k}`);
+            const it = ITEMS_DB[k][STATE.equipment[k]];
+            if (lbl && it) lbl.textContent = it.shortName || it.name;
+          });
+          updateWardrobePieces();
+          showToast(`Pack pantalón: ${pk.name}`);
+        });
+      }
+      const btnRandomColors = document.getElementById('btn-random-colors');
+      if (btnRandomColors) btnRandomColors.addEventListener('click', () => {
+        randomizeArmorColors();
+        const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+        STATE.trimPattern = pick(TRIM_PATTERNS);
+        updateWardrobePieces();
+        showToast('Colores y molduras nuevos');
+      });
       const btnRandomPerSlot = document.getElementById('btn-random-per-slot-textures');
       if (btnRandomPerSlot) {
         btnRandomPerSlot.addEventListener('click', () => {
@@ -20821,6 +20990,7 @@
       STATE.textureTiling = tp.tiling;
       STATE.surfaceTexture = tp.texture;
       Object.keys(STATE.slotTextures).forEach(k => { STATE.slotTextures[k] = null; });
+      randomizeArmorVariety(tp);
       updateSlotTextureBadgesUI();
 
       // Equipamiento variado - BOTAS SIEMPRE EQUIPADAS (>= 1, cero pies descalzos)
