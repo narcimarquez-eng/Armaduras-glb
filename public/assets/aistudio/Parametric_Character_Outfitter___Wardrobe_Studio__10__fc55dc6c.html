@@ -985,13 +985,13 @@
         { name: 'Sin Escarcelas', icon: 'ban' },
         { name: 'Escarcelas de Paladín (3 Placas Oro)', icon: 'layers' },
         { name: 'Escarcelas Góticas en Punta V', icon: 'shield' },
-        { name: 'Placas Pesadas de Comandante', icon: 'columns' },
+        { name: 'Placas Laterales de Comandante + Faldón de Cuero', icon: 'columns' },
         { name: 'Escarcelas Élficas Biseladas', icon: 'sparkles' },
         { name: 'Escarcelas Reales con Blasón', icon: 'crown' },
-        { name: 'Escarcelas Dinastía Aladas en Abanico (L2)', icon: 'crown' },
+        { name: 'Escarcelas Dinastía Laterales + Faldón de Cuero (L2)', icon: 'crown' },
         { name: 'Escarcelas de Escamas de Dragón (D&D)', icon: 'layers' },
         { name: 'Escarcelas de Tablillas / Splint Mail (D&D)', icon: 'columns' },
-        { name: 'Escarcelas Dark Crystal de Puntas Cristalinas (L2)', shortName: 'Dark Crystal', icon: 'gem' },
+        { name: 'Escarcelas Dark Crystal Laterales + Faldón de Cuero (L2)', shortName: 'Dark Crystal', icon: 'gem' },
         { name: 'Colgantes Óseos, Cadenas & Plumas Negras', shortName: 'Talismanes', icon: 'feather' },
         { name: 'Escarcelas Aladas de Dragón & Aletas de Rubí (Soberano)', shortName: 'Escarcela Drac.', icon: 'flame' },
         { name: 'Escarcelas Foliadas de Mithril & Dagas Silvanas (Silvano)', shortName: 'Pétalos Mithril', icon: 'feather' },
@@ -1001,12 +1001,12 @@
         { name: 'Sin Musleras', icon: 'ban' },
         { name: 'Quijotes de Paladín con Marco Oro', icon: 'align-justify' },
         { name: 'Quijotes Góticos con Cresta en V', icon: 'shield' },
-        { name: 'Musleras Pesadas de Comandante', icon: 'box' },
+        { name: 'Musleras Laterales de Comandante sobre Cuero', icon: 'box' },
         { name: 'Quijotes Élficos Acanalados', icon: 'layers' },
         { name: 'Quijotes Imperiales de Torneo', icon: 'crown' },
-        { name: 'Quijotes Dinastía con Marco de Oro Rosa (L2)', icon: 'sparkles' },
+        { name: 'Quijotes Dinastía Laterales sobre Cuero (L2)', icon: 'sparkles' },
         { name: 'Quijotes de Bandas Horizontales Lamelar (D&D)', icon: 'align-justify' },
-        { name: 'Musleras Dark Crystal Facetadas con Cristal Cian (L2)', shortName: 'Dark Crystal', icon: 'gem' },
+        { name: 'Musleras Dark Crystal Laterales sobre Cuero (L2)', shortName: 'Dark Crystal', icon: 'gem' },
         { name: 'Musleras Vendadas con Correas & Alforja', shortName: 'Cazador', icon: 'grid' },
         { name: 'Quijotes Acanalados de Damasco & Filigrana Oro (Soberano)', shortName: 'Quijote Drac.', icon: 'shield' },
         { name: 'Musleras Élficas de Hojas de Mithril & Esmeralda (Silvano)', shortName: 'Quijote Élfico', icon: 'layers' },
@@ -8657,6 +8657,85 @@
     }
 
     /* === 2. ESCARCELAS COLGANTES (TASSETS) MOLDEADAS CON BORDES DORADOS Y PUNTA EN V === */
+    // Escarcelas y musleras de estilo "lateral" (Lineage II): placas en los costados de cadera/muslo
+    // combinadas con cuero oscuro de mago (faldones delantero/trasero y pantalón de cuero bajo las placas)
+    const LATERAL_TASSET_TYPES = new Set([3, 6, 9]);
+    const LATERAL_CUISSE_TYPES = new Set([3, 6, 8]);
+    let _armorLeatherMat = null;
+    function getArmorLeatherMaterial() {
+      if (!_armorLeatherMat) {
+        let pack = null;
+        try { pack = generateAdvancedTexturePack('leather_cuirass'); } catch (e) { }
+        _armorLeatherMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color('#2a1a1f'),
+          map: pack ? pack.colorTex : null,
+          bumpMap: pack ? pack.bumpTex : null,
+          bumpScale: 0.014,
+          roughness: 0.52, metalness: 0.16, side: THREE.DoubleSide
+        });
+        _armorLeatherMat.name = 'ArmorLeather_Mage';
+      }
+      return _armorLeatherMat;
+    }
+
+    /** Faldones de cuero (delantero y trasero) colgando del cinturón, con ribete y tachuelas; tela simulada. */
+    function buildLeatherLoinPanels(trimMat, lenMul = 1.0) {
+      const pb = getWorldBoxOfParts(['pelvis']);
+      const socket = armorSockets.belt || armorSockets.pelvis;
+      if (!pb || !socket) return;
+      const pc = pb.getCenter(new THREE.Vector3());
+      const pSize = pb.getSize(new THREE.Vector3());
+      const leather = getArmorLeatherMaterial();
+      const grp = new THREE.Group();
+      grp.name = 'Lateral_Tassets_Leather_Panels';
+      const topY = pSize.y * 0.22;
+      const panels = [];
+      [1, -1].forEach(face => {
+        const W = pSize.x * (face > 0 ? 0.36 : 0.42);
+        const L = Math.max(0.30, pSize.y * 2.5) * lenMul * (face > 0 ? 1.0 : 1.08);
+        const z0 = face * pSize.z * 0.56;
+        const surf = (u, v) => {
+          const s = u * 2 - 1;
+          const hem = 1.0 - 0.16 * (1 - Math.abs(s));          // bajo en punta (cola de golondrina invertida)
+          const x = s * W * 0.5 * (1 + 0.30 * v);
+          const y = topY - v * L * hem;
+          const z = z0 + face * (0.012 + 0.05 * v * v) + Math.sin(u * Math.PI * 4) * 0.004 * v;
+          return new THREE.Vector3(x, y, z);
+        };
+        const ref = new THREE.Vector3(0, topY - L * 0.4, 0);
+        const panel = new THREE.Mesh(createArmorPlatePatch(surf, { uSegs: 12, vSegs: 20, thickness: 0.0048, refCenter: ref }), leather);
+        grp.add(panel);
+        // Ribetes laterales y bajo (cuero con cordón metálico)
+        const edgeL = new THREE.Mesh(createArmorPlatePatch((u, v) => surf(u * 0.06, v), { uSegs: 2, vSegs: 20, thickness: 0.0062, refCenter: ref }), trimMat);
+        const edgeR = new THREE.Mesh(createArmorPlatePatch((u, v) => surf(0.94 + u * 0.06, v), { uSegs: 2, vSegs: 20, thickness: 0.0062, refCenter: ref }), trimMat);
+        const hemB = new THREE.Mesh(createArmorPlatePatch((u, v) => surf(u, 0.94 + v * 0.06), { uSegs: 12, vSegs: 2, thickness: 0.0062, refCenter: ref }), trimMat);
+        grp.add(edgeL, edgeR, hemB);
+        // Tachuelas en la parte alta y emblema central
+        const studs = [];
+        [0.2, 0.5, 0.8].forEach(u => {
+          const p = surf(u, 0.08);
+          const st = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 8, 6), trimMat);
+          st.position.copy(p).add(new THREE.Vector3(0, 0, face * 0.004));
+          grp.add(st); studs.push(st);
+        });
+        const emb = new THREE.Mesh(new THREE.OctahedronGeometry(0.013, 0), trimMat);
+        emb.position.copy(surf(0.5, 0.30)).add(new THREE.Vector3(0, 0, face * 0.006));
+        emb.scale.set(0.9, 1.4, 0.45);
+        grp.add(emb);
+        panels.push({ face, meshes: [panel, edgeL, edgeR, hemB] });
+      });
+      grp.traverse(o => { if (o.isMesh) { o.castShadow = true; o.userData.isArmorShell = true; } });
+      attachOrnamentWorld(socket, grp, pc, new THREE.Quaternion(), 'tassets');
+      panels.forEach(p => {
+        try {
+          registerFlexibleClothGroup(grp, p.meshes, {
+            kind: 'front_banner', uMode: 'x', nu: 6, nv: 11,
+            pinFraction: 0.10, restReturn: 15.0, damping: 0.94, footKickBoost: 1.30
+          });
+        } catch (e) { }
+      });
+    }
+
     function buildArticulatedTassets() {
       const tassetType = STATE.equipment.tassets;
       if (tassetType === 0) return;
@@ -8675,7 +8754,10 @@
       const offZ = STATE.fit.tassetOffsetZ;
 
       const pelvisMeshes = getMeshesByAnatomy(['pelvis']);
-      const halfSpanAngle = Math.min(Math.PI * 0.50, 0.84 * tWidth);
+      const isLateral = LATERAL_TASSET_TYPES.has(tassetType);
+      // Laterales: placas más estrechas centradas en el costado (no cubren delante/detrás)
+      const halfSpanAngle = isLateral ? Math.min(0.70, 0.56 * tWidth) : Math.min(Math.PI * 0.50, 0.84 * tWidth);
+      if (isLateral) buildLeatherLoinPanels(trimMat, Math.max(0.7, tLen));
       let tasGem = glowMat, tasDm = glowMat;
       try { tasGem = getFacetedGemMaterial(tassetType === 9 ? 'cyan_crystal' : (tassetType === 6 ? 'ruby' : (tassetType === 4 ? 'emerald' : (tassetType === 2 ? 'amethyst' : 'sapphire'))), 'tassets'); tasDm = getFacetedGemMaterial('diamond', 'tassets'); } catch (e) { }
       // Cada placa: ribete dorado; las placas principales del muslo llevan cresta y remaches
@@ -8701,11 +8783,11 @@
         const thighPart = 'thigh_' + side;
         const thighMeshes = getMeshesByAnatomy([thighPart]);
 
-        const pAngleCenter = sgn * (Math.PI * 0.34);
+        const pAngleCenter = sgn * (Math.PI * (isLateral ? 0.50 : 0.34));
         const pAngleMin = pAngleCenter - halfSpanAngle;
         const pAngleMax = pAngleCenter + halfSpanAngle;
 
-        const thAngleCenter = sgn * (Math.PI * 0.22);
+        const thAngleCenter = sgn * (Math.PI * (isLateral ? 0.50 : 0.22));
         const thAngleMin = thAngleCenter - halfSpanAngle * 1.12;
         const thAngleMax = thAngleCenter + halfSpanAngle * 1.12;
 
@@ -9156,43 +9238,55 @@
       const cRidge = STATE.fit.cuissesRidge;
       const cOffY = STATE.fit.cuissesOffsetY;
       const rim = 0.0026;
+      const isLateral = LATERAL_CUISSE_TYPES.has(cuissesType);
 
       ['thigh_l', 'thigh_r'].forEach(partName => {
         const isL = partName.endsWith('_l');
-        const outerU = isL ? 0.75 : 0.25; // u de la cara externa del muslo (rejilla de placa completa)
+        // u de la cara externa del muslo: en placa completa 0.75/0.25; en placa lateral, su centro (0.5)
+        const outerU = isLateral ? 0.5 : (isL ? 0.75 : 0.25);
+        // Placas laterales: centradas en la cara externa del muslo (±60°), sin cubrir delante ni detrás
+        const angOpts = isLateral ? { angleMin: (isL ? 1 : -1) * Math.PI * 0.5 - 1.05, angleMax: (isL ? 1 : -1) * Math.PI * 0.5 + 1.05 } : {};
         getMeshesByAnatomy([partName]).forEach(thMesh => {
           const span = STATE.fit.cuissesSpan;
           const yTop = span ? span.top : Math.min(0.97, 0.94 * cLen);
           const yBot = span ? span.bot : Math.max(0.10, 0.16 / cLen);
+          if (isLateral) {
+            // Pantalón de cuero de mago bajo las placas, envolviendo todo el muslo
+            createFormFittedShell(thMesh, getArmorLeatherMaterial(), {
+              targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.020 * cBulk,
+              yMin: Math.max(0.02, yBot - 0.06), yMax: Math.min(0.99, yTop + 0.02),
+              offsetY: cOffY, bevelRadius: 0.004, edgeRim: rim * 0.8 * cBulk, frameMaterial: trimMat
+            });
+          }
           const lameH = d.relief === 'lamellar' ? (yTop - yBot) / d.lames : 0.085;
           const plateBot = d.relief === 'lamellar' ? yBot : yBot + d.lames * lameH * 0.82;
 
           // 1. Placa principal (o primera banda lamelar) con ribete dorado en todos los cantos
-          const mainPlate = createFormFittedShell(thMesh, mainMat, {
+          const mainPlate = createFormFittedShell(thMesh, mainMat, Object.assign({}, angOpts, {
             targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.040 * cBulk,
             yMin: d.relief === 'lamellar' ? yTop - lameH * 1.15 : plateBot, yMax: yTop,
             ridgeCenterZ: 0.24 * cRidge, flareTop: d.flareTop, vPointBottom: 0.10,
             foldStyle: d.fold, foldDepth: 0.06, fluteCount: d.flutes || 0, fluteDepth: 0.010,
             offsetY: cOffY, bevelRadius: 0.008, edgeRim: rim * cBulk, frameMaterial: trimMat
-          });
+          }));
           // Faja superior dorada acampanada
-          createFormFittedShell(thMesh, trimMat, {
+          createFormFittedShell(thMesh, trimMat, Object.assign({}, angOpts, {
             targetPart: partName, slotName: 'cuisses', thicknessRatio: 0.050 * cBulk,
             yMin: yTop - 0.07, yMax: yTop + 0.01, flareTop: d.flareTop * 1.2, archTop: 0.04,
             offsetY: cOffY, bevelRadius: 0.006, edgeRim: rim * 0.8 * cBulk, frameMaterial: mainMat
-          });
+          }));
 
           // 2. Láminas articuladas hacia la rodilla (cada una por encima de la siguiente)
           const lameCount = d.relief === 'lamellar' ? d.lames - 1 : d.lames;
           for (let i = 0; i < lameCount; i++) {
             const top = (d.relief === 'lamellar' ? yTop - lameH * (i + 1) : plateBot) - (d.relief === 'lamellar' ? 0 : i * lameH * 0.82) + lameH * 0.20;
             const bot = top - lameH;
-            const lame = createFormFittedShell(thMesh, (i % 2 === 0 && d.relief !== 'lamellar') ? trimMat : mainMat, {
+            const lame = createFormFittedShell(thMesh, (i % 2 === 0 && d.relief !== 'lamellar') ? trimMat : mainMat, Object.assign({}, angOpts, {
               targetPart: partName, slotName: 'cuisses', thicknessRatio: (0.046 - i * 0.003) * cBulk,
               yMin: Math.max(0.02, bot), yMax: top, vPointBottom: 0.07, ridgeCenterZ: 0.14 * cRidge,
               foldStyle: d.fold, foldDepth: 0.04, flareBottom: 0.05,
               offsetY: cOffY, bevelRadius: 0.006, edgeRim: rim * 0.9 * cBulk, frameMaterial: (i % 2 === 0 && d.relief !== 'lamellar') ? mainMat : trimMat
-            });
+            }));
             if (lame && (d.rivets || d.relief === 'lamellar')) addShellRivets(lame, [0.30, 0.40, 0.5, 0.60, 0.70].map(u => [u, 0.62]), 0.0028 * cBulk, trimMat);
           }
 
