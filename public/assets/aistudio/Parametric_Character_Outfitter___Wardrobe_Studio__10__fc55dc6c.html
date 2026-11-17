@@ -21850,7 +21850,7 @@ function getFaceCanon(caraCfg = {}) {
     mouthScaleX: (C.widths.mouth * F / C.base.mouth) * (1 + clamp(dev('lipWidth'), C.maxDev.lipWidth)),
     earScale: (0.95 * F / C.base.ear) * (1 + clamp(dev('earSize'), C.maxDev.earSize)),
     earY: (lv('C') + lv('E')) * 0.5,
-    earZ: -0.026,
+    earZ: -0.006,   // trago por delante de la línea media lateral: la oreja cerca de la cara (perfil de referencia)
     chinElev: clamp((caraCfg.chinY ?? C.neutral.chinY) - 1.0, C.maxDev.chinY),
   };
 
@@ -22721,8 +22721,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     // goníaco, situado a la altura de la boca y justo delante del lóbulo de la oreja. Lo que queda por debajo se
     // pliega como suelo submandibular inclinado; detrás del ángulo y por debajo de él la cabeza se recoge hacia
     // el cuello (sin "casco" bajo la oreja).
-    const zG = canon.earZ + 0.020;
-    const gY = canon.mouthY + 0.004;
+    // Ángulo goníaco por debajo y por delante del lóbulo (no llega a la base de la oreja)
+    const zG = canon.earZ + 0.016;
+    const gY = canon.mouthY - 0.004;
     const zC = Z_MAX * faceZ(chinLowY);
     const jt = clampV((z - zG) / Math.max(1e-4, zC - zG), 0, 1);
     const yJaw = THREE.MathUtils.lerp(gY, chinLowY - 0.002, Math.pow(jt, 0.85));
@@ -22862,8 +22863,9 @@ function buildSculptedHeadGroup(caraCfg, mats) {
         if (warmAmt > 0.001) tmp.lerp(blushCol, warmAmt);
         // Sombra anatómica suave en cuencas oculares y bajo la mandíbula
         const orbitAO = Math.exp(-Math.pow((ax - canon.eyeX) / 0.020, 2)) * Math.exp(-Math.pow((vy - (canon.eyeY + 0.010 - 0.11)) / 0.010, 2)) * THREE.MathUtils.smoothstep(vz, 0.06, 0.105);
-        const underJawAO = THREE.MathUtils.smoothstep(vy, -0.075, -0.122) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.085, 0.125));
-        const aoAmt = Math.min(0.26, orbitAO * 0.10 + underJawAO * 0.24);
+        const underJawAO = THREE.MathUtils.smoothstep(vy, -0.075, -0.122) * (1.0 - THREE.MathUtils.smoothstep(vz, 0.085, 0.125))
+          + 1.6 * THREE.MathUtils.smoothstep(-headGeo.attributes.normal.getY(i), 0.25, 0.75) * THREE.MathUtils.smoothstep(vy, 0.02, -0.04);
+        const aoAmt = Math.min(0.34, orbitAO * 0.10 + underJawAO * 0.24);
         if (aoAmt > 0.001) tmp.lerp(shadowCol, aoAmt);
       }
       if (bw > 0.001) tmp.lerp(bCol, bw);
