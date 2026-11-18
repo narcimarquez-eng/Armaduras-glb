@@ -539,6 +539,30 @@
               <span>🖼️ Despeinado (Ficha Texturizada)</span>
               <span class="text-[8px] text-slate-400 font-normal">Modelado en Python + Textura de la Ilustración</span>
             </button>
+            <button data-cut="tiras_atras" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎞️ Atrás (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
+            </button>
+            <button data-cut="tiras_raya_lado" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎞️ Raya al Lado (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
+            </button>
+            <button data-cut="tiras_ondas" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎞️ Ondulada Larga (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
+            </button>
+            <button data-cut="tiras_heroe" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎞️ Puntas de Héroe (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
+            </button>
+            <button data-cut="tiras_coleta" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎞️ Coleta Baja (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
+            </button>
+            <button data-cut="tiras_media" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎞️ Media Melena (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
+            </button>
             <button data-cut="militar" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
               <span>🪖 Corte Militar</span>
               <span class="text-[8px] text-slate-400 font-normal">Muy Corto Uniforme</span>
@@ -20011,7 +20035,139 @@
       if (HAIR_CONFIG.technique === 'locks') rebuildCurrentHair();
       document.querySelectorAll('.hair-clump-btn').forEach(b => b.classList.toggle('ring-2', b.dataset.clump === key));
     }
+    /* PEINADOS DE TIRAS ANCHAS Y LARGAS: cada peinado se dibuja con unas decenas de tiras de 5-7 cm guiadas por
+       curvas propias (barrido, raya, coleta…), dobladas y con la textura de mechón del atlas */
+    const HAIR_STRIP_STYLES = {
+      tiras_atras:     { name: 'Melena Peinada hacia Atrás', len: 0.30, width: 0.062, curl: 0.0, wave: 0.0 },
+      tiras_raya_lado: { name: 'Melena con Raya al Lado',    len: 0.27, width: 0.074, curl: 0.2, wave: 0.0, part: 0.035 },
+      tiras_ondas:     { name: 'Melena Larga Ondulada',      len: 0.38, width: 0.064, curl: 1.0, wave: 0.020 },
+      tiras_heroe:     { name: 'Puntas de Héroe (Anime)',    len: 0.15, width: 0.058, curl: 0.0, wave: 0.0, spiky: true },
+      tiras_coleta:    { name: 'Coleta Baja Recogida',       len: 0.34, width: 0.056, curl: 0.2, wave: 0.0, tail: true },
+      tiras_media:     { name: 'Media Melena Desfilada',     len: 0.17, width: 0.058, curl: 0.4, wave: 0.006 },
+    };
+    let hairStripKey = null;
+
+    // Punto del cuero cabelludo (theta 0 = coronilla; phi 0 = lado izq., PI/2 = frente), mismo casquete que el pelo
+    function scalpPoint(u, phi) {
+      const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
+      let rim;
+      if (sinPhi > 0) rim = 0.356 * Math.PI + Math.pow(sinPhi, 2) * 0.018 - Math.pow(Math.abs(cosPhi), 1.8) * sinPhi * 0.052;
+      else rim = (0.48 + Math.pow(-sinPhi, 1.35) * 0.14) * Math.PI;
+      const th = u * rim, R = 0.1268;
+      const p = new THREE.Vector3(R * Math.sin(th) * cosPhi * 0.99, 0.11 + R * Math.cos(th) * 1.18, R * Math.sin(th) * sinPhi * 1.08);
+      return p;
+    }
+
+    function buildStripPath(st, root, phi, u, seed) {
+      const pts = [];
+      const n = new THREE.Vector3(); getCraniumOutwardNormal(root, n);
+      const P = root.clone().addScaledVector(n, 0.003);
+      pts.push(P.clone());
+      const side = Math.cos(phi) >= 0 ? 1 : -1;
+      const front = Math.sin(phi);
+      // dirección inicial de peinado según el estilo
+      const d = new THREE.Vector3();
+      if (st.part !== undefined && P.z > -0.03) {
+        // raya a un lado: todo cae hacia el lado contrario, el lado corto hacia su oreja
+        const sideOfPart = (P.x > st.part) ? 1 : -1;
+        d.set(sideOfPart * 1.0, 0.15, -0.35 + 0.25 * front);
+      } else if (st.spiky) {
+        d.set(Math.cos(phi) * 0.8, 0.45, Math.sin(phi) * 0.9 - 0.2);
+      } else if (st.tail) {
+        d.set(-P.x * 4.0, -0.2, -1.0);
+      } else {
+        d.set(Math.cos(phi) * 0.35, 0.20, -1.0 + 0.20 * (1 - front));   // hacia atrás
+      }
+      d.normalize();
+      const len = st.len * (0.80 + 0.40 * seed) * (u < 0.35 ? 1.05 : 1.0);
+      const N = 16, step = len / N;
+      const tailPt = new THREE.Vector3(0, 0.03, -0.135);
+      const nn = new THREE.Vector3();
+      for (let i = 1; i <= N; i++) {
+        const t = i / N;
+        getCraniumOutwardNormal(P, nn);
+        // gravedad creciente: primero se pega y sigue el cráneo, luego cae
+        // gravedad: el mechón cae (las tiras son largas y pesan); en puntas de héroe casi no cae
+        d.y -= st.spiky ? 0.05 * t : (0.10 + 0.55 * t);
+        // pegado al cráneo mientras está encima de él: sigue su curvatura en vez de salir volando
+        if (P.y > 0.05 && !(st.spiky && t > 0.45)) {
+          const out = d.dot(nn);
+          if (out > 0) d.addScaledVector(nn, -out * 0.9);
+        }
+        if (st.tail) { const toT = tailPt.clone().sub(P); if (P.y > tailPt.y + 0.01) d.lerp(toT.normalize(), 0.35); else d.set(0, -1, -0.12); }
+        if (st.wave) d.addScaledVector(new THREE.Vector3(side * Math.cos(phi), 0, Math.sin(phi)), Math.sin(t * Math.PI * 3.0 + seed * 6.0) * st.wave * 6.0);
+        if (st.spiky && t > 0.45) d.addScaledVector(nn, 0.12);
+        d.normalize();
+        P.addScaledVector(d, step);
+        // no atravesar el cráneo ni la cara: empuje hacia fuera y quitar la componente entrante
+        enforceCraniumAndEyeClearance(P, 0.004 + 0.004 * Math.min(1, t * 2), front > 0.6 && u > 0.7, side, t);
+        getCraniumOutwardNormal(P, nn);
+        const inward = d.dot(nn);
+        if (inward < 0 && P.y > 0.03) d.addScaledVector(nn, -inward * 0.8).normalize();
+        // la cara queda despejada: lo que cae por delante se aparta hacia el lado
+        if (!st.spiky && P.z > 0.06 && P.y < 0.17 && Math.abs(P.x) < 0.075) { P.x += side * 0.004; d.x += side * 0.5; d.z -= 0.3; d.normalize(); }
+        pts.push(P.clone());
+      }
+      pts.isBangStrand = false; pts.partingSign = side;
+      return pts;
+    }
+
+    function generateStripHairstyle() {
+      clearHairMesh();
+      const st = HAIR_STRIP_STYLES[hairStripKey];
+      if (!st || !HAIR_CONFIG.visible) return;
+      const geos = [];
+      let rnd = 7919;
+      const R = () => { rnd = (rnd * 16807) % 2147483647; return (rnd - 1) / 2147483646; };
+      // anillos concéntricos de raíces de la coronilla al borde; cada tira es ancha (5-7 cm) y larga
+      const rings = [0.12, 0.32, 0.52, 0.72, 0.90];
+      rings.forEach((u, ri) => {
+        const cnt = Math.round((6 + ri * 5) * (st.part !== undefined ? 1.35 : 1.0));
+        for (let k = 0; k < cnt; k++) {
+          const phi = (k + 0.5 * (ri % 2) + (R() - 0.5) * 0.4) / cnt * Math.PI * 2;
+          const root = scalpPoint(u, phi);
+          const seed = R();
+          const pts = buildStripPath(st, root, phi, u, seed);
+          let arc = 0; for (let q = 1; q < pts.length; q++) arc += pts[q].distanceTo(pts[q - 1]);
+          const curlV = st.curl;
+          const col = THREE.MathUtils.clamp(Math.round((curlV < 0.3 ? 0.4 : (curlV < 0.7 ? 1.4 : 2.4)) + (seed - 0.5) * 1.6), 0, 3);
+          const variant = (arc < 0.10 ? 4 : 0) + col;
+          const w = st.width * (0.85 + 0.30 * R()) * (u < 0.2 ? 0.8 : 1.0);
+          // capas: los anillos exteriores van ligeramente por encima de los interiores
+          geos.push(buildHairSheetCard(pts, w, 0.001 + ri * 0.0012, variant, 0.65 + ri * 0.08, seed, 0));
+        }
+      });
+      // coleta: haz de tiras largas que cuelga desde la nuca
+      if (st.tail) {
+        const base = new THREE.Vector3(0, 0.03, -0.14);
+        for (let k = 0; k < 7; k++) {
+          const a = k / 7 * Math.PI * 2, pts = [];
+          for (let i = 0; i <= 14; i++) {
+            const t = i / 14;
+            pts.push(new THREE.Vector3(Math.cos(a) * 0.012 * (1 - 0.5 * t) + Math.sin(t * 4 + k) * 0.004, base.y - t * 0.24, base.z - 0.012 - Math.sin(a) * 0.010 - t * 0.02));
+          }
+          pts.isBangStrand = false; pts.partingSign = 1;
+          geos.push(buildHairSheetCard(pts, 0.040, 0.0, 1, 0.9, k / 7, 0));
+        }
+        // lazo
+        const tie = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.004, 8, 20), new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.6 }));
+        tie.position.copy(base).add(new THREE.Vector3(0, -0.01, -0.012)); tie.rotation.x = Math.PI / 2;
+        hairMeshGroup.add(tie);
+      }
+      if (!geos.length) return;
+      const merged = mergeIndexedGeometries(geos);
+      const mat = createAnisotropicHairShader(true, 0.20);
+      mat.uniforms.uAlphaMap = { value: getHairClumpAtlas() };
+      mat.uniforms.uTexContrast.value = 1.0;
+      mat.side = THREE.DoubleSide;
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = true;
+      hairMeshGroup.add(mesh);
+      updateHairStatsUI(1, merged.index.count / 3, geos.length);
+    }
+
     function generateStylizedLocks() {
+      if (hairStripKey) { generateStripHairstyle(); return; }
       clearHairMesh();
       if (!HAIR_CONFIG.visible) return;
       if (unifiedScalpRoots.length === 0) rebuildUnifiedScalpRoots();
@@ -20133,6 +20289,18 @@
         return;
       }
       hairGlbKey = null;
+      if (HAIR_STRIP_STYLES[cutKey]) {
+        // Peinado de tiras anchas: se dibuja con la técnica de láminas (textura de mechones del atlas)
+        hairStripKey = cutKey;
+        HAIR_CONFIG.cutStyle = cutKey;
+        HAIR_CONFIG.technique = 'locks';
+        document.querySelectorAll('.hair-tech-btn').forEach(b => b.classList.toggle('active', b.dataset.tech === 'locks'));
+        syncHairUISliders();
+        rebuildCurrentHair();
+        if (!silent) showToast(`Peinado de tiras: ${HAIR_STRIP_STYLES[cutKey].name}`);
+        return;
+      }
+      hairStripKey = null;
       const preset = HAIR_CUT_PRESETS[cutKey];
       if (!preset) return;
       HAIR_CONFIG.cutStyle = cutKey;
@@ -20489,6 +20657,8 @@
 
           const tech = btn.dataset.tech;
           HAIR_CONFIG.technique = tech;
+          // Los peinados de tiras solo existen con la técnica de láminas: al cambiar de técnica se vuelve a un corte normal
+          if (tech !== 'locks' && hairStripKey) { hairStripKey = null; applyHairCutPreset('ondulado_volumen', true); }
           const badge = document.getElementById('hair-tech-badge');
           if (badge) {
             const labels = {
