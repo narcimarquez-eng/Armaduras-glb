@@ -1,0 +1,31 @@
+{
+ "guerrero_cicatrices": {
+  "archivo": "guerrero_cicatrices.jpg",
+  "label": "Guerrero de las cicatrices",
+  "gender": "hombre",
+  "hairCut": "corto_clasico",
+  "eyeL": [
+   504,
+   776
+  ],
+  "eyeR": [
+   976,
+   776
+  ],
+  "mouthL": [
+   556,
+   1316
+  ],
+  "mouthR": [
+   1024,
+   1316
+  ],
+  "chinY": 1620,
+  "colors": {
+   "eyes": "#c47a1c",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  }
+ }
+}
