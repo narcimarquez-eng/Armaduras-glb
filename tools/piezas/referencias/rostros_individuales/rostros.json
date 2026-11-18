@@ -148,5 +148,161 @@
    "hairHigh": "#5a4438"
   },
   "skinOverride": "#9a8452"
+ },
+ "mascara_veterano": {
+  "archivo": "mascaras_4.jpg",
+  "gender": "hombre",
+  "contour": false,
+  "erode": 4,
+  "lidOpen": 0.62,
+  "eyeWidthK": 0.36,
+  "label": "Veterano curtido",
+  "hairCut": "militar",
+  "crop": [
+   180,
+   20,
+   680,
+   660
+  ],
+  "eyeL": [
+   280,
+   268
+  ],
+  "eyeR": [
+   545,
+   268
+  ],
+  "mouthL": [
+   325,
+   497
+  ],
+  "mouthR": [
+   525,
+   497
+  ],
+  "chinY": 640,
+  "colors": {
+   "eyes": "#6f7d88",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  }
+ },
+ "mascara_cicatriz": {
+  "archivo": "mascaras_4.jpg",
+  "gender": "hombre",
+  "contour": false,
+  "erode": 4,
+  "lidOpen": 0.62,
+  "eyeWidthK": 0.36,
+  "label": "Pálido de la cicatriz",
+  "hairCut": "corto_guerrero",
+  "crop": [
+   540,
+   520,
+   1000,
+   1110
+  ],
+  "eyeL": [
+   655,
+   745
+  ],
+  "eyeR": [
+   870,
+   745
+  ],
+  "mouthL": [
+   675,
+   958
+  ],
+  "mouthR": [
+   920,
+   958
+  ],
+  "chinY": 1095,
+  "colors": {
+   "eyes": "#8fb4cc",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  }
+ },
+ "mascara_runas": {
+  "archivo": "mascaras_4.jpg",
+  "gender": "hombre",
+  "contour": false,
+  "erode": 4,
+  "lidOpen": 0.62,
+  "eyeWidthK": 0.36,
+  "label": "Portador de runas",
+  "hairCut": "corto_clasico",
+  "crop": [
+   1040,
+   20,
+   1520,
+   660
+  ],
+  "eyeL": [
+   1160,
+   262
+  ],
+  "eyeR": [
+   1400,
+   262
+  ],
+  "mouthL": [
+   1185,
+   490
+  ],
+  "mouthR": [
+   1385,
+   490
+  ],
+  "chinY": 645,
+  "colors": {
+   "eyes": "#d07a14",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  }
+ },
+ "mascara_pintura": {
+  "archivo": "mascaras_4.jpg",
+  "gender": "hombre",
+  "contour": false,
+  "erode": 4,
+  "lidOpen": 0.62,
+  "eyeWidthK": 0.36,
+  "label": "Bárbaro de pintura de guerra",
+  "hairCut": "despeinado_heroe",
+  "crop": [
+   1400,
+   520,
+   1870,
+   1110
+  ],
+  "eyeL": [
+   1525,
+   738
+  ],
+  "eyeR": [
+   1740,
+   738
+  ],
+  "mouthL": [
+   1535,
+   952
+  ],
+  "mouthR": [
+   1765,
+   952
+  ],
+  "chinY": 1090,
+  "colors": {
+   "eyes": "#3a2a20",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  }
  }
 }

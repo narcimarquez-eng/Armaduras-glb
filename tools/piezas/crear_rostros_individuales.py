@@ -25,6 +25,11 @@ def main():
         img = Image.open(os.path.join(REF, c['archivo']))
         has_alpha = img.mode in ('RGBA', 'LA')
         img = img.convert('RGBA')
+        if c.get('crop'):
+            # varias caras en una imagen: todo lo que queda fuera de la caja de esta cara pasa a fondo
+            bg = Image.new('RGBA', img.size, (255, 255, 255, 0 if has_alpha else 255))
+            bg.paste(img.crop(tuple(c['crop'])), tuple(c['crop'][:2]))
+            img = bg
         ex = 0.5 * (c['eyeL'][0] + c['eyeR'][0]); ey = 0.5 * (c['eyeL'][1] + c['eyeR'][1])
         s = (CHIN - EY) / (c['chinY'] - ey)
         out = img.transform((W, H), Image.AFFINE, (1 / s, 0, ex - CX / s, 0, 1 / s, ey - EY / s),
@@ -35,9 +40,25 @@ def main():
             # fondo blanco -> transparente (la piel muy clara conserva algo de opacidad)
             dw = 255.0 - rgb.min(2)
             al = al * np.clip((dw - 4.0) / 22.0, 0, 1)
+            if not c.get('contour', True):
+                # máscaras de borde neto: el fondo es SOLO el blanco conectado con el borde de la imagen
+                # (los brillos casi blancos de la piel no se agujerean) y se queda la pieza más grande
+                inside = al > 0.5
+                bg = np.zeros_like(inside); bg[0, :] = ~inside[0, :]; bg[-1, :] = ~inside[-1, :]; bg[:, 0] = ~inside[:, 0]; bg[:, -1] = ~inside[:, -1]
+                while True:
+                    n = bg | (~inside & (np.roll(bg, 1, 0) | np.roll(bg, -1, 0) | np.roll(bg, 1, 1) | np.roll(bg, -1, 1)))
+                    if (n == bg).all(): break
+                    bg = n
+                face = ~bg
+                seed = np.zeros_like(face); seed[int(EY), int(CX)] = True
+                while True:
+                    n = seed | (face & (np.roll(seed, 1, 0) | np.roll(seed, -1, 0) | np.roll(seed, 1, 1) | np.roll(seed, -1, 1)))
+                    if (n == seed).all(): break
+                    seed = n
+                al = np.where(seed, 1.0, 0.0)
             # Por debajo de los ojos la cara la cierra el trazo oscuro del contorno: todo lo que queda entre los
             # dos trazos es piel (aunque sea casi blanca) -> opaco, con un fundido suave hacia arriba
-            dark = rgb.max(2) < 120
+            dark = rgb.max(2) < (120 if c.get('contour', True) else -1)
             for y in range(int(EY + 20), H):
                 xs = np.nonzero(dark[y])[0]
                 if len(xs) < 2: continue
@@ -49,7 +70,11 @@ def main():
             for x in range(W):   # trazo de la barbilla (el más bajo de cada columna)
                 ys = np.nonzero(dark[int(CHIN - 40):, x])[0]
                 if len(ys): al[int(CHIN - 40) + ys.max() - 4:, x] = 0
-        al = np.asarray(Image.fromarray((al * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.0))).astype(np.float32) / 255.0
+        al8 = Image.fromarray((al * 255).astype(np.uint8))
+        if c.get('erode'):
+            # sin el sombreado oscuro del canto de la máscara
+            al8 = al8.filter(ImageFilter.MinFilter(2 * int(c['erode']) + 1))
+        al = np.asarray(al8.filter(ImageFilter.GaussianBlur(1.0))).astype(np.float32) / 255.0
         name = f'rostro_ind_{fid}.png'
         Image.fromarray(np.dstack([rgb, al * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(TEX, name), optimize=True)
         eL = CX + (c['eyeL'][0] - ex) * s; eR = CX + (c['eyeR'][0] - ex) * s
