@@ -579,6 +579,22 @@
               <span>🎞️ Coleta Baja (Tiras)</span>
               <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
             </button>
+            <button data-cut="tiras_coleta_alta" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎀 Coleta Alta (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Recogido con Tiras</span>
+            </button>
+            <button data-cut="tiras_coletas_dos" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎀 Dos Coletas (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Recogido con Tiras</span>
+            </button>
+            <button data-cut="tiras_mono_samurai" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎀 Moño de Guerrero (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Recogido con Tiras</span>
+            </button>
+            <button data-cut="tiras_coleta_lateral" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>🎀 Coleta Lateral (Tiras)</span>
+              <span class="text-[8px] text-slate-400 font-normal">Recogido con Tiras</span>
+            </button>
             <button data-cut="tiras_media" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
               <span>🎞️ Media Melena (Tiras)</span>
               <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
@@ -19975,7 +19991,7 @@
     /* TÉCNICA 4: VOLUMETRIC CLUMP LOCKS */
     // Lámina de pelo: superficie FINA (sin grosor) y ancha que sigue el recorrido del mechón, curvada a lo ancho
     // como el cráneo; la forma real del mechón (puntas, pelos sueltos) la da la textura transparente del atlas
-    function buildHairSheetCard(points, width, lift, variant, layerNorm, strandSeed, vStart = 0) {
+    function buildHairSheetCard(points, width, lift, variant, layerNorm, strandSeed, vStart = 0, vEnd = 1, bulge = 1) {
       const curve = new THREE.CatmullRomCurve3(points);
       const NS = 16, K = 6;
       const pos = [], nor = [], uvs = [], tng = [], sdat = [], idx = [];
@@ -19999,12 +20015,12 @@
         for (let k = 0; k < K; k++) {
           const q = (k / (K - 1)) * 2 - 1;
           // Lámina DOBLADA a lo ancho (lomo hacia fuera, bordes hacia el cráneo) y abombada a lo largo: da volumen
-          const fold = (1 - Math.abs(q)) * w * 0.30 - q * q * w * 0.10;
-          const belly = Math.sin(t * Math.PI) * w * 0.35;
+          const fold = ((1 - Math.abs(q)) * w * 0.30 - q * q * w * 0.10) * bulge;
+          const belly = Math.sin(t * Math.PI) * w * 0.35 * bulge;
           v.copy(P).addScaledVector(Bt, q * w * 0.5).addScaledVector(Nt, fold + belly);
           pos.push(v.x, v.y, v.z);
           nor.push(Nt.x, Nt.y, Nt.z);
-          uvs.push(k / (K - 1), vStart + (1 - vStart) * t);   // láminas cortas: solo el tramo final del mechón (con sus puntas)
+          uvs.push(k / (K - 1), vStart + (vEnd - vStart) * t);   // láminas cortas: solo el tramo final del mechón (con sus puntas)
           tng.push(T.x, T.y, T.z);
           sdat.push(layerNorm, strandSeed);
         }
@@ -20067,7 +20083,17 @@
       tiras_heroe_lado:     { name: 'Puntas Barridas al Lado',     len: 0.16, width: 0.060, curl: 0.0, wave: 0.0, spiky: 'side', fringe: true },
       tiras_heroe_erizo:    { name: 'Erizo de Puntas Cortas',      len: 0.09, width: 0.050, curl: 0.0, wave: 0.0, spiky: 'up', dense: 1.5 },
       tiras_heroe_largo:    { name: 'Puntas Largas Caídas',        len: 0.26, width: 0.062, curl: 0.0, wave: 0.0, spiky: 'radial', fall: 0.45, fringe: true },
-      tiras_coleta:    { name: 'Coleta Baja Recogida',       len: 0.34, width: 0.056, curl: 0.2, wave: 0.0, tail: true },
+      tiras_coleta:    { name: 'Coleta Baja Recogida',       len: 0.34, width: 0.056, curl: 0.2, wave: 0.0, tail: true,
+        tails: [{ pos: [0, 0.03, -0.135], dir: [0, -0.3, -1], len: 0.26, n: 8, w: 0.042 }] },
+      tiras_coleta_alta: { name: 'Coleta Alta', len: 0.30, width: 0.056, curl: 0.2, wave: 0.0, tail: true,
+        tails: [{ pos: [0, 0.205, -0.125], dir: [0, 0.55, -1], len: 0.30, n: 10, w: 0.046 }] },
+      tiras_coletas_dos: { name: 'Dos Coletas Laterales', len: 0.30, width: 0.056, curl: 0.3, wave: 0.0, tail: true,
+        tails: [{ pos: [0.098, 0.150, -0.065], dir: [1, 0.25, -0.35], len: 0.24, n: 7, w: 0.040 },
+                { pos: [-0.098, 0.150, -0.065], dir: [-1, 0.25, -0.35], len: 0.24, n: 7, w: 0.040 }] },
+      tiras_mono_samurai: { name: 'Moño Alto de Guerrero', len: 0.30, width: 0.056, curl: 0.0, wave: 0.0, tail: true,
+        tails: [{ pos: [0, 0.262, -0.050], dir: [0, 1, -0.55], len: 0.09, n: 8, w: 0.036, stiff: true }] },
+      tiras_coleta_lateral: { name: 'Coleta Lateral sobre el Hombro', len: 0.30, width: 0.056, curl: 0.3, wave: 0.0, tail: true,
+        tails: [{ pos: [0.085, 0.045, -0.095], dir: [0.4, -0.4, 0.6], len: 0.28, n: 9, w: 0.044, forward: true }] },
       tiras_media:     { name: 'Media Melena Desfilada',     len: 0.17, width: 0.058, curl: 0.4, wave: 0.006 },
     };
     let hairStripKey = null;
@@ -20081,6 +20107,15 @@
       const th = u * rim, R = 0.1268;
       const p = new THREE.Vector3(R * Math.sin(th) * cosPhi * 0.99, 0.11 + R * Math.cos(th) * 1.18, R * Math.sin(th) * sinPhi * 1.08);
       return p;
+    }
+
+    function nearestTail(st, P) {
+      let best = null, bd = 1e9;
+      (st.tails || [{ pos: [0, 0.03, -0.135] }]).forEach(tl => {
+        const v = new THREE.Vector3(...tl.pos), dd = v.distanceToSquared(P);
+        if (dd < bd) { bd = dd; best = v; }
+      });
+      return best;
     }
 
     function buildStripPath(st, root, phi, u, seed) {
@@ -20108,14 +20143,16 @@
       } else if (st.spiky) {
         d.set(Math.cos(phi) * 0.8, 0.45, Math.sin(phi) * 0.9 - 0.2);
       } else if (st.tail) {
-        d.set(-P.x * 4.0, -0.2, -1.0);
+        d.copy(nearestTail(st, P)).sub(P).normalize();   // todo el pelo se recoge hacia el lazo
       } else {
         d.set(Math.cos(phi) * 0.35, 0.20, -1.0 + 0.20 * (1 - front));   // hacia atrás
       }
       d.normalize();
-      const len = st.len * (0.80 + 0.40 * seed) * (u < 0.35 ? 1.05 : 1.0);
+      const len = st.tail ? Math.max(0.05, root.distanceTo(nearestTail(st, root)) * 1.6)
+        : st.len * (0.80 + 0.40 * seed) * (u < 0.35 ? 1.05 : 1.0);
       const N = 16, step = len / N;
-      const tailPt = new THREE.Vector3(0, 0.03, -0.135);
+      const tailPt = st.tail ? nearestTail(st, P) : null;
+      let reached = false;
       const nn = new THREE.Vector3();
       for (let i = 1; i <= N; i++) {
         const t = i / N;
@@ -20129,7 +20166,12 @@
           const out = d.dot(nn);
           if (out > 0) d.addScaledVector(nn, -out * 0.9);
         }
-        if (st.tail) { const toT = tailPt.clone().sub(P); if (P.y > tailPt.y + 0.01) d.lerp(toT.normalize(), 0.35); else d.set(0, -1, -0.12); }
+        if (st.tail) {
+          // se recoge tirante hacia el lazo y termina en él (lo que cuelga lo pone la cola)
+          const toT = tailPt.clone().sub(P), dist = toT.length();
+          if (dist < 0.014) { reached = true; break; }
+          d.lerp(toT.normalize(), 0.55 + 0.4 * t); d.y += 0.10 + 0.55 * t;   // anula la gravedad: va tenso
+        }
         if (st.wave) d.addScaledVector(new THREE.Vector3(side * Math.cos(phi), 0, Math.sin(phi)), Math.sin(t * Math.PI * 3.0 + seed * 6.0) * st.wave * 6.0);
         if (st.spiky && !st.contour && !isFringe && t > 0.45) d.addScaledVector(nn, 0.12);
         d.normalize();
@@ -20143,6 +20185,8 @@
         if (!isFringe && P.z > 0.06 && P.y < 0.17 && Math.abs(P.x) < 0.075) { P.x += side * 0.004; d.x += side * 0.5; d.z -= 0.3; d.normalize(); }
         pts.push(P.clone());
       }
+      if (st.tail) { pts.push(tailPt.clone()); if (pts.length < 3) pts.splice(1, 0, pts[0].clone().lerp(tailPt, 0.5)); }
+
       pts.isBangStrand = false; pts.partingSign = side;
       return pts;
     }
@@ -20155,7 +20199,7 @@
       let rnd = 7919;
       const R = () => { rnd = (rnd * 16807) % 2147483647; return (rnd - 1) / 2147483646; };
       // anillos concéntricos de raíces de la coronilla al borde; cada tira es ancha (5-7 cm) y larga
-      const rings = [0.12, 0.32, 0.52, 0.72, 0.90];
+      const rings = st.tail ? [0.15, 0.35, 0.55, 0.75, 0.92, 1.0] : [0.12, 0.32, 0.52, 0.72, 0.90];
       rings.forEach((u, ri) => {
         const cnt = Math.round((6 + ri * 5) * (st.part !== undefined ? 1.35 : 1.0) * (st.dense || 1));
         for (let k = 0; k < cnt; k++) {
@@ -20169,7 +20213,10 @@
           const variant = (arc < 0.10 ? 4 : 0) + col;
           const w = st.width * (0.85 + 0.30 * R()) * (u < 0.2 ? 0.8 : 1.0);
           // capas: los anillos exteriores van ligeramente por encima de los interiores
-          geos.push(buildHairSheetCard(pts, w, 0.001 + ri * 0.0012, variant, 0.65 + ri * 0.08, seed, 0));
+          // recogidos: tramo central tupido del mechón (sin puntas transparentes ni corte de raíz) para cubrir el cráneo
+          // (pelo recogido: tirante y pegado al cráneo; la raíz del dibujo en el nacimiento y el mechón sube hacia el lazo)
+          geos.push(st.tail ? buildHairSheetCard(pts, w * 1.15, 0.0035 + ri * 0.0010, variant % 4, 0.65 + ri * 0.08, seed, 0.04, 0.72, 0.15)
+                            : buildHairSheetCard(pts, w, 0.001 + ri * 0.0012, variant, 0.65 + ri * 0.08, seed, 0));
         }
       });
       // CONTORNO: siempre una corona de mechones en el borde del pelo (frente, sienes, patillas y nuca),
@@ -20181,27 +20228,46 @@
         for (let k = 0; k < cnt; k++) {
           const phi = (k + 0.5) / cnt * Math.PI * 2;
           const seed = R();
-          const pts = buildStripPath(cst, scalpPoint(0.90, phi), phi, 0.90, seed);
+          const uC = st.tail ? 1.0 : 0.90;
+          const pts = buildStripPath(cst, scalpPoint(uC, phi), phi, uC, seed);
           const col = THREE.MathUtils.clamp(Math.round((st.spiky ? 0.6 : 1.0) + (seed - 0.5) * 1.6), 0, 3);
-          geos.push(buildHairSheetCard(pts, 0.040 * (0.85 + 0.3 * R()), 0.0015, 4 + col, 0.95, seed, 0));
+          geos.push(st.tail ? buildHairSheetCard(pts, 0.046 * (0.85 + 0.3 * R()), 0.0040, col, 0.95, seed, 0.04, 0.72, 0.15)
+                            : buildHairSheetCard(pts, 0.040 * (0.85 + 0.3 * R()), 0.0015, 4 + col, 0.95, seed, 0));
         }
       }
-      // coleta: haz de tiras largas que cuelga desde la nuca
+      // colas: haces de tiras anchas que salen de cada lazo y caen (o se mantienen tiesas en el moño)
       if (st.tail) {
-        const base = new THREE.Vector3(0, 0.03, -0.14);
-        for (let k = 0; k < 7; k++) {
-          const a = k / 7 * Math.PI * 2, pts = [];
-          for (let i = 0; i <= 14; i++) {
-            const t = i / 14;
-            pts.push(new THREE.Vector3(Math.cos(a) * 0.012 * (1 - 0.5 * t) + Math.sin(t * 4 + k) * 0.004, base.y - t * 0.24, base.z - 0.012 - Math.sin(a) * 0.010 - t * 0.02));
+        const tieMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.6, metalness: 0.1 });
+        (st.tails || []).forEach((tl, ti) => {
+          const base = new THREE.Vector3(...tl.pos);
+          const d0 = new THREE.Vector3(...tl.dir).normalize();
+          for (let k = 0; k < tl.n; k++) {
+            const a = (k / tl.n) * Math.PI * 2, pts = [];
+            const spreadA = new THREE.Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(0.010);
+            const P = base.clone().add(spreadA), d = d0.clone().addScaledVector(spreadA, 18).normalize();
+            const N = 16, step = tl.len * (0.85 + 0.3 * R()) / N;
+            pts.push(P.clone());
+            for (let i = 1; i <= N; i++) {
+              const t = i / N;
+              d.y -= tl.stiff ? 0.02 : 0.10 + 0.30 * t;   // la cola cae por su peso
+              if (tl.forward && P.z < 0.10) d.z += 0.05;   // por delante del hombro
+              d.addScaledVector(spreadA, (tl.stiff ? 10 : 4) * (1 - t));   // se abre un poco en abanico
+              d.normalize();
+              P.addScaledVector(d, step);
+              if (P.y > 0.0) enforceCraniumAndEyeClearance(P, 0.006, false, Math.sign(P.x) || 1, t);
+              pts.push(P.clone());
+            }
+            pts.isBangStrand = false; pts.partingSign = Math.sign(base.x) || 1;
+            const arc = tl.len;
+            const col = THREE.MathUtils.clamp(Math.round((st.curl < 0.3 ? 0.4 : 1.4) + (R() - 0.5) * 1.6), 0, 3);
+            geos.push(buildHairSheetCard(pts, tl.w * (0.85 + 0.3 * R()), 0.0, (arc < 0.10 ? 4 : 0) + col, 0.92, R(), 0));
           }
-          pts.isBangStrand = false; pts.partingSign = 1;
-          geos.push(buildHairSheetCard(pts, 0.040, 0.0, 1, 0.9, k / 7, 0));
-        }
-        // lazo
-        const tie = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.004, 8, 20), new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.6 }));
-        tie.position.copy(base).add(new THREE.Vector3(0, -0.01, -0.012)); tie.rotation.x = Math.PI / 2;
-        hairMeshGroup.add(tie);
+          // lazo orientado con la cola
+          const tie = new THREE.Mesh(new THREE.TorusGeometry(0.015, 0.0045, 8, 20), tieMat);
+          tie.position.copy(base).addScaledVector(d0, 0.006);
+          tie.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d0);
+          hairMeshGroup.add(tie);
+        });
       }
       if (!geos.length) return;
       const merged = mergeIndexedGeometries(geos);
@@ -20511,7 +20577,7 @@
           cap.material.uniforms.uTexContrast.value = 1.0;
         }
         // El casquete tapa siempre la textura de rostro proyectada (que lleva piel pintada hasta la frente alta)
-        if (cap.material) { cap.material.polygonOffset = true; cap.material.polygonOffsetFactor = -8; cap.material.polygonOffsetUnits = -8; }
+        if (cap.material) { cap.material.polygonOffset = true; cap.material.polygonOffsetFactor = -3; cap.material.polygonOffsetUnits = -3; }   // gana a la textura de rostro (-2), no a las tiras pegadas
         hairMeshGroup.add(cap);
         addBraidsForCurrentStyle();
       }
