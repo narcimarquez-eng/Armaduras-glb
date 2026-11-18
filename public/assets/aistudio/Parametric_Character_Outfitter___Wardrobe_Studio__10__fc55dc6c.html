@@ -20147,7 +20147,9 @@
       const front = Math.sin(phi);
       // dirección inicial de peinado según el estilo
       const d = new THREE.Vector3();
-      if (st.part !== undefined && P.z > -0.03) {
+      if (st.dirOverride) {
+        d.copy(st.dirOverride);   // peinado aleatorio por zonas: dirección ya calculada para esta tira
+      } else if (st.part !== undefined && P.z > -0.03) {
         // raya a un lado: todo cae hacia el lado contrario, el lado corto hacia su oreja
         const sideOfPart = (P.x > st.part) ? 1 : -1;
         d.set(sideOfPart * 1.0, 0.15, -0.35 + 0.25 * front);
@@ -20168,7 +20170,7 @@
         d.set(Math.cos(phi) * 0.35, 0.20, -1.0 + 0.20 * (1 - front));   // hacia atrás
       }
       d.normalize();
-      const len = st.tail ? Math.max(0.05, root.distanceTo(nearestTail(st, root)) * 1.6)
+      const len = st.fixedLen ? st.fixedLen : st.tail ? Math.max(0.05, root.distanceTo(nearestTail(st, root)) * 1.6)
         : st.len * (0.80 + 0.40 * seed) * (u < 0.35 ? 1.05 : 1.0);
       const N = 16, step = len / N;
       const tailPt = st.tail ? nearestTail(st, P) : null;
@@ -20211,7 +20213,167 @@
       return pts;
     }
 
+    /* PEINADO ALEATORIO DE TIRAS POR ZONAS: el cuero cabelludo se divide en 4 (frente, lado izq., lado der., nuca)
+       o 5 zonas (+ coronilla). Cada zona tiene cantidad de tiras, orientación, largo y aleatoriedad (0 = todas en la
+       orientación elegida, 1 = dirección totalmente al azar) */
+    const HAIR_ZONE_ORIENTS = {
+      atras: 'Hacia atrás', adelante: 'Hacia delante', izquierda: 'Hacia la izquierda', derecha: 'Hacia la derecha',
+      abajo: 'Caída (abajo)', arriba: 'Punta (arriba)', radial: 'Abierta (radial)'
+    };
+    const HAIR_ZONE_NAMES = { frente: 'Frente', coronilla: 'Coronilla', izq: 'Lado izq.', der: 'Lado der.', nuca: 'Nuca' };
+    const HAIR_RANDOM_CFG = {
+      zones: 5, seed: 1234,
+      z: {
+        frente:    { n: 14, dir: 'atras', len: 16, rnd: 0.25 },
+        coronilla: { n: 12, dir: 'atras', len: 20, rnd: 0.25 },
+        izq:       { n: 12, dir: 'abajo', len: 14, rnd: 0.20 },
+        der:       { n: 12, dir: 'abajo', len: 14, rnd: 0.20 },
+        nuca:      { n: 14, dir: 'abajo', len: 16, rnd: 0.20 },
+      }
+    };
+    function hairZoneOf(u, phi, zones) {
+      if (zones === 5 && u < 0.42) return 'coronilla';
+      const s = Math.sin(phi), c = Math.cos(phi);
+      if (s > Math.abs(c)) return 'frente';
+      if (-s > Math.abs(c)) return 'nuca';
+      return c > 0 ? 'izq' : 'der';
+    }
+    function hairZoneDir(kind, phi, P) {
+      const c = Math.cos(phi), s = Math.sin(phi);
+      switch (kind) {
+        case 'adelante': return new THREE.Vector3(c * 0.2, -0.25, 1);
+        case 'izquierda': return new THREE.Vector3(1, 0.05, -0.2);
+        case 'derecha': return new THREE.Vector3(-1, 0.05, -0.2);
+        case 'abajo': return new THREE.Vector3(c * 0.35, -1, s * 0.35);
+        case 'arriba': { const n = new THREE.Vector3(); getCraniumOutwardNormal(P, n); return n.multiplyScalar(0.8).add(new THREE.Vector3(0, 0.6, 0)); }
+        case 'radial': return new THREE.Vector3(c, 0.1, s);
+        default: return new THREE.Vector3(c * 0.3, 0.15, -1);   // atrás
+      }
+    }
+    function generateRandomZoneHairstyle() {
+      clearHairMesh();
+      if (!HAIR_CONFIG.visible) return;
+      const cfg = HAIR_RANDOM_CFG;
+      let rnd = cfg.seed % 2147483647 || 1;
+      const R = () => { rnd = (rnd * 16807) % 2147483647; return (rnd - 1) / 2147483646; };
+      const geos = [];
+      const zoneKeys = cfg.zones === 5 ? ['frente', 'coronilla', 'izq', 'der', 'nuca'] : ['frente', 'izq', 'der', 'nuca'];
+      zoneKeys.forEach(zk => {
+        const Z = cfg.z[zk]; if (!Z || Z.n <= 0) return;
+        let placed = 0, tries = 0;
+        while (placed < Z.n && tries < Z.n * 40) {
+          tries++;
+          // raíz al azar repartida por área dentro de la zona
+          const u = cfg.zones === 5 && zk === 'coronilla' ? Math.sqrt(R()) * 0.42 : Math.sqrt(0.02 + R() * 0.98);
+          const phi = R() * Math.PI * 2;
+          if (hairZoneOf(u, phi, cfg.zones) !== zk) continue;
+          const root = scalpPoint(Math.min(0.98, u), phi);
+          const n = new THREE.Vector3(); getCraniumOutwardNormal(root, n);
+          let dir = hairZoneDir(Z.dir, phi, root).normalize();
+          // aleatoriedad: mezcla con una dirección tangente al azar
+          if (Z.rnd > 0) {
+            const rv = new THREE.Vector3(R() * 2 - 1, R() * 2 - 1, R() * 2 - 1).normalize();
+            rv.addScaledVector(n, -rv.dot(n)).normalize();
+            dir.lerp(rv, Z.rnd).normalize();
+          }
+          const seed = R();
+          const lenM = Z.len / 100 * (1 + (R() - 0.5) * (0.3 + 0.6 * Z.rnd));
+          const sst = { dirOverride: dir, fixedLen: Math.max(0.03, lenM), spiky: Z.dir === 'arriba' ? 'custom' : null, fall: 0.05, len: lenM };
+          const pts = buildStripPath(sst, root, phi, u, seed);
+          let arc = 0; for (let q = 1; q < pts.length; q++) arc += pts[q].distanceTo(pts[q - 1]);
+          const curlCol = THREE.MathUtils.clamp(Math.round(0.6 + Z.rnd * 2.0 + (seed - 0.5) * 1.6), 0, 3);
+          geos.push(buildHairSheetCard(pts, 0.055 * (0.85 + 0.3 * R()), 0.0045 + 0.0035 * R(), (arc < 0.10 ? 4 : 0) + curlCol, 0.75 + 0.25 * R(), seed, 0));
+          placed++;
+        }
+      });
+      if (!geos.length) return;
+      const merged = mergeIndexedGeometries(geos);
+      const mat = createAnisotropicHairShader(true, 0.20);
+      mat.uniforms.uAlphaMap = { value: getHairClumpAtlas() };
+      mat.uniforms.uTexContrast.value = 1.0;
+      mat.side = THREE.DoubleSide;
+      const mesh = new THREE.Mesh(merged, mat);
+      mesh.castShadow = true;
+      hairMeshGroup.add(mesh);
+      updateHairStatsUI(1, merged.index.count / 3, geos.length);
+    }
+    function randomizeZoneHairstyle(mode) {
+      const keys = Object.keys(HAIR_ZONE_ORIENTS);
+      const cfg = HAIR_RANDOM_CFG;
+      cfg.seed = 1 + Math.floor(Math.random() * 2147483000);
+      Object.values(cfg.z).forEach(Z => {
+        if (mode === 'total') {
+          Z.dir = keys[Math.floor(Math.random() * keys.length)];
+          Z.n = 6 + Math.floor(Math.random() * 18);
+          Z.len = 6 + Math.floor(Math.random() * 28);
+          Z.rnd = Math.round(Math.random() * 100) / 100;
+        } else {
+          // dentro de la orientación: misma dirección, varía cantidad/largo un poco y el reparto (semilla)
+          Z.n = THREE.MathUtils.clamp(Math.round(Z.n * (0.8 + Math.random() * 0.4)), 1, 40);
+          Z.len = THREE.MathUtils.clamp(Math.round(Z.len * (0.85 + Math.random() * 0.3)), 3, 40);
+        }
+      });
+      if (mode === 'total') cfg.zones = Math.random() < 0.5 ? 4 : 5;
+    }
+    function applyRandomZoneHairstyle() {
+      hairStripKey = 'tiras_aleatorio';
+      HAIR_CONFIG.cutStyle = 'tiras_aleatorio';
+      HAIR_CONFIG.technique = 'locks';
+      document.querySelectorAll('.hair-tech-btn').forEach(b => b.classList.toggle('active', b.dataset.tech === 'locks'));
+      rebuildCurrentHair();
+    }
+    function buildHairZoneUI() {
+      const anchor = document.querySelector('.hair-clump-btn');
+      if (!anchor || document.getElementById('hair-zone-panel')) return;
+      const host = anchor.parentElement.parentElement;
+      const panel = document.createElement('div');
+      panel.id = 'hair-zone-panel';
+      panel.className = 'mt-2 p-2 rounded-xl border border-cyan-500/20 bg-slate-950/60 space-y-1.5';
+      const opt = Object.entries(HAIR_ZONE_ORIENTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+      const row = (zk) => `<div class="hz-row grid grid-cols-12 gap-1 items-center text-[9px] text-slate-300" data-zone="${zk}">
+          <span class="col-span-2 font-semibold">${HAIR_ZONE_NAMES[zk]}</span>
+          <label class="col-span-2">Nº <input type="number" min="0" max="40" class="hz-n w-9 bg-slate-900 rounded px-1"></label>
+          <select class="hz-dir col-span-3 bg-slate-900 rounded px-0.5">${opt}</select>
+          <label class="col-span-2">cm <input type="number" min="3" max="40" class="hz-len w-9 bg-slate-900 rounded px-1"></label>
+          <label class="col-span-3">Azar <input type="range" min="0" max="100" class="hz-rnd w-full accent-cyan-500"></label>
+        </div>`;
+      panel.innerHTML = `<div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold text-cyan-300">🎲 Peinado Aleatorio de Tiras (por zonas)</span>
+          <select id="hz-zones" class="bg-slate-900 rounded text-[9px] px-1"><option value="4">4 zonas</option><option value="5">5 zonas</option></select>
+        </div>
+        ${['frente', 'coronilla', 'izq', 'der', 'nuca'].map(row).join('')}
+        <div class="grid grid-cols-3 gap-1">
+          <button id="hz-gen" class="px-1 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-[9px] font-bold text-white">Generar</button>
+          <button id="hz-rnd-dir" class="px-1 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[9px] font-bold text-white">Azar en orientación</button>
+          <button id="hz-rnd-all" class="px-1 py-1 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-[9px] font-bold text-white">Azar total</button>
+        </div>`;
+      host.appendChild(panel);
+      const sync = () => {
+        panel.querySelector('#hz-zones').value = String(HAIR_RANDOM_CFG.zones);
+        panel.querySelectorAll('.hz-row').forEach(r => {
+          const Z = HAIR_RANDOM_CFG.z[r.dataset.zone];
+          r.querySelector('.hz-n').value = Z.n; r.querySelector('.hz-dir').value = Z.dir;
+          r.querySelector('.hz-len').value = Z.len; r.querySelector('.hz-rnd').value = Math.round(Z.rnd * 100);
+          r.style.display = (HAIR_RANDOM_CFG.zones === 4 && r.dataset.zone === 'coronilla') ? 'none' : '';
+        });
+      };
+      const read = () => {
+        HAIR_RANDOM_CFG.zones = parseInt(panel.querySelector('#hz-zones').value, 10);
+        panel.querySelectorAll('.hz-row').forEach(r => {
+          const Z = HAIR_RANDOM_CFG.z[r.dataset.zone];
+          Z.n = parseInt(r.querySelector('.hz-n').value, 10) || 0; Z.dir = r.querySelector('.hz-dir').value;
+          Z.len = parseFloat(r.querySelector('.hz-len').value) || 10; Z.rnd = (parseInt(r.querySelector('.hz-rnd').value, 10) || 0) / 100;
+        });
+      };
+      sync();
+      panel.addEventListener('change', () => { read(); sync(); if (hairStripKey === 'tiras_aleatorio') applyRandomZoneHairstyle(); });
+      panel.querySelector('#hz-gen').addEventListener('click', () => { read(); applyRandomZoneHairstyle(); });
+      panel.querySelector('#hz-rnd-dir').addEventListener('click', () => { read(); randomizeZoneHairstyle('dir'); sync(); applyRandomZoneHairstyle(); });
+      panel.querySelector('#hz-rnd-all').addEventListener('click', () => { randomizeZoneHairstyle('total'); sync(); applyRandomZoneHairstyle(); });
+    }
+
     function generateStripHairstyle() {
+      if (hairStripKey === 'tiras_aleatorio') { generateRandomZoneHairstyle(); return; }
       clearHairMesh();
       const st = HAIR_STRIP_STYLES[hairStripKey];
       if (!st || !HAIR_CONFIG.visible) return;
@@ -20769,6 +20931,7 @@
 
       // --- HAIR RENDERING LAB UI EVENT LISTENERS ---
       document.querySelectorAll('.hair-clump-btn').forEach(btn => btn.addEventListener('click', () => setHairClumpAtlas(btn.dataset.clump)));
+      buildHairZoneUI();
       document.querySelectorAll('.hair-cut-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const cutKey = btn.dataset.cut;
