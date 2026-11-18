@@ -20319,7 +20319,7 @@
       Object.values(cfg.z).forEach(Z => {
         if (mode === 'total') {
           Z.dir = keys[Math.floor(Math.random() * keys.length)];
-          Z.n = 6 + Math.floor(Math.random() * 18);
+          Z.n = 30 + Math.floor(Math.random() * 16);   // aleatorio: mínimo 30 tiras por zona
           Z.len = 6 + Math.floor(Math.random() * 28);
           Z.lenVar = Math.round(Math.random() * 70) / 100;
           Z.w = Math.round((3 + Math.random() * 4) * 2) / 2;
@@ -20327,7 +20327,7 @@
           Z.rnd = Math.round(Math.random() * 100) / 100;
         } else {
           // dentro de la orientación: misma dirección, varía cantidad/largo un poco y el reparto (semilla)
-          Z.n = THREE.MathUtils.clamp(Math.round(Z.n * (0.8 + Math.random() * 0.4)), 1, 40);
+          Z.n = THREE.MathUtils.clamp(Math.round(Z.n * (0.8 + Math.random() * 0.4)), 30, 60);   // mínimo 30 tiras
           Z.len = THREE.MathUtils.clamp(Math.round(Z.len * (0.85 + Math.random() * 0.3)), 3, 40);
         }
       });
@@ -20353,7 +20353,7 @@
       const row = (zk) => `<div class="hz-row border-t border-white/5 pt-1 space-y-0.5 text-[9px] text-slate-300" data-zone="${zk}">
           <div class="grid grid-cols-12 gap-1 items-center">
             <span class="col-span-3 font-semibold text-cyan-200">${HAIR_ZONE_NAMES[zk]}</span>
-            <label class="col-span-2 flex items-center gap-0.5">Nº ${num('hz-n', 0, 40, 1).replace('w-10', 'w-8')}</label>
+            <label class="col-span-2 flex items-center gap-0.5">Nº ${num('hz-n', 0, 60, 1).replace('w-10', 'w-8')}</label>
             <select class="hz-dir col-span-4 bg-slate-900 rounded px-0.5">${opt}</select>
             <label class="col-span-3 flex items-center gap-0.5" title="Aleatoriedad de la dirección">Dir ${pct('hz-rnd')}</label>
           </div>
