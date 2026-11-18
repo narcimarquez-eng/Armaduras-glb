@@ -68,7 +68,7 @@ def main():
             'eyeWidth': round(c.get('eyeWidthK', 0.40) * (eR - eL), 1), 'lidOpen': c.get('lidOpen', 0.80),
             'browY': round(EY - Fd * 0.13, 1), 'noseY': round(EY + Fd * 0.45, 1),
             'mouthL': [round(mL, 1), round(mY, 1)], 'mouthR': [round(mR, 1), round(mY, 1)],
-            'colors': {'eyes': hexc(iris), **c.get('colors', {}), 'skin': mid_to_body(skin), 'lips': hexc(lips)},
+            'colors': {'eyes': hexc(iris), **c.get('colors', {}), 'skin': c.get('skinOverride') or mid_to_body(skin), 'lips': hexc(lips)},   # skinOverride: calibrado en render (mejilla = cuello)
         }
         print(fid, round(s, 3), defs['ind_' + fid]['colors'])
     json.dump(defs, open(os.path.join(TEX, 'rostros_individuales.json'), 'w'), ensure_ascii=False, indent=1)
