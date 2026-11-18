@@ -349,5 +349,161 @@
    "skin": "#6d4232",
    "lips": "#a57463"
   }
+ },
+ "ind_mujer_palida": {
+  "label": "Guerrera pálida",
+  "gender": "mujer",
+  "hairCut": "raya_medio_lisa",
+  "url": "textures/rostro_ind_mujer_palida.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   125.4,
+   219.0
+  ],
+  "eyeR": [
+   284.6,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 60.5,
+  "lidOpen": 0.68,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   150.2,
+   372.9
+  ],
+  "mouthR": [
+   266.9,
+   372.9
+  ],
+  "colors": {
+   "eyes": "#8ea6bd",
+   "hairRoot": "#2a2420",
+   "hairTip": "#4a3e36",
+   "hairHigh": "#8a7a6c",
+   "skin": "#e0b6ab",
+   "lips": "#cba4a2"
+  }
+ },
+ "ind_mujer_tatuaje": {
+  "label": "Guerrera del tatuaje",
+  "gender": "mujer",
+  "hairCut": "trenzas_laterales",
+  "url": "textures/rostro_ind_mujer_tatuaje.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   126.0,
+   219.0
+  ],
+  "eyeR": [
+   284.0,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 60.0,
+  "lidOpen": 0.68,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   143.1,
+   370.1
+  ],
+  "mouthR": [
+   266.9,
+   370.1
+  ],
+  "colors": {
+   "eyes": "#5a4434",
+   "hairRoot": "#120c0a",
+   "hairTip": "#22170f",
+   "hairHigh": "#4a3424",
+   "skin": "#9a6753",
+   "lips": "#6a392b"
+  }
+ },
+ "ind_mujer_cicatrices": {
+  "label": "Guerrera de las cicatrices",
+  "gender": "mujer",
+  "hairCut": "coleta_alta",
+  "url": "textures/rostro_ind_mujer_cicatrices.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   124.7,
+   219.0
+  ],
+  "eyeR": [
+   285.3,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 61.0,
+  "lidOpen": 0.68,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   141.6,
+   375.3
+  ],
+  "mouthR": [
+   297.9,
+   375.3
+  ],
+  "colors": {
+   "eyes": "#7f8a72",
+   "hairRoot": "#3a2416",
+   "hairTip": "#5e3a22",
+   "hairHigh": "#a06a42",
+   "skin": "#946153",
+   "lips": "#ae6f64"
+  }
+ },
+ "ind_mujer_pintura": {
+  "label": "Guerrera de pintura de guerra",
+  "gender": "mujer",
+  "hairCut": "trenzas_laterales",
+  "url": "textures/rostro_ind_mujer_pintura.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   132.3,
+   219.0
+  ],
+  "eyeR": [
+   277.7,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 55.2,
+  "lidOpen": 0.68,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   144.8,
+   376.8
+  ],
+  "mouthR": [
+   273.5,
+   376.8
+  ],
+  "colors": {
+   "eyes": "#4a3020",
+   "hairRoot": "#0e0a08",
+   "hairTip": "#1c1410",
+   "hairHigh": "#3a2a20",
+   "skin": "#593a2d",
+   "lips": "#ad7b61"
+  }
  }
 }

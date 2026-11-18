@@ -313,5 +313,165 @@
    "hairHigh": "#5a4438"
   },
   "skinOverride": "#6d4232"
+ },
+ "mujer_palida": {
+  "archivo": "mascaras_mujer_4.jpg",
+  "gender": "mujer",
+  "contour": false,
+  "erode": 5,
+  "lidOpen": 0.68,
+  "eyeWidthK": 0.38,
+  "label": "Guerrera pálida",
+  "hairCut": "raya_medio_lisa",
+  "crop": [
+   370,
+   30,
+   760,
+   560
+  ],
+  "eyeL": [
+   470,
+   258
+  ],
+  "eyeR": [
+   650,
+   258
+  ],
+  "mouthL": [
+   498,
+   432
+  ],
+  "mouthR": [
+   630,
+   432
+  ],
+  "chinY": 535,
+  "colors": {
+   "eyes": "#8ea6bd",
+   "hairRoot": "#2a2420",
+   "hairTip": "#4a3e36",
+   "hairHigh": "#8a7a6c"
+  },
+  "skinOverride": "#e0b6ab"
+ },
+ "mujer_tatuaje": {
+  "archivo": "mascaras_mujer_4.jpg",
+  "gender": "mujer",
+  "contour": false,
+  "erode": 5,
+  "lidOpen": 0.68,
+  "eyeWidthK": 0.38,
+  "label": "Guerrera del tatuaje",
+  "hairCut": "trenzas_laterales",
+  "crop": [
+   1240,
+   30,
+   1640,
+   560
+  ],
+  "eyeL": [
+   1335,
+   248
+  ],
+  "eyeR": [
+   1520,
+   248
+  ],
+  "mouthL": [
+   1355,
+   425
+  ],
+  "mouthR": [
+   1500,
+   425
+  ],
+  "chinY": 535,
+  "colors": {
+   "eyes": "#5a4434",
+   "hairRoot": "#120c0a",
+   "hairTip": "#22170f",
+   "hairHigh": "#4a3424"
+  },
+  "skinOverride": "#9a6753"
+ },
+ "mujer_cicatrices": {
+  "archivo": "mascaras_mujer_4.jpg",
+  "gender": "mujer",
+  "contour": false,
+  "erode": 5,
+  "lidOpen": 0.68,
+  "eyeWidthK": 0.38,
+  "label": "Guerrera de las cicatrices",
+  "hairCut": "coleta_alta",
+  "crop": [
+   350,
+   560,
+   770,
+   1100
+  ],
+  "eyeL": [
+   445,
+   780
+  ],
+  "eyeR": [
+   635,
+   780
+  ],
+  "mouthL": [
+   465,
+   965
+  ],
+  "mouthR": [
+   650,
+   965
+  ],
+  "chinY": 1070,
+  "colors": {
+   "eyes": "#7f8a72",
+   "hairRoot": "#3a2416",
+   "hairTip": "#5e3a22",
+   "hairHigh": "#a06a42"
+  },
+  "skinOverride": "#946153"
+ },
+ "mujer_pintura": {
+  "archivo": "mascaras_mujer_4.jpg",
+  "gender": "mujer",
+  "contour": false,
+  "erode": 5,
+  "lidOpen": 0.68,
+  "eyeWidthK": 0.38,
+  "label": "Guerrera de pintura de guerra",
+  "hairCut": "trenzas_laterales",
+  "crop": [
+   1240,
+   560,
+   1640,
+   1100
+  ],
+  "eyeL": [
+   1360,
+   780
+  ],
+  "eyeR": [
+   1535,
+   780
+  ],
+  "mouthL": [
+   1375,
+   970
+  ],
+  "mouthR": [
+   1530,
+   970
+  ],
+  "chinY": 1075,
+  "colors": {
+   "eyes": "#4a3020",
+   "hairRoot": "#0e0a08",
+   "hairTip": "#1c1410",
+   "hairHigh": "#3a2a20"
+  },
+  "skinOverride": "#593a2d"
  }
 }
