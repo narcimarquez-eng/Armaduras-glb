@@ -64,6 +64,9 @@ def mid_to_body(mid, k=0.44, s=1.8):
     # misma fórmula que faceMidToBodySkin del estudio
     c = (np.asarray(mid) / 255.0) ** 2.2
     L = c @ LUM
+    # menos refuerzo de saturación si algún canal se iría a cero (pieles muy cálidas)
+    while s > 1.0 and (L + s * (c - L)).min() < 0.25 * L:
+        s -= 0.05
     o = np.clip(k * (L + s * (c - L)), 0, 1) ** (1 / 2.2)
     return hexc(o * 255)
 
@@ -80,7 +83,8 @@ def median_patch(a, pts, r):
 
 
 def main():
-    lm = json.load(open(os.path.join(REF, 'anclajes_detectados.json')))
+    # anclajes medidos a mano sobre rejilla (ojos, boca y barbilla) dentro del recorte 520x550 de cada retrato
+    lm = json.load(open(os.path.join(REF, 'anclajes.json')))
     masks = {k: np.asarray(Image.open(os.path.join(TEX, f'rostro_{k}.png')))[..., 3] for k in ('guerrero', 'elfa')}
     defs = {}
     for fid, (label, gender, cut, beard) in FACES.items():
@@ -91,7 +95,7 @@ def main():
         ox, oy = CX_COL[c] - 260, CY_ROW[r] - 290
         exL, exR, ey = L['eyeL'][0] + ox, L['eyeR'][0] + ox, L['eyeL'][1] + oy
         ex = 0.5 * (exL + exR)
-        F = (L['mouth'] - L['eyeL'][1]) * 1.52          # ojos -> barbilla (la boca está al 66%)
+        F = L['chin'] - L['eyeL'][1]                 # ojos -> barbilla (medido)
         s = (CHIN - EY) / F
         # transformación inversa: pixel destino -> lámina
         out = img.transform((W, H), Image.AFFINE, (1 / s, 0, ex - CX / s, 0, 1 / s, ey - EY / s), resample=Image.BICUBIC)
@@ -100,7 +104,10 @@ def main():
         # el papel de la lámina (beige claro y poco saturado) no es rostro: transparente
         paper = np.median(np.asarray(img).reshape(-1, 3)[::97], 0)
         dpap = np.linalg.norm(a - paper, axis=2)
-        mask = mask * np.clip((dpap - 18.0) / 30.0, 0, 1)
+        # solo fuera del óvalo de la cara (la piel clara se parece al papel)
+        yy, xx = np.mgrid[0:H, 0:W]
+        outer = (((xx - CX) / 150.0) ** 2 + ((yy - 250.0) / 245.0) ** 2) > 1.0
+        mask = np.where(outer, mask * np.clip((dpap - 18.0) / 30.0, 0, 1), mask)
         mask = np.asarray(Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32) / 255.0
         rgba = np.dstack([a, mask * 255]).clip(0, 255).astype(np.uint8)
         name = f'rostro_lam_{fid}.png'
@@ -112,7 +119,7 @@ def main():
         mw = 0.41 * (eR - eL)
         # colores
         hw = (eR - eL) / 2
-        skin = median_patch(a, [(CX - hw * 1.05, EY + Fd * 0.30), (CX + hw * 1.05, EY + Fd * 0.30), (CX, EY - Fd * 0.45)], Fd * 0.06)
+        skin = median_patch(a, [(CX - hw * 0.95, EY + Fd * 0.30), (CX + hw * 0.95, EY + Fd * 0.30), (CX, EY - Fd * 0.25)], Fd * 0.05)
         lips = median_patch(a, [(CX, mouthY + 6)], 5)
         iris = []
         for x in (eL, eR):
@@ -128,7 +135,7 @@ def main():
             'label': label, 'gender': gender, 'hairCut': cut,
             **({'beardExt': beard} if beard > 0 else {}),
             'url': 'textures/' + name, 'size': [W, H],
-            'eyeL': [round(eL, 1), EY], 'eyeR': [round(eR, 1), EY], 'chinY': CHIN, 'eyeWidth': round(0.42 * (eR - eL), 1),
+            'eyeL': [round(eL, 1), EY], 'eyeR': [round(eR, 1), EY], 'chinY': CHIN, 'eyeWidth': round(0.36 * (eR - eL), 1), 'lidOpen': 0.72,   # ojos almendrados y más cerrados que las ilustraciones anteriores
             'browY': round(EY - Fd * 0.13, 1), 'noseY': round(EY + Fd * 0.45, 1),
             'mouthL': [round(CX - mw, 1), round(mouthY, 1)], 'mouthR': [round(CX + mw, 1), round(mouthY, 1)],
             'colors': {'hairRoot': hexc(q(0.15)), 'hairTip': hexc(q(0.45)), 'hairHigh': hexc(q(0.85)),
