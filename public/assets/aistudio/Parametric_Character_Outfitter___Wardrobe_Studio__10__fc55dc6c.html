@@ -555,6 +555,26 @@
               <span>🎞️ Puntas de Héroe (Tiras)</span>
               <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
             </button>
+            <button data-cut="tiras_heroe_atras" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>⚡ Puntas hacia Atrás</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras en Punta</span>
+            </button>
+            <button data-cut="tiras_heroe_flequillo" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>⚡ Puntas con Flequillo</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras en Punta</span>
+            </button>
+            <button data-cut="tiras_heroe_lado" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>⚡ Puntas al Lado</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras en Punta</span>
+            </button>
+            <button data-cut="tiras_heroe_erizo" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>⚡ Erizo Corto</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras en Punta</span>
+            </button>
+            <button data-cut="tiras_heroe_largo" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
+              <span>⚡ Puntas Largas</span>
+              <span class="text-[8px] text-slate-400 font-normal">Tiras en Punta</span>
+            </button>
             <button data-cut="tiras_coleta" class="hair-cut-btn p-2 rounded-xl text-left border border-white/5 bg-slate-950/70 text-slate-300 hover:text-white text-[10px] font-semibold flex flex-col gap-0.5">
               <span>🎞️ Coleta Baja (Tiras)</span>
               <span class="text-[8px] text-slate-400 font-normal">Tiras Anchas y Largas</span>
@@ -20041,7 +20061,12 @@
       tiras_atras:     { name: 'Melena Peinada hacia Atrás', len: 0.30, width: 0.062, curl: 0.0, wave: 0.0 },
       tiras_raya_lado: { name: 'Melena con Raya al Lado',    len: 0.27, width: 0.074, curl: 0.2, wave: 0.0, part: 0.035 },
       tiras_ondas:     { name: 'Melena Larga Ondulada',      len: 0.38, width: 0.064, curl: 1.0, wave: 0.020 },
-      tiras_heroe:     { name: 'Puntas de Héroe (Anime)',    len: 0.15, width: 0.058, curl: 0.0, wave: 0.0, spiky: true },
+      tiras_heroe:     { name: 'Puntas de Héroe (Anime)',    len: 0.15, width: 0.058, curl: 0.0, wave: 0.0, spiky: 'radial' },
+      tiras_heroe_atras:    { name: 'Puntas hacia Atrás',          len: 0.17, width: 0.060, curl: 0.0, wave: 0.0, spiky: 'back', fall: 0.03 },
+      tiras_heroe_flequillo:{ name: 'Puntas con Flequillo',        len: 0.15, width: 0.058, curl: 0.0, wave: 0.0, spiky: 'back', fringe: true },
+      tiras_heroe_lado:     { name: 'Puntas Barridas al Lado',     len: 0.16, width: 0.060, curl: 0.0, wave: 0.0, spiky: 'side', fringe: true },
+      tiras_heroe_erizo:    { name: 'Erizo de Puntas Cortas',      len: 0.09, width: 0.050, curl: 0.0, wave: 0.0, spiky: 'up', dense: 1.5 },
+      tiras_heroe_largo:    { name: 'Puntas Largas Caídas',        len: 0.26, width: 0.062, curl: 0.0, wave: 0.0, spiky: 'radial', fall: 0.45, fringe: true },
       tiras_coleta:    { name: 'Coleta Baja Recogida',       len: 0.34, width: 0.056, curl: 0.2, wave: 0.0, tail: true },
       tiras_media:     { name: 'Media Melena Desfilada',     len: 0.17, width: 0.058, curl: 0.4, wave: 0.006 },
     };
@@ -20071,6 +20096,21 @@
         // raya a un lado: todo cae hacia el lado contrario, el lado corto hacia su oreja
         const sideOfPart = (P.x > st.part) ? 1 : -1;
         d.set(sideOfPart * 1.0, 0.15, -0.35 + 0.25 * front);
+      } else if (st.contour) {
+        // mechón del contorno: nace en el borde y baja pegado, tapando el límite del cuero cabelludo
+        // frente: se peina hacia atrás/al lado (no tapa la frente como una cinta); lados y nuca: bajan pegados
+        if (st.tail) d.set(Math.cos(phi) * 0.2, -0.3, -1.0);
+        else if (front > 0.45) d.set(Math.cos(phi) * 0.9, 0.25, -0.55);
+        else d.set(Math.cos(phi) * 0.30, -0.80, Math.sin(phi) * 0.30 - 0.25);
+      } else if (st.fringe && front > 0.55 && u > 0.55) {
+        // flequillo en punta que cae sobre la frente
+        d.set(Math.cos(phi) * 0.45 + (st.spiky === 'side' ? 0.5 : 0), -0.55, 0.65);
+      } else if (st.spiky === 'back') {
+        d.set(Math.cos(phi) * 0.35, 0.55, -0.9);
+      } else if (st.spiky === 'side') {
+        d.set(1.0, 0.40, Math.sin(phi) * 0.3 - 0.35);
+      } else if (st.spiky === 'up') {
+        d.copy(n).multiplyScalar(0.8); d.y += 0.6;
       } else if (st.spiky) {
         d.set(Math.cos(phi) * 0.8, 0.45, Math.sin(phi) * 0.9 - 0.2);
       } else if (st.tail) {
@@ -20088,15 +20128,16 @@
         getCraniumOutwardNormal(P, nn);
         // gravedad creciente: primero se pega y sigue el cráneo, luego cae
         // gravedad: el mechón cae (las tiras son largas y pesan); en puntas de héroe casi no cae
-        d.y -= st.spiky ? 0.05 * t : (0.10 + 0.55 * t);
+        const isFringe = st.fringe && front > 0.55 && u > 0.55;
+        d.y -= st.contour ? (front > 0.45 ? 0.04 : 0.18) : (isFringe ? 0.12 : (st.spiky ? (st.fall ?? 0.05) * (0.3 + t) : (0.10 + 0.55 * t)));
         // pegado al cráneo mientras está encima de él: sigue su curvatura en vez de salir volando
-        if (P.y > 0.05 && !(st.spiky && t > 0.45)) {
+        if (P.y > 0.05 && !(st.spiky && !st.contour && !isFringe && t > 0.45)) {
           const out = d.dot(nn);
           if (out > 0) d.addScaledVector(nn, -out * 0.9);
         }
         if (st.tail) { const toT = tailPt.clone().sub(P); if (P.y > tailPt.y + 0.01) d.lerp(toT.normalize(), 0.35); else d.set(0, -1, -0.12); }
         if (st.wave) d.addScaledVector(new THREE.Vector3(side * Math.cos(phi), 0, Math.sin(phi)), Math.sin(t * Math.PI * 3.0 + seed * 6.0) * st.wave * 6.0);
-        if (st.spiky && t > 0.45) d.addScaledVector(nn, 0.12);
+        if (st.spiky && !st.contour && !isFringe && t > 0.45) d.addScaledVector(nn, 0.12);
         d.normalize();
         P.addScaledVector(d, step);
         // no atravesar el cráneo ni la cara: empuje hacia fuera y quitar la componente entrante
@@ -20105,7 +20146,7 @@
         const inward = d.dot(nn);
         if (inward < 0 && P.y > 0.03) d.addScaledVector(nn, -inward * 0.8).normalize();
         // la cara queda despejada: lo que cae por delante se aparta hacia el lado
-        if (!st.spiky && P.z > 0.06 && P.y < 0.17 && Math.abs(P.x) < 0.075) { P.x += side * 0.004; d.x += side * 0.5; d.z -= 0.3; d.normalize(); }
+        if (!isFringe && P.z > 0.06 && P.y < 0.17 && Math.abs(P.x) < 0.075) { P.x += side * 0.004; d.x += side * 0.5; d.z -= 0.3; d.normalize(); }
         pts.push(P.clone());
       }
       pts.isBangStrand = false; pts.partingSign = side;
@@ -20122,7 +20163,7 @@
       // anillos concéntricos de raíces de la coronilla al borde; cada tira es ancha (5-7 cm) y larga
       const rings = [0.12, 0.32, 0.52, 0.72, 0.90];
       rings.forEach((u, ri) => {
-        const cnt = Math.round((6 + ri * 5) * (st.part !== undefined ? 1.35 : 1.0));
+        const cnt = Math.round((6 + ri * 5) * (st.part !== undefined ? 1.35 : 1.0) * (st.dense || 1));
         for (let k = 0; k < cnt; k++) {
           const phi = (k + 0.5 * (ri % 2) + (R() - 0.5) * 0.4) / cnt * Math.PI * 2;
           const root = scalpPoint(u, phi);
@@ -20137,6 +20178,19 @@
           geos.push(buildHairSheetCard(pts, w, 0.001 + ri * 0.0012, variant, 0.65 + ri * 0.08, seed, 0));
         }
       });
+      // CONTORNO: siempre una corona de mechones en el borde del pelo (frente, sienes, patillas y nuca),
+      // así el límite del peinado es un mechón y no el borde del cuero cabelludo
+      {
+        const cst = Object.assign({}, st, { contour: true, len: Math.min(0.085, Math.max(0.045, st.len * 0.40)) });
+        const cnt = 30;
+        for (let k = 0; k < cnt; k++) {
+          const phi = (k + 0.5) / cnt * Math.PI * 2;
+          const seed = R();
+          const pts = buildStripPath(cst, scalpPoint(0.90, phi), phi, 0.90, seed);
+          const col = THREE.MathUtils.clamp(Math.round((st.spiky ? 0.6 : 1.0) + (seed - 0.5) * 1.6), 0, 3);
+          geos.push(buildHairSheetCard(pts, 0.040 * (0.85 + 0.3 * R()), 0.0015, 4 + col, 0.95, seed, 0));
+        }
+      }
       // coleta: haz de tiras largas que cuelga desde la nuca
       if (st.tail) {
         const base = new THREE.Vector3(0, 0.03, -0.14);
