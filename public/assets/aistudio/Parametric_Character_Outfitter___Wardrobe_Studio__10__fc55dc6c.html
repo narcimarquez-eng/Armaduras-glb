@@ -23512,7 +23512,7 @@ const NOSE_TYPES = {
   recta:     { label: 'Recta',               alaW: 1.00, alaSize: 1.00, flare: 0.40, bridgeW: 1.00, tipW: 1.00, proj: 1.00, tipUp: 0.00, hump: 0.00, scoop: 0.00 },
   ancha:     { label: 'Ancha / Chata',       alaW: 1.28, alaSize: 1.25, flare: 0.52, bridgeW: 1.35, tipW: 1.30, proj: 0.80, tipUp: 0.02, hump: 0.00, scoop: 0.03 },
   carnosa:   { label: 'Carnosa (punta redonda)', alaW: 1.18, alaSize: 1.15, flare: 0.46, bridgeW: 1.15, tipW: 1.45, proj: 0.95, tipUp: 0.00, hump: 0.00, scoop: 0.00 },
-  aguilena:  { label: 'Aguileña',            alaW: 1.02, alaSize: 0.95, flare: 0.36, bridgeW: 1.05, tipW: 0.95, proj: 1.06, tipUp: -0.04, hump: 0.08, scoop: 0.00 },
+  aguilena:  { label: 'Aguileña',            alaW: 1.02, alaSize: 0.95, flare: 0.36, bridgeW: 1.05, tipW: 0.95, proj: 1.32, tipUp: -0.04, hump: 0.08, scoop: 0.00 },
   romana:    { label: 'Romana',              alaW: 1.10, alaSize: 1.05, flare: 0.40, bridgeW: 1.20, tipW: 1.05, proj: 1.04, tipUp: -0.02, hump: 0.04, scoop: 0.00 },
   respingona:{ label: 'Respingona',          alaW: 0.98, alaSize: 0.95, flare: 0.40, bridgeW: 0.95, tipW: 0.98, proj: 0.92, tipUp: 0.09, hump: 0.00, scoop: 0.09 },
   boton:     { label: 'Botón (pequeña)',     alaW: 1.00, alaSize: 1.00, flare: 0.44, bridgeW: 0.92, tipW: 1.25, proj: 0.78, tipUp: 0.04, hump: 0.00, scoop: 0.05 },
@@ -24970,7 +24970,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const rootY = canon.noseRootY, baseY = canon.noseBaseY;
     const L = rootY - baseY;
     // proyección de la punta: en los perfiles de referencia la punta sale ≈ 0,4F por delante del filtrum
-    const proj = 0.33 * F * (1 - 0.08 * canon.fem) * NT.proj;
+    const proj = 0.26 * F * (1 - 0.08 * canon.fem) * NT.proj;   // tabique más bajo (la aguileña lo compensa con su proj)
     const tipY = baseY + (0.20 + 0.04 * canon.fem + NT.tipUp) * L; // punta algo respingona en rostros femeninos
     const tTip = (rootY - tipY) / L;
     const alaHalf = canon.noseAlaHalf * (1 - 0.05 * canon.fem) * NT.alaW;
@@ -24988,7 +24988,7 @@ function buildSculptedHeadGroup(caraCfg, mats) {
         const tc = clampV(t, 0, 1);
         let ridge;
         // dorso RECTO desde la raíz (entre las cejas, ya con algo de relieve: sin silla de montar) hasta la punta
-        if (tc <= tTip) ridge = proj * (0.20 + 0.76 * Math.pow(tc / tTip, 1.15));
+        if (tc <= tTip) ridge = proj * (0.10 + 0.86 * Math.pow(tc / tTip, 1.35));
         else ridge = proj * 0.96 * Math.pow(Math.cos(((tc - tTip) / (1 - tTip)) * Math.PI * 0.5), 0.8);
         // Giba (aguileña/romana) y dorso cóncavo (respingona)
         ridge += proj * NT.hump * Math.exp(-Math.pow((tc - 0.42) / 0.16, 2));
@@ -25007,7 +25007,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       const dxa = ax - alaX, dya = y - alaY;
       const ua = (dxa * 0.92 + dya * 0.40) / (alaRx * 1.25), va = (-dxa * 0.40 + dya * 0.92) / (alaRy * 0.95);
       const qa = ua * ua + va * va;
-      const ha = (proj / NT.proj) * NT.flare * Math.pow(Math.max(0, 1 - qa), 1.35);
+      // aletas casi a ras: con la nariz actual sobresalían como dos bolas a los lados de la punta
+      const ha = 0.30 * (proj / NT.proj) * NT.flare * Math.pow(Math.max(0, 1 - qa), 1.35);
       // Surco alar: ligera hendidura entre aleta y punta
       const groove = 0.0012 * Math.exp(-Math.pow((ax - (alaX - alaRx * 0.75)) / 0.0018, 2)) * sstep(y, alaY + alaRy, alaY - alaRy * 0.2);
       // (la unión suave suma un pequeño desfase incluso con relieve nulo: se descuenta)
