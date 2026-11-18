@@ -108,13 +108,46 @@
             <option value="ref_guerrero">🗡️ Guerrero barbado</option>
             <option value="ref_anciano">🧔 Anciano guerrero</option>
             <option value="ref_drow_hombre">🌑 Elfo oscuro</option>
+            <option value="lam_18_01">🎨 Guerrero de la estepa</option>
+            <option value="lam_18_02">🎨 Guerrero de trenzas</option>
+            <option value="lam_18_12">🎨 Guerrero tatuado</option>
+            <option value="lam_19_01">🎨 Orco veterano</option>
+            <option value="lam_19_11">🎨 Enano barbirrojo</option>
+            <option value="lam_19_12">🎨 Elfo oscuro marcado</option>
+            <option value="lam_21_00">🎨 Mercenario de pelo largo</option>
+            <option value="lam_21_01">🎨 Viejo tuerto</option>
+            <option value="lam_21_02">🎨 Bárbaro pintado</option>
+            <option value="lam_21_10">🎨 Explorador tuerto</option>
+            <option value="lam_21_11">🎨 Asesino rapado</option>
+            <option value="lam_21_12">🎨 Luchador rizado</option>
+            <option value="lam_22_00">🎨 Mercenario barbado</option>
+            <option value="lam_22_01">🎨 Viejo tuerto barbado</option>
+            <option value="lam_22_02">🎨 Bárbaro barbudo</option>
+            <option value="lam_22_10">🎨 Explorador tuerto barbado</option>
+            <option value="lam_22_11">🎨 Asesino de perilla</option>
+            <option value="lam_22_12">🎨 Luchador barbudo</option>
           </optgroup>
           <optgroup label="Mujeres">
             <option value="ref_mujer">🖼️ Guerrera de trenzas</option>
             <option value="ref_elfa">✨ Elfa de la luz</option>
             <option value="ref_drow_mujer">🌑 Elfa oscura</option>
+            <option value="lam_18_00">🎨 Nómada encapuchada</option>
+            <option value="lam_18_10">🎨 Druida pelirroja</option>
+            <option value="lam_18_11">🎨 Dama de los palillos</option>
+            <option value="lam_19_00">🎨 Elfa oscura de la diadema</option>
+            <option value="lam_19_02">🎨 Enana pelirroja</option>
+            <option value="lam_19_10">🎨 Elfa plateada</option>
+            <option value="lam_20_00">🎨 Guerrera de trenzas doradas</option>
+            <option value="lam_20_01">🎨 Cazadora de plumas</option>
+            <option value="lam_20_02">🎨 Hechicera de plata</option>
+            <option value="lam_20_10">🎨 Pirata tuerta</option>
+            <option value="lam_20_11">🎨 Asesina de pelo corto</option>
+            <option value="lam_20_12">🎨 Escudera rubia</option>
           </optgroup>
         </select>
+        <label class="flex items-center gap-1 text-[9px] text-slate-400 cursor-pointer" title="Por defecto, cada personaje aleatorio lleva un rostro texturizado de su género. Marca esto para ver el modelo 3D base sin textura.">
+          <input id="face-tex-base" type="checkbox" class="accent-amber-500"> Mostrar modelo base (sin textura de rostro)
+        </label>
         <div class="flex gap-1">
           <button id="btn-face-tex-upload" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Carga una foto o dibujo frontal y marca ojos y barbilla">Cargar imagen…</button>
           <button id="btn-face-tex-template" class="glass-btn flex-1 py-1 rounded-lg text-[9px] text-slate-200" title="Descarga la plantilla del canon (512×600) para pintar o alinear un rostro">Plantilla</button>
@@ -21779,6 +21812,30 @@
         generateCreador3DHumanoGLB('keep', false);
       };
       if (faceTexSel) faceTexSel.addEventListener('change', (e) => applyFaceTextureKey(e.target.value));
+      // Al generar un personaje (aleatorio o arquetipo) se le pone por defecto un rostro texturizado de su género;
+      // el modelo base sin textura solo se ve marcando 'Mostrar modelo base'
+      const faceTexBase = document.getElementById('face-tex-base');
+      window.__autoFaceTexture = (archetype) => {
+        const CH = window.CreadorHumano; if (!CH || !faceTexSel) return;
+        const adult = (CH.CONFIG.piernas.length ?? 1) >= 0.88 && archetype !== 'nino' && archetype !== 'nina';
+        if ((faceTexBase && faceTexBase.checked) || !adult) {
+          if (CH.CONFIG.cara.faceTexture) { faceTexSel.value = ''; applyFaceTextureKey(''); }
+          return;
+        }
+        const fem = archetype === 'mujer' || archetype === 'anciana' || (archetype !== 'hombre' && archetype !== 'anciano' && (CH.CONFIG.cara.feminine || 0) > 0.5);
+        const old = archetype === 'anciano' || archetype === 'anciana';
+        const pool = Object.entries(CH.FACE_TEXTURES || {}).filter(([k, v]) => v && v.gender === (fem ? 'mujer' : 'hombre'));
+        const olds = pool.filter(([k, v]) => /anciano|viejo/i.test(k + ' ' + v.label));
+        const list = old && olds.length ? olds : pool;
+        if (!list.length) return;
+        const key = list[Math.floor(Math.random() * list.length)][0];
+        faceTexSel.value = key;
+        applyFaceTextureKey(key);
+      };
+      if (faceTexBase) faceTexBase.addEventListener('change', () => {
+        if (faceTexBase.checked) { faceTexSel.value = ''; applyFaceTextureKey(''); }
+        else window.__autoFaceTexture(document.getElementById('human-archetype-select')?.value || 'random');
+      });
       // Visor de piezas del catálogo (piezas/*.glb)
       const catSlotSel = document.getElementById('catalog-slot-select');
       const catPieceSel = document.getElementById('catalog-piece-select');
@@ -23980,6 +24037,39 @@ const FACE_TEXTURES = {
     colors: { hairRoot: '#644d3d', hairTip: '#99806f', hairHigh: '#d6bfaa', skin: '#e0aa87', lips: '#e2998c', eyes: '#4c372d' },
   },
 };
+// Rostros de las láminas de retratos (tools/piezas/crear_rostros_lamina.py)
+Object.assign(FACE_TEXTURES, {
+  lam_18_00: {"label": "Nómada encapuchada", "gender": "mujer", "hairCut": "trenzas_laterales", "url": "textures/rostro_lam_18_00.png", "size": [410, 543], "eyeL": [137.6, 219.0], "eyeR": [272.4, 219.0], "chinY": 464.0, "eyeWidth": 56.6, "browY": 187.2, "noseY": 329.2, "mouthL": [149.7, 380.2], "mouthR": [260.3, 380.2], "colors": {"hairRoot": "#191515", "hairTip": "#281d1b", "hairHigh": "#3d3633", "skin": "#955000", "lips": "#432a21", "eyes": "#1f1410"}},
+  lam_18_01: {"label": "Guerrero de la estepa", "gender": "hombre", "hairCut": "coleta_alta", "beardExt": 0.15, "url": "textures/rostro_lam_18_01.png", "size": [410, 543], "eyeL": [144.6, 219.0], "eyeR": [265.4, 219.0], "chinY": 464.0, "eyeWidth": 50.8, "browY": 187.2, "noseY": 329.2, "mouthL": [155.4, 380.2], "mouthR": [254.6, 380.2], "colors": {"hairRoot": "#151419", "hairTip": "#221e1d", "hairHigh": "#6a5a4b", "skin": "#783900", "lips": "#4f332a", "eyes": "#332420"}},
+  lam_18_02: {"label": "Guerrero de trenzas", "gender": "hombre", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_18_02.png", "size": [410, 543], "eyeL": [147.7, 219.0], "eyeR": [262.3, 219.0], "chinY": 464.0, "eyeWidth": 48.2, "browY": 187.2, "noseY": 329.2, "mouthL": [158.0, 380.2], "mouthR": [252.0, 380.2], "colors": {"hairRoot": "#151112", "hairTip": "#261d1a", "hairHigh": "#e2c394", "skin": "#47200c", "lips": "#2c1d19", "eyes": "#221a17"}},
+  lam_18_10: {"label": "Druida pelirroja", "gender": "mujer", "hairCut": "trenzas_laterales", "url": "textures/rostro_lam_18_10.png", "size": [410, 543], "eyeL": [122.6, 219.0], "eyeR": [287.4, 219.0], "chinY": 464.0, "eyeWidth": 69.2, "browY": 187.2, "noseY": 329.2, "mouthL": [137.4, 380.2], "mouthR": [272.6, 380.2], "colors": {"hairRoot": "#491300", "hairTip": "#592c18", "hairHigh": "#8f5639", "skin": "#9f6331", "lips": "#673631", "eyes": "#1d110b"}},
+  lam_18_11: {"label": "Dama de los palillos", "gender": "mujer", "hairCut": "coleta_alta", "url": "textures/rostro_lam_18_11.png", "size": [410, 543], "eyeL": [125.7, 219.0], "eyeR": [284.3, 219.0], "chinY": 464.0, "eyeWidth": 66.6, "browY": 187.2, "noseY": 329.2, "mouthL": [139.9, 380.2], "mouthR": [270.1, 380.2], "colors": {"hairRoot": "#111113", "hairTip": "#19191b", "hairHigh": "#2a282a", "skin": "#a57e5b", "lips": "#6b3635", "eyes": "#13100f"}},
+  lam_18_12: {"label": "Guerrero tatuado", "gender": "hombre", "hairCut": "rizado_3d", "url": "textures/rostro_lam_18_12.png", "size": [410, 543], "eyeL": [147.1, 219.0], "eyeR": [262.9, 219.0], "chinY": 464.0, "eyeWidth": 48.6, "browY": 187.2, "noseY": 329.2, "mouthL": [157.5, 380.2], "mouthR": [252.5, 380.2], "colors": {"hairRoot": "#19120d", "hairTip": "#231e1b", "hairHigh": "#3c352f", "skin": "#684425", "lips": "#402824", "eyes": "#120d0a"}},
+  lam_19_00: {"label": "Elfa oscura de la diadema", "gender": "mujer", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_19_00.png", "size": [410, 543], "eyeL": [125.6, 219.0], "eyeR": [284.4, 219.0], "chinY": 464.0, "eyeWidth": 66.7, "browY": 187.2, "noseY": 329.2, "mouthL": [139.9, 380.2], "mouthR": [270.1, 380.2], "colors": {"hairRoot": "#626367", "hairTip": "#898c93", "hairHigh": "#b3b6bc", "skin": "#6f7c89", "lips": "#2a202b", "eyes": "#22191c"}},
+  lam_19_01: {"label": "Orco veterano", "gender": "hombre", "hairCut": "raya_medio_lisa", "beardExt": 0.35, "url": "textures/rostro_lam_19_01.png", "size": [410, 543], "eyeL": [123.2, 219.0], "eyeR": [286.8, 219.0], "chinY": 464.0, "eyeWidth": 68.7, "browY": 187.2, "noseY": 329.2, "mouthL": [137.9, 380.2], "mouthR": [272.1, 380.2], "colors": {"hairRoot": "#6b675a", "hairTip": "#83836b", "hairHigh": "#adaf93", "skin": "#595139", "lips": "#2f2d29", "eyes": "#272522"}},
+  lam_19_02: {"label": "Enana pelirroja", "gender": "mujer", "hairCut": "trenzas_laterales", "url": "textures/rostro_lam_19_02.png", "size": [410, 543], "eyeL": [120.1, 219.0], "eyeR": [289.9, 219.0], "chinY": 464.0, "eyeWidth": 71.3, "browY": 187.2, "noseY": 329.2, "mouthL": [135.4, 380.2], "mouthR": [274.6, 380.2], "colors": {"hairRoot": "#512110", "hairTip": "#682e1a", "hairHigh": "#9c5335", "skin": "#a96f3d", "lips": "#6c302d", "eyes": "#22120c"}},
+  lam_19_10: {"label": "Elfa plateada", "gender": "mujer", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_19_10.png", "size": [410, 543], "eyeL": [125.0, 219.0], "eyeR": [285.0, 219.0], "chinY": 464.0, "eyeWidth": 67.2, "browY": 187.2, "noseY": 329.2, "mouthL": [139.4, 380.2], "mouthR": [270.6, 380.2], "colors": {"hairRoot": "#6b666d", "hairTip": "#8f8e94", "hairHigh": "#bcbcbe", "skin": "#948d95", "lips": "#7c5962", "eyes": "#51444d"}},
+  lam_19_11: {"label": "Enano barbirrojo", "gender": "hombre", "hairCut": "raya_medio_lisa", "beardExt": 0.6, "url": "textures/rostro_lam_19_11.png", "size": [410, 543], "eyeL": [159.6, 219.0], "eyeR": [250.4, 219.0], "chinY": 464.0, "eyeWidth": 38.2, "browY": 187.2, "noseY": 329.2, "mouthL": [167.7, 380.2], "mouthR": [242.3, 380.2], "colors": {"hairRoot": "#4b2010", "hairTip": "#6b3b24", "hairHigh": "#9b6548", "skin": "#6b3418", "lips": "#4b281b", "eyes": "#21110d"}},
+  lam_19_12: {"label": "Elfo oscuro marcado", "gender": "hombre", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_19_12.png", "size": [410, 543], "eyeL": [128.3, 219.0], "eyeR": [281.7, 219.0], "chinY": 464.0, "eyeWidth": 64.4, "browY": 187.2, "noseY": 329.2, "mouthL": [142.1, 380.2], "mouthR": [267.9, 380.2], "colors": {"hairRoot": "#49484e", "hairTip": "#717076", "hairHigh": "#abaaaf", "skin": "#624b5b", "lips": "#392c35", "eyes": "#1b1319"}},
+  lam_20_00: {"label": "Guerrera de trenzas doradas", "gender": "mujer", "hairCut": "trenzas_laterales", "url": "textures/rostro_lam_20_00.png", "size": [410, 543], "eyeL": [123.2, 219.0], "eyeR": [286.8, 219.0], "chinY": 464.0, "eyeWidth": 68.7, "browY": 187.2, "noseY": 329.2, "mouthL": [137.9, 380.2], "mouthR": [272.1, 380.2], "colors": {"hairRoot": "#1e1a19", "hairTip": "#292320", "hairHigh": "#3f3936", "skin": "#9f7355", "lips": "#63423c", "eyes": "#1b1515"}},
+  lam_20_01: {"label": "Cazadora de plumas", "gender": "mujer", "hairCut": "trenzas_laterales", "url": "textures/rostro_lam_20_01.png", "size": [410, 543], "eyeL": [126.7, 219.0], "eyeR": [283.3, 219.0], "chinY": 464.0, "eyeWidth": 65.8, "browY": 187.2, "noseY": 329.2, "mouthL": [140.8, 380.2], "mouthR": [269.2, 380.2], "colors": {"hairRoot": "#372012", "hairTip": "#4f2e1f", "hairHigh": "#7f4f34", "skin": "#9d663e", "lips": "#74392e", "eyes": "#1f110a"}},
+  lam_20_02: {"label": "Hechicera de plata", "gender": "mujer", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_20_02.png", "size": [410, 543], "eyeL": [126.1, 219.0], "eyeR": [283.9, 219.0], "chinY": 464.0, "eyeWidth": 66.3, "browY": 187.2, "noseY": 329.2, "mouthL": [140.3, 380.2], "mouthR": [269.7, 380.2], "colors": {"hairRoot": "#646168", "hairTip": "#87868b", "hairHigh": "#b9b5b6", "skin": "#95888d", "lips": "#4f384e", "eyes": "#20182b"}},
+  lam_20_10: {"label": "Pirata tuerta", "gender": "mujer", "hairCut": "ondulado_volumen", "url": "textures/rostro_lam_20_10.png", "size": [410, 543], "eyeL": [152.1, 219.0], "eyeR": [257.9, 219.0], "chinY": 464.0, "eyeWidth": 44.4, "browY": 187.2, "noseY": 329.2, "mouthL": [161.6, 380.2], "mouthR": [248.4, 380.2], "colors": {"hairRoot": "#1d1717", "hairTip": "#332a24", "hairHigh": "#5f463f", "skin": "#856048", "lips": "#4d3130", "eyes": "#362721"}},
+  lam_20_11: {"label": "Asesina de pelo corto", "gender": "mujer", "hairCut": "bob_flequillo", "url": "textures/rostro_lam_20_11.png", "size": [410, 543], "eyeL": [147.1, 219.0], "eyeR": [262.9, 219.0], "chinY": 464.0, "eyeWidth": 48.6, "browY": 187.2, "noseY": 329.2, "mouthL": [157.5, 380.2], "mouthR": [252.5, 380.2], "colors": {"hairRoot": "#17161b", "hairTip": "#242328", "hairHigh": "#37363b", "skin": "#8b6d5c", "lips": "#4b2b30", "eyes": "#201a1b"}},
+  lam_20_12: {"label": "Escudera rubia", "gender": "mujer", "hairCut": "trenzas_laterales", "url": "textures/rostro_lam_20_12.png", "size": [410, 543], "eyeL": [125.6, 219.0], "eyeR": [284.4, 219.0], "chinY": 464.0, "eyeWidth": 66.7, "browY": 187.2, "noseY": 329.2, "mouthL": [139.9, 380.2], "mouthR": [270.1, 380.2], "colors": {"hairRoot": "#715238", "hairTip": "#946f53", "hairHigh": "#dcb78b", "skin": "#a47858", "lips": "#71453f", "eyes": "#201819"}},
+  lam_21_00: {"label": "Mercenario de pelo largo", "gender": "hombre", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_21_00.png", "size": [410, 543], "eyeL": [148.3, 219.0], "eyeR": [261.7, 219.0], "chinY": 464.0, "eyeWidth": 47.6, "browY": 187.2, "noseY": 329.2, "mouthL": [158.5, 380.2], "mouthR": [251.5, 380.2], "colors": {"hairRoot": "#261d1b", "hairTip": "#352923", "hairHigh": "#54473f", "skin": "#8e664b", "lips": "#6c4840", "eyes": "#271b19"}},
+  lam_21_01: {"label": "Viejo tuerto", "gender": "hombre", "hairCut": "peinado_atras", "url": "textures/rostro_lam_21_01.png", "size": [410, 543], "eyeL": [157.3, 219.0], "eyeR": [252.7, 219.0], "chinY": 464.0, "eyeWidth": 40.0, "browY": 187.2, "noseY": 329.2, "mouthL": [165.9, 380.2], "mouthR": [244.1, 380.2], "colors": {"hairRoot": "#615851", "hairTip": "#7c7773", "hairHigh": "#b7927f", "skin": "#8d5d39", "lips": "#65463c", "eyes": "#2e1a16"}},
+  lam_21_02: {"label": "Bárbaro pintado", "gender": "hombre", "hairCut": "corto_guerrero", "url": "textures/rostro_lam_21_02.png", "size": [410, 543], "eyeL": [128.8, 219.0], "eyeR": [281.2, 219.0], "chinY": 464.0, "eyeWidth": 64.0, "browY": 187.2, "noseY": 329.2, "mouthL": [142.5, 380.2], "mouthR": [267.5, 380.2], "colors": {"hairRoot": "#241c19", "hairTip": "#332a25", "hairHigh": "#51473e", "skin": "#453931", "lips": "#5c403c", "eyes": "#251c1a"}},
+  lam_21_10: {"label": "Explorador tuerto", "gender": "hombre", "hairCut": "raya_medio_lisa", "url": "textures/rostro_lam_21_10.png", "size": [410, 543], "eyeL": [153.3, 219.0], "eyeR": [256.7, 219.0], "chinY": 464.0, "eyeWidth": 43.4, "browY": 187.2, "noseY": 329.2, "mouthL": [162.6, 380.2], "mouthR": [247.4, 380.2], "colors": {"hairRoot": "#261b17", "hairTip": "#40322f", "hairHigh": "#8b756a", "skin": "#805f4b", "lips": "#533a36", "eyes": "#38241e"}},
+  lam_21_11: {"label": "Asesino rapado", "gender": "hombre", "hairCut": "militar", "url": "textures/rostro_lam_21_11.png", "size": [410, 543], "eyeL": [128.3, 219.0], "eyeR": [281.7, 219.0], "chinY": 464.0, "eyeWidth": 64.4, "browY": 187.2, "noseY": 329.2, "mouthL": [142.1, 380.2], "mouthR": [267.9, 380.2], "colors": {"hairRoot": "#302624", "hairTip": "#483f3a", "hairHigh": "#83726b", "skin": "#7d5845", "lips": "#4f3c36", "eyes": "#41322f"}},
+  lam_21_12: {"label": "Luchador rizado", "gender": "hombre", "hairCut": "corto_guerrero", "url": "textures/rostro_lam_21_12.png", "size": [410, 543], "eyeL": [137.9, 219.0], "eyeR": [272.1, 219.0], "chinY": 464.0, "eyeWidth": 56.3, "browY": 187.2, "noseY": 329.2, "mouthL": [150.0, 380.2], "mouthR": [260.0, 380.2], "colors": {"hairRoot": "#1e1a19", "hairTip": "#292524", "hairHigh": "#82665b", "skin": "#805d4c", "lips": "#4d3b35", "eyes": "#422f2a"}},
+  lam_22_00: {"label": "Mercenario barbado", "gender": "hombre", "hairCut": "raya_medio_lisa", "beardExt": 0.1, "url": "textures/rostro_lam_22_00.png", "size": [410, 543], "eyeL": [151.9, 219.0], "eyeR": [258.1, 219.0], "chinY": 464.0, "eyeWidth": 44.6, "browY": 187.2, "noseY": 329.2, "mouthL": [161.5, 380.2], "mouthR": [248.5, 380.2], "colors": {"hairRoot": "#28201e", "hairTip": "#39322c", "hairHigh": "#615650", "skin": "#7d533a", "lips": "#543e39", "eyes": "#1f1413"}},
+  lam_22_01: {"label": "Viejo tuerto barbado", "gender": "hombre", "hairCut": "peinado_atras", "beardExt": 0.45, "url": "textures/rostro_lam_22_01.png", "size": [410, 543], "eyeL": [156.3, 219.0], "eyeR": [253.7, 219.0], "chinY": 464.0, "eyeWidth": 40.9, "browY": 187.2, "noseY": 329.2, "mouthL": [165.1, 380.2], "mouthR": [244.9, 380.2], "colors": {"hairRoot": "#685e58", "hairTip": "#898079", "hairHigh": "#c29e86", "skin": "#8f613f", "lips": "#5c3932", "eyes": "#2c1913"}},
+  lam_22_02: {"label": "Bárbaro barbudo", "gender": "hombre", "hairCut": "corto_guerrero", "beardExt": 0.35, "url": "textures/rostro_lam_22_02.png", "size": [410, 543], "eyeL": [159.6, 219.0], "eyeR": [250.4, 219.0], "chinY": 464.0, "eyeWidth": 38.2, "browY": 187.2, "noseY": 329.2, "mouthL": [167.7, 380.2], "mouthR": [242.3, 380.2], "colors": {"hairRoot": "#231b18", "hairTip": "#302722", "hairHigh": "#4d403a", "skin": "#7b5544", "lips": "#312725", "eyes": "#2c211f"}},
+  lam_22_10: {"label": "Explorador tuerto barbado", "gender": "hombre", "hairCut": "raya_medio_lisa", "beardExt": 0.1, "url": "textures/rostro_lam_22_10.png", "size": [410, 543], "eyeL": [153.7, 219.0], "eyeR": [256.3, 219.0], "chinY": 464.0, "eyeWidth": 43.1, "browY": 187.2, "noseY": 329.2, "mouthL": [162.9, 380.2], "mouthR": [247.1, 380.2], "colors": {"hairRoot": "#261d18", "hairTip": "#40332b", "hairHigh": "#86746c", "skin": "#826352", "lips": "#4c312d", "eyes": "#3e2a22"}},
+  lam_22_11: {"label": "Asesino de perilla", "gender": "hombre", "hairCut": "militar", "beardExt": 0.2, "url": "textures/rostro_lam_22_11.png", "size": [410, 543], "eyeL": [131.8, 219.0], "eyeR": [278.2, 219.0], "chinY": 464.0, "eyeWidth": 61.5, "browY": 187.2, "noseY": 329.2, "mouthL": [145.0, 380.2], "mouthR": [265.0, 380.2], "colors": {"hairRoot": "#322721", "hairTip": "#463d38", "hairHigh": "#796c64", "skin": "#7a5544", "lips": "#3a2f2b", "eyes": "#473430"}},
+  lam_22_12: {"label": "Luchador barbudo", "gender": "hombre", "hairCut": "corto_guerrero", "beardExt": 0.3, "url": "textures/rostro_lam_22_12.png", "size": [410, 543], "eyeL": [164.2, 219.0], "eyeR": [245.8, 219.0], "chinY": 464.0, "eyeWidth": 34.3, "browY": 187.2, "noseY": 329.2, "mouthL": [171.6, 380.2], "mouthR": [238.4, 380.2], "colors": {"hairRoot": "#211c19", "hairTip": "#332b28", "hairHigh": "#48403d", "skin": "#593930", "lips": "#362c29", "eyes": "#18110f"}},
+});
 const _FACE_TEX_CACHE = {};
 
 function getFaceTextureDef(key, caraCfg = null) {
@@ -24850,7 +24940,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
     const wS = canon.noseWidthScale * (1 - 0.05 * canon.fem);
     const rootY = canon.noseRootY, baseY = canon.noseBaseY;
     const L = rootY - baseY;
-    const proj = 0.30 * F * (1 - 0.06 * canon.fem) * NT.proj;   // proyección de la punta (≈ F/3 en el perfil del canon)
+    // proyección de la punta: en los perfiles de referencia la punta sale ≈ 0,4F por delante del filtrum
+    const proj = 0.42 * F * (1 - 0.08 * canon.fem) * NT.proj;
     const tipY = baseY + (0.20 + 0.04 * canon.fem + NT.tipUp) * L; // punta algo respingona en rostros femeninos
     const tTip = (rootY - tipY) / L;
     const alaHalf = canon.noseAlaHalf * (1 - 0.05 * canon.fem) * NT.alaW;
@@ -24867,7 +24958,8 @@ function buildSculptedHeadGroup(caraCfg, mats) {
       if (t >= -0.30 && t <= 1.0) {
         const tc = clampV(t, 0, 1);
         let ridge;
-        if (tc <= tTip) ridge = proj * (0.13 + 0.83 * Math.pow(tc / tTip, 1.15));
+        // dorso RECTO desde la raíz (entre las cejas, ya con algo de relieve: sin silla de montar) hasta la punta
+        if (tc <= tTip) ridge = proj * (0.24 + 0.72 * Math.pow(tc / tTip, 1.0));
         else ridge = proj * 0.96 * Math.pow(Math.cos(((tc - tTip) / (1 - tTip)) * Math.PI * 0.5), 0.8);
         // Giba (aguileña/romana) y dorso cóncavo (respingona)
         ridge += proj * NT.hump * Math.exp(-Math.pow((tc - 0.42) / 0.16, 2));
@@ -29693,6 +29785,7 @@ function resetCharacter() {
       setupHairLabEngine();
       autoCalibrateGLBFit();
       reattachCatalogPieces();   // las piezas del catálogo cargadas siguen puestas tras regenerar el cuerpo
+      if (archetype !== 'keep' && !downloadToDisk && window.__autoFaceTexture) window.__autoFaceTexture(archetype);
 
       if (downloadToDisk) {
         showToast(`¡Cuerpo ${labelName} (.GLB) descargado!`);
