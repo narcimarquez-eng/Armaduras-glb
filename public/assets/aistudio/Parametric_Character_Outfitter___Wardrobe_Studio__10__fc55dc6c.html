@@ -20096,12 +20096,6 @@
         // raya a un lado: todo cae hacia el lado contrario, el lado corto hacia su oreja
         const sideOfPart = (P.x > st.part) ? 1 : -1;
         d.set(sideOfPart * 1.0, 0.15, -0.35 + 0.25 * front);
-      } else if (st.contour) {
-        // mechón del contorno: nace en el borde y baja pegado, tapando el límite del cuero cabelludo
-        // frente: se peina hacia atrás/al lado (no tapa la frente como una cinta); lados y nuca: bajan pegados
-        if (st.tail) d.set(Math.cos(phi) * 0.2, -0.3, -1.0);
-        else if (front > 0.45) d.set(Math.cos(phi) * 0.9, 0.25, -0.55);
-        else d.set(Math.cos(phi) * 0.30, -0.80, Math.sin(phi) * 0.30 - 0.25);
       } else if (st.fringe && front > 0.55 && u > 0.55) {
         // flequillo en punta que cae sobre la frente
         d.set(Math.cos(phi) * 0.45 + (st.spiky === 'side' ? 0.5 : 0), -0.55, 0.65);
@@ -20129,7 +20123,7 @@
         // gravedad creciente: primero se pega y sigue el cráneo, luego cae
         // gravedad: el mechón cae (las tiras son largas y pesan); en puntas de héroe casi no cae
         const isFringe = st.fringe && front > 0.55 && u > 0.55;
-        d.y -= st.contour ? (front > 0.45 ? 0.04 : 0.18) : (isFringe ? 0.12 : (st.spiky ? (st.fall ?? 0.05) * (0.3 + t) : (0.10 + 0.55 * t)));
+        d.y -=  (isFringe ? 0.12 : (st.spiky ? (st.fall ?? 0.05) * (0.3 + t) : (0.10 + 0.55 * t)));
         // pegado al cráneo mientras está encima de él: sigue su curvatura en vez de salir volando
         if (P.y > 0.05 && !(st.spiky && !st.contour && !isFringe && t > 0.45)) {
           const out = d.dot(nn);
@@ -20179,7 +20173,8 @@
         }
       });
       // CONTORNO: siempre una corona de mechones en el borde del pelo (frente, sienes, patillas y nuca),
-      // así el límite del peinado es un mechón y no el borde del cuero cabelludo
+      // así el límite del peinado es un mechón y no el borde del cuero cabelludo. Van en la MISMA dirección
+      // que el resto del peinado en ese punto (mismo recorrido, solo más cortos)
       {
         const cst = Object.assign({}, st, { contour: true, len: Math.min(0.085, Math.max(0.045, st.len * 0.40)) });
         const cnt = 30;
