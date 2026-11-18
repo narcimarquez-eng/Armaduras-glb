@@ -20194,7 +20194,13 @@
           if (dist < 0.014) { reached = true; break; }
           d.lerp(toT.normalize(), 0.55 + 0.4 * t); d.y += 0.10 + 0.55 * t;   // anula la gravedad: va tenso
         }
-        if (st.wave) d.addScaledVector(new THREE.Vector3(side * Math.cos(phi), 0, Math.sin(phi)), Math.sin(t * Math.PI * 3.0 + seed * 6.0) * st.wave * 6.0);
+        if (st.wave) {
+          // ondulación perpendicular a la tira (frecuencia propia por tira en el peinado aleatorio)
+          const lat = new THREE.Vector3().crossVectors(d, nn);
+          if (lat.lengthSq() < 1e-6) lat.set(side * Math.cos(phi), 0, Math.sin(phi));
+          lat.normalize();
+          d.addScaledVector(lat, Math.sin(t * Math.PI * (st.waveFreq || 3.0) + seed * 6.0) * st.wave * 6.0);
+        }
         if (st.spiky && !st.contour && !isFringe && t > 0.45) d.addScaledVector(nn, 0.12);
         d.normalize();
         P.addScaledVector(d, step);
@@ -20231,13 +20237,13 @@
     const HAIR_RANDOM_CFG = {
       zones: 7, seed: 1234,
       z: {
-        frente:    { n: 14, dir: 'atras', len: 16, lenVar: 0.35, w: 5.5, wVar: 0.30, rnd: 0.25 },
-        coronilla: { n: 12, dir: 'atras', len: 20, lenVar: 0.30, w: 6.0, wVar: 0.30, rnd: 0.25 },
-        arribaIzq: { n: 8,  dir: 'atras', len: 16, lenVar: 0.30, w: 5.5, wVar: 0.30, rnd: 0.25 },
-        izq:       { n: 10, dir: 'abajo', len: 14, lenVar: 0.35, w: 5.0, wVar: 0.30, rnd: 0.20 },
-        arribaDer: { n: 8,  dir: 'atras', len: 16, lenVar: 0.30, w: 5.5, wVar: 0.30, rnd: 0.25 },
-        der:       { n: 10, dir: 'abajo', len: 14, lenVar: 0.35, w: 5.0, wVar: 0.30, rnd: 0.20 },
-        nuca:      { n: 14, dir: 'abajo', len: 16, lenVar: 0.35, w: 5.5, wVar: 0.30, rnd: 0.20 },
+        frente:    { n: 14, dir: 'atras', len: 16, lenVar: 0.35, w: 7.0, wVar: 0.30, rnd: 0.25, wave: 0.30, waveVar: 0.50 },
+        coronilla: { n: 12, dir: 'atras', len: 20, lenVar: 0.30, w: 7.5, wVar: 0.30, rnd: 0.25, wave: 0.30, waveVar: 0.50 },
+        arribaIzq: { n: 8,  dir: 'atras', len: 16, lenVar: 0.30, w: 7.0, wVar: 0.30, rnd: 0.25, wave: 0.30, waveVar: 0.50 },
+        izq:       { n: 10, dir: 'abajo', len: 14, lenVar: 0.35, w: 6.5, wVar: 0.30, rnd: 0.20, wave: 0.30, waveVar: 0.50 },
+        arribaDer: { n: 8,  dir: 'atras', len: 16, lenVar: 0.30, w: 7.0, wVar: 0.30, rnd: 0.25, wave: 0.30, waveVar: 0.50 },
+        der:       { n: 10, dir: 'abajo', len: 14, lenVar: 0.35, w: 6.5, wVar: 0.30, rnd: 0.20, wave: 0.30, waveVar: 0.50 },
+        nuca:      { n: 14, dir: 'abajo', len: 16, lenVar: 0.35, w: 7.0, wVar: 0.30, rnd: 0.20, wave: 0.30, waveVar: 0.50 },
       }
     };
     function hairZoneOf(u, phi, zones) {
@@ -20292,11 +20298,14 @@
           const seed = R();
           // largo y ancho: el valor fijado es el MÁXIMO; la variación permite mechones menores
           const lenM = Z.len / 100 * (1 - (Z.lenVar ?? 0.3) * R());
-          const wM = (Z.w ?? 5.5) / 100 * (1 - (Z.wVar ?? 0.3) * R());
-          const sst = { dirOverride: dir, fixedLen: Math.max(0.03, lenM), spiky: Z.dir === 'arriba' ? 'custom' : null, fall: 0.05, len: lenM };
+          const wM = (Z.w ?? 7) / 100 * (1 - (Z.wVar ?? 0.3) * R());
+          // ondulación: amplitud máxima de la zona con variación por tira y frecuencia al azar (onda larga o rizo corto)
+          const waveA = (Z.wave ?? 0.3) * (1 - (Z.waveVar ?? 0.5) * R());
+          const sst = { dirOverride: dir, fixedLen: Math.max(0.03, lenM), spiky: Z.dir === 'arriba' ? 'custom' : null, fall: 0.05, len: lenM,
+            wave: waveA * 0.055, waveFreq: 1.5 + R() * 3.5 };
           const pts = buildStripPath(sst, root, phi, u, seed);
           let arc = 0; for (let q = 1; q < pts.length; q++) arc += pts[q].distanceTo(pts[q - 1]);
-          const curlCol = THREE.MathUtils.clamp(Math.round(0.6 + Z.rnd * 2.0 + (seed - 0.5) * 1.6), 0, 3);
+          const curlCol = THREE.MathUtils.clamp(Math.round(0.3 + waveA * 3.0 + (seed - 0.5) * 1.4), 0, 3);   // mechón del atlas según la onda
           geos.push(buildHairSheetCard(pts, Math.max(0.008, wM), 0.0045 + 0.0035 * R(), (arc < 0.10 ? 4 : 0) + curlCol, 0.75 + 0.25 * R(), seed, 0));
           placed++;
         }
@@ -20322,7 +20331,9 @@
           Z.n = 30 + Math.floor(Math.random() * 16);   // aleatorio: mínimo 30 tiras por zona
           Z.len = 6 + Math.floor(Math.random() * 28);
           Z.lenVar = Math.round(Math.random() * 70) / 100;
-          Z.w = Math.round((3 + Math.random() * 4) * 2) / 2;
+          Z.w = Math.round((4.5 + Math.random() * 4.5) * 2) / 2;
+          Z.wave = Math.round(Math.random() * 100) / 100;
+          Z.waveVar = Math.round(Math.random() * 80) / 100;
           Z.wVar = Math.round(Math.random() * 60) / 100;
           Z.rnd = Math.round(Math.random() * 100) / 100;
         } else {
@@ -20360,8 +20371,12 @@
           <div class="grid grid-cols-12 gap-1 items-center">
             <label class="col-span-3" title="Largo máximo (cm)">Largo ${num('hz-len', 2, 40, 1)}</label>
             <label class="col-span-3 flex items-center gap-0.5" title="Variación: mechones más cortos que el máximo">± ${pct('hz-lenvar')}</label>
-            <label class="col-span-3" title="Ancho máximo de la lámina (cm)">Ancho ${num('hz-w', 1, 9, 0.5)}</label>
+            <label class="col-span-3" title="Ancho máximo de la lámina (cm)">Ancho ${num('hz-w', 1, 12, 0.5)}</label>
             <label class="col-span-3 flex items-center gap-0.5" title="Variación: láminas más estrechas que el máximo">± ${pct('hz-wvar')}</label>
+          </div>
+          <div class="grid grid-cols-12 gap-1 items-center">
+            <label class="col-span-6 flex items-center gap-0.5" title="Ondulación máxima de las tiras">Onda ${pct('hz-wave')}</label>
+            <label class="col-span-6 flex items-center gap-0.5" title="Variación: tiras menos onduladas que el máximo (unas lisas, otras rizadas)">± ${pct('hz-wavevar')}</label>
           </div>
         </div>`;
       panel.innerHTML = `<div class="flex items-center justify-between">
@@ -20382,7 +20397,8 @@
           r.querySelector('.hz-n').value = Z.n; r.querySelector('.hz-dir').value = Z.dir;
           r.querySelector('.hz-len').value = Z.len; r.querySelector('.hz-rnd').value = Math.round(Z.rnd * 100);
           r.querySelector('.hz-lenvar').value = Math.round((Z.lenVar ?? 0.3) * 100);
-          r.querySelector('.hz-w').value = Z.w ?? 5.5; r.querySelector('.hz-wvar').value = Math.round((Z.wVar ?? 0.3) * 100);
+          r.querySelector('.hz-w').value = Z.w ?? 7; r.querySelector('.hz-wvar').value = Math.round((Z.wVar ?? 0.3) * 100);
+          r.querySelector('.hz-wave').value = Math.round((Z.wave ?? 0.3) * 100); r.querySelector('.hz-wavevar').value = Math.round((Z.waveVar ?? 0.5) * 100);
           r.style.display = (HAIR_ZONE_SETS[HAIR_RANDOM_CFG.zones] || []).includes(r.dataset.zone) ? '' : 'none';
         });
       };
@@ -20393,7 +20409,8 @@
           Z.n = parseInt(r.querySelector('.hz-n').value, 10) || 0; Z.dir = r.querySelector('.hz-dir').value;
           Z.len = parseFloat(r.querySelector('.hz-len').value) || 10; Z.rnd = (parseInt(r.querySelector('.hz-rnd').value, 10) || 0) / 100;
           Z.lenVar = (parseInt(r.querySelector('.hz-lenvar').value, 10) || 0) / 100;
-          Z.w = parseFloat(r.querySelector('.hz-w').value) || 5.5; Z.wVar = (parseInt(r.querySelector('.hz-wvar').value, 10) || 0) / 100;
+          Z.w = parseFloat(r.querySelector('.hz-w').value) || 7; Z.wVar = (parseInt(r.querySelector('.hz-wvar').value, 10) || 0) / 100;
+          Z.wave = (parseInt(r.querySelector('.hz-wave').value, 10) || 0) / 100; Z.waveVar = (parseInt(r.querySelector('.hz-wavevar').value, 10) || 0) / 100;
         });
       };
       sync();
