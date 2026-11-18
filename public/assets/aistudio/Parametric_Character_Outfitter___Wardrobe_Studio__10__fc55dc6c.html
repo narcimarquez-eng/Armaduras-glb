@@ -19688,6 +19688,7 @@
           void main() {
             float alpha = 1.0;
             float strandTexLum = 1.0;
+            float capCov = 1.0;
 
             if (uUseAlpha > 0.5) {
               vec4 tex = texture2D(uAlphaMap, vUv);
@@ -19697,14 +19698,33 @@
             } else if (uIsScalpCap > 0.5) {
               // Casquete con fibras del atlas peinadas de la coronilla al borde: lo que asoma entre mechones parece pelo
               float capV = clamp(0.08 + vUv.y * 1.9, 0.0, 0.97);
-              vec4 capTex = texture2D(uAlphaMap, vec2(0.25 + fract(vUv.x * 28.0) * 0.25, uTexContrast > 0.5 ? capV * 0.5 : capV));
-              strandTexLum = mix(0.74 + 0.34 * capTex.r * capTex.a, 0.30 + 0.95 * capTex.r, uTexContrast * capTex.a);
+              if (uTexContrast > 0.5) {
+                // Textura de mechones pintada directamente sobre TODO el cuero cabelludo: dos capas de mechones grandes
+                // del atlas (14 alrededor de la cabeza, desplazadas medio mechón) peinadas de la coronilla al borde
+                float cuA = vUv.x * 14.0, cuB = vUv.x * 14.0 + 0.5;
+                float ciA = floor(cuA), ciB = floor(cuB);
+                float colA = mod(floor(ciA * 1.7), 4.0), colB = mod(floor(ciB * 2.3 + 1.0), 4.0);
+                // de la coronilla al borde se recorre el tramo tupido y con dibujo del mechón y, al final, sus puntas
+                float capT = mix(0.15, 0.95, pow(capV, 1.6));
+                float vA = capT * 0.5, vB = clamp(capT * 0.94 + 0.03, 0.0, 0.97) * 0.5;
+                vec4 tA = texture2D(uAlphaMap, vec2((colA + 0.03 + fract(cuA) * 0.94) / 4.0, vA));
+                vec4 tB = texture2D(uAlphaMap, vec2((colB + 0.03 + fract(cuB) * 0.94) / 4.0, vB));
+                float cov = clamp(tA.a + tB.a * (1.0 - tA.a), 0.0, 1.0);
+                float lum = (tA.r * tA.a + tB.r * tB.a * (1.0 - tA.a)) / max(0.001, cov);
+                strandTexLum = (0.30 + 0.95 * lum) * mix(0.45, 1.0, cov);   // entre mechones: sombra, no piel
+                capCov = cov;
+              } else {
+                vec4 capTex = texture2D(uAlphaMap, vec2(0.25 + fract(vUv.x * 28.0) * 0.25, capV));
+                strandTexLum = 0.74 + 0.34 * capTex.r * capTex.a;
+              }
             } else {
               strandTexLum = 0.80 + 0.20 * sin(vUv.x * 31.4159);
             }
             // Borde del casquete difuminado: nacimiento del pelo suave sobre la frente y las sienes
+            // (con textura de mechones, el borde lo dibujan las puntas: nacimiento irregular, no una línea recta)
             if (uIsScalpCap > 0.5) {
               alpha = 1.0 - smoothstep(0.415, 0.45, vUv.y);
+              if (uTexContrast > 0.5) alpha *= mix(1.0, smoothstep(0.25, 0.6, capCov), smoothstep(0.395, 0.44, vUv.y));
               if (alpha < 0.04) discard;
             }
 
@@ -20085,12 +20105,12 @@
       tiras_heroe_largo:    { name: 'Puntas Largas Caídas',        len: 0.26, width: 0.062, curl: 0.0, wave: 0.0, spiky: 'radial', fall: 0.45, fringe: true },
       tiras_coleta:    { name: 'Coleta Baja Recogida',       len: 0.34, width: 0.056, curl: 0.2, wave: 0.0, tail: true,
         tails: [{ pos: [0, 0.03, -0.135], dir: [0, -0.3, -1], len: 0.26, n: 8, w: 0.042 }] },
-      tiras_coleta_alta: { name: 'Coleta Alta', len: 0.30, width: 0.056, curl: 0.2, wave: 0.0, tail: true,
+      tiras_coleta_alta: { name: 'Coleta Alta', len: 0.30, width: 0.056, curl: 0.2, wave: 0.0, tail: true, capOnly: true,
         tails: [{ pos: [0, 0.205, -0.125], dir: [0, 0.55, -1], len: 0.30, n: 10, w: 0.046 }] },
       tiras_coletas_dos: { name: 'Dos Coletas Laterales', len: 0.30, width: 0.056, curl: 0.3, wave: 0.0, tail: true,
         tails: [{ pos: [0.098, 0.150, -0.065], dir: [1, 0.25, -0.35], len: 0.24, n: 7, w: 0.040 },
                 { pos: [-0.098, 0.150, -0.065], dir: [-1, 0.25, -0.35], len: 0.24, n: 7, w: 0.040 }] },
-      tiras_mono_samurai: { name: 'Moño Alto de Guerrero', len: 0.30, width: 0.056, curl: 0.0, wave: 0.0, tail: true,
+      tiras_mono_samurai: { name: 'Moño Alto de Guerrero', len: 0.30, width: 0.056, curl: 0.0, wave: 0.0, tail: true, capOnly: true,
         tails: [{ pos: [0, 0.262, -0.050], dir: [0, 1, -0.55], len: 0.09, n: 8, w: 0.036, stiff: true }] },
       tiras_coleta_lateral: { name: 'Coleta Lateral sobre el Hombro', len: 0.30, width: 0.056, curl: 0.3, wave: 0.0, tail: true,
         tails: [{ pos: [0.085, 0.045, -0.095], dir: [0.4, -0.4, 0.6], len: 0.28, n: 9, w: 0.044, forward: true }] },
@@ -20199,7 +20219,9 @@
       let rnd = 7919;
       const R = () => { rnd = (rnd * 16807) % 2147483647; return (rnd - 1) / 2147483646; };
       // anillos concéntricos de raíces de la coronilla al borde; cada tira es ancha (5-7 cm) y larga
-      const rings = st.tail ? [0.15, 0.35, 0.55, 0.75, 0.92, 1.0] : [0.12, 0.32, 0.52, 0.72, 0.90];
+      // capOnly (recogidos en lo alto): el pelo estirado lo pinta el cuero cabelludo texturizado (peinado de la
+      // coronilla al borde, justo hacia el lazo); solo se añaden las colas
+      const rings = st.capOnly ? [] : (st.tail ? [0.15, 0.35, 0.55, 0.75, 0.92, 1.0] : [0.12, 0.32, 0.52, 0.72, 0.90]);
       rings.forEach((u, ri) => {
         const cnt = Math.round((6 + ri * 5) * (st.part !== undefined ? 1.35 : 1.0) * (st.dense || 1));
         for (let k = 0; k < cnt; k++) {
@@ -20222,7 +20244,7 @@
       // CONTORNO: siempre una corona de mechones en el borde del pelo (frente, sienes, patillas y nuca),
       // así el límite del peinado es un mechón y no el borde del cuero cabelludo. Van en la MISMA dirección
       // que el resto del peinado en ese punto (mismo recorrido, solo más cortos)
-      {
+      if (!st.capOnly) {
         const cst = Object.assign({}, st, { contour: true, len: Math.min(0.085, Math.max(0.045, st.len * 0.40)) });
         const cnt = 30;
         for (let k = 0; k < cnt; k++) {
