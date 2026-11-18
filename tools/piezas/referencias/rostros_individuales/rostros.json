@@ -27,7 +27,8 @@
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
   },
-  "skinOverride": "#ba9c91"
+  "skinOverride": "#ba9c91",
+  "edgeFade": 10
  },
  "marcado": {
   "archivo": "marcado.jpg",
@@ -57,7 +58,8 @@
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
   },
-  "skinOverride": "#ba9c91"
+  "skinOverride": "#ba9c91",
+  "edgeFade": 10
  },
  "joven_cicatriz": {
   "archivo": "joven_cicatriz.jpg",
@@ -87,7 +89,8 @@
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
   },
-  "skinOverride": "#ba9c91"
+  "skinOverride": "#ba9c91",
+  "edgeFade": 10
  },
  "moraton": {
   "archivo": "moraton.jpg",
@@ -117,7 +120,8 @@
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
   },
-  "skinOverride": "#ba9c91"
+  "skinOverride": "#ba9c91",
+  "edgeFade": 10
  },
  "tatuaje_tribal": {
   "archivo": "tatuaje_tribal.jpg",
@@ -147,7 +151,8 @@
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
   },
-  "skinOverride": "#9a8452"
+  "skinOverride": "#796342",
+  "edgeFade": 10
  },
  "mascara_veterano": {
   "archivo": "mascaras_4.jpg",
@@ -186,7 +191,8 @@
    "hairRoot": "#1a1210",
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
-  }
+  },
+  "skinOverride": "#9c684c"
  },
  "mascara_cicatriz": {
   "archivo": "mascaras_4.jpg",
@@ -225,7 +231,8 @@
    "hairRoot": "#1a1210",
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
-  }
+  },
+  "skinOverride": "#c3a395"
  },
  "mascara_runas": {
   "archivo": "mascaras_4.jpg",
@@ -264,7 +271,8 @@
    "hairRoot": "#1a1210",
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
-  }
+  },
+  "skinOverride": "#9f7e71"
  },
  "mascara_pintura": {
   "archivo": "mascaras_4.jpg",
@@ -303,6 +311,7 @@
    "hairRoot": "#1a1210",
    "hairTip": "#2b1f1a",
    "hairHigh": "#5a4438"
-  }
+  },
+  "skinOverride": "#6d4232"
  }
 }

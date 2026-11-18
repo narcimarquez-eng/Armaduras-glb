@@ -75,6 +75,18 @@ def main():
             # sin el sombreado oscuro del canto de la máscara
             al8 = al8.filter(ImageFilter.MinFilter(2 * int(c['erode']) + 1))
         al = np.asarray(al8.filter(ImageFilter.GaussianBlur(1.0))).astype(np.float32) / 255.0
+        # Borde de la cara fundido hacia el tono MEDIO de la mejilla (el que se calibra con el cuerpo): el canto
+        # sombreado o difuminado del dibujo deja de verse como una línea entre la cara y la cabeza
+        ex0 = CX; hw0 = 0.5 * (c['eyeR'][0] - c['eyeL'][0]) * s; Fd0 = CHIN - EY
+        mid = median_patch(rgb, [(ex0 - hw0 * 0.95, EY + Fd0 * 0.30), (ex0 + hw0 * 0.95, EY + Fd0 * 0.30)], Fd0 * 0.05)
+        m = Image.fromarray(((al > 0.5) * 255).astype(np.uint8))
+        dist = np.zeros(al.shape, np.float32)
+        for _ in range(int(c.get('edgeFade', 22))):
+            dist += np.asarray(m, np.float32) / 255.0
+            m = m.filter(ImageFilter.MinFilter(3))
+        wgt = np.clip(dist / float(c.get('edgeFade', 22)), 0, 1) ** 0.8
+        rgb = mid + (rgb - mid) * wgt[..., None]
+        al = al * np.clip(dist / 6.0, 0, 1)
         name = f'rostro_ind_{fid}.png'
         Image.fromarray(np.dstack([rgb, al * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(TEX, name), optimize=True)
         eL = CX + (c['eyeL'][0] - ex) * s; eR = CX + (c['eyeR'][0] - ex) * s
