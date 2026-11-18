@@ -20220,22 +20220,33 @@
       atras: 'Hacia atrás', adelante: 'Hacia delante', izquierda: 'Hacia la izquierda', derecha: 'Hacia la derecha',
       abajo: 'Caída (abajo)', arriba: 'Punta (arriba)', radial: 'Abierta (radial)'
     };
-    const HAIR_ZONE_NAMES = { frente: 'Frente', coronilla: 'Coronilla', izq: 'Lado izq.', der: 'Lado der.', nuca: 'Nuca' };
+    const HAIR_ZONE_NAMES = { frente: 'Frente', coronilla: 'Coronilla', arribaIzq: 'Arriba izq.', izq: 'Lateral izq.',
+      arribaDer: 'Arriba der.', der: 'Lateral der.', nuca: 'Nuca' };
+    const HAIR_ZONE_SETS = {
+      4: ['frente', 'izq', 'der', 'nuca'],
+      5: ['frente', 'coronilla', 'izq', 'der', 'nuca'],
+      7: ['frente', 'coronilla', 'arribaIzq', 'izq', 'arribaDer', 'der', 'nuca'],
+    };
+    // len / w: largo y ancho MÁXIMOS (cm); lenVar / wVar: cuánto pueden ser menores (0 = todas iguales, 1 = hasta casi 0)
     const HAIR_RANDOM_CFG = {
-      zones: 5, seed: 1234,
+      zones: 7, seed: 1234,
       z: {
-        frente:    { n: 14, dir: 'atras', len: 16, rnd: 0.25 },
-        coronilla: { n: 12, dir: 'atras', len: 20, rnd: 0.25 },
-        izq:       { n: 12, dir: 'abajo', len: 14, rnd: 0.20 },
-        der:       { n: 12, dir: 'abajo', len: 14, rnd: 0.20 },
-        nuca:      { n: 14, dir: 'abajo', len: 16, rnd: 0.20 },
+        frente:    { n: 14, dir: 'atras', len: 16, lenVar: 0.35, w: 5.5, wVar: 0.30, rnd: 0.25 },
+        coronilla: { n: 12, dir: 'atras', len: 20, lenVar: 0.30, w: 6.0, wVar: 0.30, rnd: 0.25 },
+        arribaIzq: { n: 8,  dir: 'atras', len: 16, lenVar: 0.30, w: 5.5, wVar: 0.30, rnd: 0.25 },
+        izq:       { n: 10, dir: 'abajo', len: 14, lenVar: 0.35, w: 5.0, wVar: 0.30, rnd: 0.20 },
+        arribaDer: { n: 8,  dir: 'atras', len: 16, lenVar: 0.30, w: 5.5, wVar: 0.30, rnd: 0.25 },
+        der:       { n: 10, dir: 'abajo', len: 14, lenVar: 0.35, w: 5.0, wVar: 0.30, rnd: 0.20 },
+        nuca:      { n: 14, dir: 'abajo', len: 16, lenVar: 0.35, w: 5.5, wVar: 0.30, rnd: 0.20 },
       }
     };
     function hairZoneOf(u, phi, zones) {
-      if (zones === 5 && u < 0.42) return 'coronilla';
+      if (zones >= 5 && u < 0.42) return 'coronilla';
       const s = Math.sin(phi), c = Math.cos(phi);
       if (s > Math.abs(c)) return 'frente';
       if (-s > Math.abs(c)) return 'nuca';
+      // 7 zonas: cada lateral se divide en la parte alta (arriba izq./der.) y la baja (lateral)
+      if (zones === 7 && u < 0.72) return c > 0 ? 'arribaIzq' : 'arribaDer';
       return c > 0 ? 'izq' : 'der';
     }
     function hairZoneDir(kind, phi, P) {
@@ -20257,14 +20268,16 @@
       let rnd = cfg.seed % 2147483647 || 1;
       const R = () => { rnd = (rnd * 16807) % 2147483647; return (rnd - 1) / 2147483646; };
       const geos = [];
-      const zoneKeys = cfg.zones === 5 ? ['frente', 'coronilla', 'izq', 'der', 'nuca'] : ['frente', 'izq', 'der', 'nuca'];
+      const zoneKeys = HAIR_ZONE_SETS[cfg.zones] || HAIR_ZONE_SETS[5];
       zoneKeys.forEach(zk => {
         const Z = cfg.z[zk]; if (!Z || Z.n <= 0) return;
         let placed = 0, tries = 0;
         while (placed < Z.n && tries < Z.n * 40) {
           tries++;
           // raíz al azar repartida por área dentro de la zona
-          const u = cfg.zones === 5 && zk === 'coronilla' ? Math.sqrt(R()) * 0.42 : Math.sqrt(0.02 + R() * 0.98);
+          const u = zk === 'coronilla' ? Math.sqrt(R()) * 0.42
+            : (zk === 'arribaIzq' || zk === 'arribaDer') ? Math.sqrt(0.18 + R() * 0.34)
+            : Math.sqrt(0.02 + R() * 0.98);
           const phi = R() * Math.PI * 2;
           if (hairZoneOf(u, phi, cfg.zones) !== zk) continue;
           const root = scalpPoint(Math.min(0.98, u), phi);
@@ -20277,12 +20290,14 @@
             dir.lerp(rv, Z.rnd).normalize();
           }
           const seed = R();
-          const lenM = Z.len / 100 * (1 + (R() - 0.5) * (0.3 + 0.6 * Z.rnd));
+          // largo y ancho: el valor fijado es el MÁXIMO; la variación permite mechones menores
+          const lenM = Z.len / 100 * (1 - (Z.lenVar ?? 0.3) * R());
+          const wM = (Z.w ?? 5.5) / 100 * (1 - (Z.wVar ?? 0.3) * R());
           const sst = { dirOverride: dir, fixedLen: Math.max(0.03, lenM), spiky: Z.dir === 'arriba' ? 'custom' : null, fall: 0.05, len: lenM };
           const pts = buildStripPath(sst, root, phi, u, seed);
           let arc = 0; for (let q = 1; q < pts.length; q++) arc += pts[q].distanceTo(pts[q - 1]);
           const curlCol = THREE.MathUtils.clamp(Math.round(0.6 + Z.rnd * 2.0 + (seed - 0.5) * 1.6), 0, 3);
-          geos.push(buildHairSheetCard(pts, 0.055 * (0.85 + 0.3 * R()), 0.0045 + 0.0035 * R(), (arc < 0.10 ? 4 : 0) + curlCol, 0.75 + 0.25 * R(), seed, 0));
+          geos.push(buildHairSheetCard(pts, Math.max(0.008, wM), 0.0045 + 0.0035 * R(), (arc < 0.10 ? 4 : 0) + curlCol, 0.75 + 0.25 * R(), seed, 0));
           placed++;
         }
       });
@@ -20306,6 +20321,9 @@
           Z.dir = keys[Math.floor(Math.random() * keys.length)];
           Z.n = 6 + Math.floor(Math.random() * 18);
           Z.len = 6 + Math.floor(Math.random() * 28);
+          Z.lenVar = Math.round(Math.random() * 70) / 100;
+          Z.w = Math.round((3 + Math.random() * 4) * 2) / 2;
+          Z.wVar = Math.round(Math.random() * 60) / 100;
           Z.rnd = Math.round(Math.random() * 100) / 100;
         } else {
           // dentro de la orientación: misma dirección, varía cantidad/largo un poco y el reparto (semilla)
@@ -20313,7 +20331,7 @@
           Z.len = THREE.MathUtils.clamp(Math.round(Z.len * (0.85 + Math.random() * 0.3)), 3, 40);
         }
       });
-      if (mode === 'total') cfg.zones = Math.random() < 0.5 ? 4 : 5;
+      if (mode === 'total') cfg.zones = [4, 5, 7][Math.floor(Math.random() * 3)];
     }
     function applyRandomZoneHairstyle() {
       hairStripKey = 'tiras_aleatorio';
@@ -20330,18 +20348,27 @@
       panel.id = 'hair-zone-panel';
       panel.className = 'mt-2 p-2 rounded-xl border border-cyan-500/20 bg-slate-950/60 space-y-1.5';
       const opt = Object.entries(HAIR_ZONE_ORIENTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
-      const row = (zk) => `<div class="hz-row grid grid-cols-12 gap-1 items-center text-[9px] text-slate-300" data-zone="${zk}">
-          <span class="col-span-2 font-semibold">${HAIR_ZONE_NAMES[zk]}</span>
-          <label class="col-span-2">Nº <input type="number" min="0" max="40" class="hz-n w-9 bg-slate-900 rounded px-1"></label>
-          <select class="hz-dir col-span-3 bg-slate-900 rounded px-0.5">${opt}</select>
-          <label class="col-span-2">cm <input type="number" min="3" max="40" class="hz-len w-9 bg-slate-900 rounded px-1"></label>
-          <label class="col-span-3">Azar <input type="range" min="0" max="100" class="hz-rnd w-full accent-cyan-500"></label>
+      const num = (cls, min, max, step) => `<input type="number" min="${min}" max="${max}" step="${step}" class="${cls} w-10 bg-slate-900 rounded px-1">`;
+      const pct = (cls) => `<input type="range" min="0" max="100" class="${cls} w-full accent-cyan-500">`;
+      const row = (zk) => `<div class="hz-row border-t border-white/5 pt-1 space-y-0.5 text-[9px] text-slate-300" data-zone="${zk}">
+          <div class="grid grid-cols-12 gap-1 items-center">
+            <span class="col-span-3 font-semibold text-cyan-200">${HAIR_ZONE_NAMES[zk]}</span>
+            <label class="col-span-2 flex items-center gap-0.5">Nº ${num('hz-n', 0, 40, 1).replace('w-10', 'w-8')}</label>
+            <select class="hz-dir col-span-4 bg-slate-900 rounded px-0.5">${opt}</select>
+            <label class="col-span-3 flex items-center gap-0.5" title="Aleatoriedad de la dirección">Dir ${pct('hz-rnd')}</label>
+          </div>
+          <div class="grid grid-cols-12 gap-1 items-center">
+            <label class="col-span-3" title="Largo máximo (cm)">Largo ${num('hz-len', 2, 40, 1)}</label>
+            <label class="col-span-3 flex items-center gap-0.5" title="Variación: mechones más cortos que el máximo">± ${pct('hz-lenvar')}</label>
+            <label class="col-span-3" title="Ancho máximo de la lámina (cm)">Ancho ${num('hz-w', 1, 9, 0.5)}</label>
+            <label class="col-span-3 flex items-center gap-0.5" title="Variación: láminas más estrechas que el máximo">± ${pct('hz-wvar')}</label>
+          </div>
         </div>`;
       panel.innerHTML = `<div class="flex items-center justify-between">
           <span class="text-[10px] font-semibold text-cyan-300">🎲 Peinado Aleatorio de Tiras (por zonas)</span>
-          <select id="hz-zones" class="bg-slate-900 rounded text-[9px] px-1"><option value="4">4 zonas</option><option value="5">5 zonas</option></select>
+          <select id="hz-zones" class="bg-slate-900 rounded text-[9px] px-1"><option value="4">4 zonas</option><option value="5">5 zonas</option><option value="7">7 zonas</option></select>
         </div>
-        ${['frente', 'coronilla', 'izq', 'der', 'nuca'].map(row).join('')}
+        ${HAIR_ZONE_SETS[7].map(row).join('')}
         <div class="grid grid-cols-3 gap-1">
           <button id="hz-gen" class="px-1 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-[9px] font-bold text-white">Generar</button>
           <button id="hz-rnd-dir" class="px-1 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[9px] font-bold text-white">Azar en orientación</button>
@@ -20354,7 +20381,9 @@
           const Z = HAIR_RANDOM_CFG.z[r.dataset.zone];
           r.querySelector('.hz-n').value = Z.n; r.querySelector('.hz-dir').value = Z.dir;
           r.querySelector('.hz-len').value = Z.len; r.querySelector('.hz-rnd').value = Math.round(Z.rnd * 100);
-          r.style.display = (HAIR_RANDOM_CFG.zones === 4 && r.dataset.zone === 'coronilla') ? 'none' : '';
+          r.querySelector('.hz-lenvar').value = Math.round((Z.lenVar ?? 0.3) * 100);
+          r.querySelector('.hz-w').value = Z.w ?? 5.5; r.querySelector('.hz-wvar').value = Math.round((Z.wVar ?? 0.3) * 100);
+          r.style.display = (HAIR_ZONE_SETS[HAIR_RANDOM_CFG.zones] || []).includes(r.dataset.zone) ? '' : 'none';
         });
       };
       const read = () => {
@@ -20363,6 +20392,8 @@
           const Z = HAIR_RANDOM_CFG.z[r.dataset.zone];
           Z.n = parseInt(r.querySelector('.hz-n').value, 10) || 0; Z.dir = r.querySelector('.hz-dir').value;
           Z.len = parseFloat(r.querySelector('.hz-len').value) || 10; Z.rnd = (parseInt(r.querySelector('.hz-rnd').value, 10) || 0) / 100;
+          Z.lenVar = (parseInt(r.querySelector('.hz-lenvar').value, 10) || 0) / 100;
+          Z.w = parseFloat(r.querySelector('.hz-w').value) || 5.5; Z.wVar = (parseInt(r.querySelector('.hz-wvar').value, 10) || 0) / 100;
         });
       };
       sync();
