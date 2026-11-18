@@ -37,5 +37,161 @@
    "skin": "#ba9c91",
    "lips": "#d4aba4"
   }
+ },
+ "ind_marcado": {
+  "label": "Guerrero marcado",
+  "gender": "hombre",
+  "hairCut": "corto_clasico",
+  "url": "textures/rostro_ind_marcado.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   134.4,
+   219.0
+  ],
+  "eyeR": [
+   275.6,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 56.5,
+  "lidOpen": 0.8,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   150.1,
+   373.4
+  ],
+  "mouthR": [
+   262.5,
+   373.4
+  ],
+  "colors": {
+   "eyes": "#c47a1c",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438",
+   "skin": "#ba9c91",
+   "lips": "#d2a7a0"
+  }
+ },
+ "ind_joven_cicatriz": {
+  "label": "Joven de la cicatriz",
+  "gender": "hombre",
+  "hairCut": "peinado_atras",
+  "url": "textures/rostro_ind_joven_cicatriz.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   133.5,
+   219.0
+  ],
+  "eyeR": [
+   276.5,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 57.2,
+  "lidOpen": 0.8,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   150.9,
+   371.4
+  ],
+  "mouthR": [
+   260.9,
+   371.4
+  ],
+  "colors": {
+   "eyes": "#b8771f",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438",
+   "skin": "#ba9c91",
+   "lips": "#d4a2a0"
+  }
+ },
+ "ind_moraton": {
+  "label": "Guerrero del moratón",
+  "gender": "hombre",
+  "hairCut": "corto_guerrero",
+  "url": "textures/rostro_ind_moraton.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   133.4,
+   219.0
+  ],
+  "eyeR": [
+   276.6,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 57.2,
+  "lidOpen": 0.8,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   153.2,
+   371.2
+  ],
+  "mouthR": [
+   263.3,
+   371.2
+  ],
+  "colors": {
+   "eyes": "#9c3a1a",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438",
+   "skin": "#ba9c91",
+   "lips": "#d0a09d"
+  }
+ },
+ "ind_tatuaje_tribal": {
+  "label": "Guerrero del tatuaje tribal",
+  "gender": "hombre",
+  "hairCut": "despeinado_heroe",
+  "url": "textures/rostro_ind_tatuaje_tribal.png",
+  "size": [
+   410,
+   543
+  ],
+  "eyeL": [
+   132.6,
+   219.0
+  ],
+  "eyeR": [
+   277.4,
+   219.0
+  ],
+  "chinY": 464.0,
+  "eyeWidth": 58.0,
+  "lidOpen": 0.8,
+  "browY": 187.2,
+  "noseY": 329.2,
+  "mouthL": [
+   151.0,
+   371.8
+  ],
+  "mouthR": [
+   261.6,
+   371.8
+  ],
+  "colors": {
+   "eyes": "#1f8a5a",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438",
+   "skin": "#9a8452",
+   "lips": "#966e57"
+  }
  }
 }

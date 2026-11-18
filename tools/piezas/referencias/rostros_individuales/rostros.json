@@ -28,5 +28,125 @@
    "hairHigh": "#5a4438"
   },
   "skinOverride": "#ba9c91"
+ },
+ "marcado": {
+  "archivo": "marcado.jpg",
+  "label": "Guerrero marcado",
+  "gender": "hombre",
+  "hairCut": "corto_clasico",
+  "eyeL": [
+   503,
+   784
+  ],
+  "eyeR": [
+   988,
+   784
+  ],
+  "mouthL": [
+   557,
+   1314
+  ],
+  "mouthR": [
+   943,
+   1314
+  ],
+  "chinY": 1625,
+  "colors": {
+   "eyes": "#c47a1c",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  },
+  "skinOverride": "#ba9c91"
+ },
+ "joven_cicatriz": {
+  "archivo": "joven_cicatriz.jpg",
+  "label": "Joven de la cicatriz",
+  "gender": "hombre",
+  "hairCut": "peinado_atras",
+  "eyeL": [
+   502,
+   792
+  ],
+  "eyeR": [
+   988,
+   792
+  ],
+  "mouthL": [
+   561,
+   1310
+  ],
+  "mouthR": [
+   935,
+   1310
+  ],
+  "chinY": 1625,
+  "colors": {
+   "eyes": "#b8771f",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  },
+  "skinOverride": "#ba9c91"
+ },
+ "moraton": {
+  "archivo": "moraton.jpg",
+  "label": "Guerrero del moratón",
+  "gender": "hombre",
+  "hairCut": "corto_guerrero",
+  "eyeL": [
+   498,
+   793
+  ],
+  "eyeR": [
+   984,
+   793
+  ],
+  "mouthL": [
+   565,
+   1310
+  ],
+  "mouthR": [
+   939,
+   1310
+  ],
+  "chinY": 1625,
+  "colors": {
+   "eyes": "#9c3a1a",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  },
+  "skinOverride": "#ba9c91"
+ },
+ "tatuaje_tribal": {
+  "archivo": "tatuaje_tribal.jpg",
+  "label": "Guerrero del tatuaje tribal",
+  "gender": "hombre",
+  "hairCut": "despeinado_heroe",
+  "eyeL": [
+   498,
+   788
+  ],
+  "eyeR": [
+   993,
+   788
+  ],
+  "mouthL": [
+   561,
+   1310
+  ],
+  "mouthR": [
+   939,
+   1310
+  ],
+  "chinY": 1625,
+  "colors": {
+   "eyes": "#1f8a5a",
+   "hairRoot": "#1a1210",
+   "hairTip": "#2b1f1a",
+   "hairHigh": "#5a4438"
+  },
+  "skinOverride": "#9a8452"
  }
 }
