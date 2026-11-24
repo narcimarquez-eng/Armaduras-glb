@@ -332,12 +332,23 @@
             <option value="off">○ Apagado</option>
           </select>
         </div>
-        <div class="flex flex-col gap-0.5 pt-0.5 px-1">
+        <div class="flex flex-col gap-1 pt-0.5 px-1">
           <div class="flex items-center justify-between">
             <span class="text-[8px] font-semibold text-slate-400 uppercase tracking-wider">Sonido Skills</span>
             <span id="val-skill-sfx-vol" class="text-[8px] font-mono text-emerald-300">72%</span>
           </div>
           <input id="skill-sfx-volume" type="range" min="0" max="100" value="72" class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400" />
+          <div class="grid grid-cols-3 gap-1 pt-1">
+            <button id="btn-export-sfx-wav" title="Exportar sonido de la skill o golpe actual (.WAV 44.1kHz Estéreo)" class="text-[8.5px] font-semibold px-1.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-500/35 text-emerald-200 border border-emerald-400/35 transition cursor-pointer flex items-center justify-center gap-1">
+              <i data-lucide="download" class="w-2.5 h-2.5 shrink-0"></i><span>WAV</span>
+            </button>
+            <button id="btn-export-sfx-pack" title="Exportar pack completo de sonidos del arma equipada (.ZIP de WAVs)" class="text-[8.5px] font-semibold px-1.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-500/35 text-indigo-200 border border-indigo-400/35 transition cursor-pointer flex items-center justify-center gap-1">
+              <i data-lucide="package" class="w-2.5 h-2.5 shrink-0"></i><span>Pack</span>
+            </button>
+            <button id="btn-record-sfx-live" title="Grabar audio en vivo y guardar como archivo .WAV" class="text-[8.5px] font-semibold px-1.5 py-1 rounded-lg bg-slate-800/80 hover:bg-rose-600/30 text-slate-200 border border-white/10 hover:border-rose-400/40 transition cursor-pointer flex items-center justify-center gap-1">
+              <span id="rec-sfx-dot" class="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span><span id="rec-sfx-label">Grabar</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -27396,6 +27407,23 @@
       let whiteBuf = null;
       let pinkBuf = null;
 
+      // Objetivo temporal para renderizado determinista offline (OfflineAudioContext -> .WAV/.ZIP)
+      let offlineTarget = null;
+
+      // Captura PCM estéreo en vivo (toma directa post-compresor a nivel estudio, independiente del slider de volumen)
+      let captureNode = null;
+      let captureSink = null;
+      let liveRecording = false;
+      let liveRecChunksL = [];
+      let liveRecChunksR = [];
+      let liveRecSamples = 0;
+      const LIVE_REC_MAX_SEC = 60;
+      const ROLLING_MAX_SEC = 8;
+      let rollingChunksL = [];
+      let rollingChunksR = [];
+      let rollingSamples = 0;
+      let lastCapturedSampleRate = 44100;
+
       let enabled = true;
       let volume = 0.72;
 
@@ -27437,7 +27465,123 @@
       const BLADED_WEAPON_CLASSES = new Set(['espadas', 'mandobles', 'dagas', 'lanzas']);
       const AXE_WEAPON_CLASSES = new Set(['hachas', 'hachas_2m']);
 
+      function getNow(ac) {
+        return offlineTarget ? offlineTarget.time : ac.currentTime;
+      }
+
+      // Crea el grafo de audio completo (compresor + reverb de cámara estéreo + buffers de ruido blanco/rosa)
+      // compatible tanto con AudioContext en vivo como con OfflineAudioContext para exportación .WAV
+      function buildAudioGraph(targetCtx, outGainValue, attachLiveTap) {
+        const comp = targetCtx.createDynamicsCompressor();
+        comp.threshold.value = -14;
+        comp.knee.value = 18;
+        comp.ratio.value = 6;
+        comp.attack.value = 0.003;
+        comp.release.value = 0.16;
+
+        const mGain = targetCtx.createGain();
+        mGain.gain.value = outGainValue;
+        comp.connect(mGain);
+        mGain.connect(targetCtx.destination);
+
+        // Reverb de cámara/sala épica generada proceduralmente (1.35s estéreo)
+        const sr = targetCtx.sampleRate;
+        const irLen = Math.floor(sr * 1.35);
+        const irBuf = targetCtx.createBuffer(2, irLen, sr);
+        for (let ch = 0; ch < 2; ch++) {
+          const d = irBuf.getChannelData(ch);
+          let lp = 0;
+          for (let i = 0; i < irLen; i++) {
+            const t = i / irLen;
+            const env = Math.pow(1 - t, 2.75) * (i < sr * 0.015 ? (i / (sr * 0.015)) : 1);
+            const raw = (Math.random() * 2 - 1) * env;
+            lp = lp * 0.78 + raw * 0.22;
+            d[i] = lp * 0.48;
+          }
+        }
+        const rev = targetCtx.createConvolver();
+        rev.buffer = irBuf;
+        const revGain = targetCtx.createGain();
+        revGain.gain.value = 0.19;
+        rev.connect(revGain);
+        revGain.connect(comp);
+
+        // Buffers compartidos de ruido blanco y rosa (2s cada uno)
+        const nLen = Math.floor(sr * 2.0);
+        const wBuf = targetCtx.createBuffer(1, nLen, sr);
+        const pBuf = targetCtx.createBuffer(1, nLen, sr);
+        const wd = wBuf.getChannelData(0);
+        const pd = pBuf.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+        for (let i = 0; i < nLen; i++) {
+          const w = Math.random() * 2 - 1;
+          wd[i] = w;
+          b0 = 0.99886 * b0 + w * 0.0555179;
+          b1 = 0.99332 * b1 + w * 0.0750759;
+          b2 = 0.96900 * b2 + w * 0.1538520;
+          b3 = 0.86650 * b3 + w * 0.3104856;
+          b4 = 0.55000 * b4 + w * 0.5329522;
+          b5 = -0.7616 * b5 - w * 0.0168980;
+          pd[i] = Math.max(-1, Math.min(1, (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11));
+          b6 = w * 0.115926;
+        }
+
+        if (attachLiveTap && typeof targetCtx.createScriptProcessor === 'function') {
+          try {
+            lastCapturedSampleRate = sr;
+            const tap = targetCtx.createScriptProcessor(4096, 2, 2);
+            const sink = targetCtx.createGain();
+            sink.gain.value = 0;
+            tap.onaudioprocess = (ev) => {
+              const inL = ev.inputBuffer.getChannelData(0);
+              const inR = ev.inputBuffer.numberOfChannels > 1 ? ev.inputBuffer.getChannelData(1) : inL;
+              // Comprobar si hay señal real (evita acumular silencio innecesario en el búfer circular)
+              let peak = 0;
+              for (let i = 0; i < inL.length; i += 8) {
+                const a = Math.abs(inL[i]);
+                const b = Math.abs(inR[i]);
+                if (a > peak) peak = a;
+                if (b > peak) peak = b;
+              }
+              if (liveRecording) {
+                const copyL = new Float32Array(inL);
+                const copyR = new Float32Array(inR);
+                liveRecChunksL.push(copyL);
+                liveRecChunksR.push(copyR);
+                liveRecSamples += copyL.length;
+                if (liveRecSamples >= sr * LIVE_REC_MAX_SEC) {
+                  stopLiveRecording(true);
+                }
+              }
+              if (peak > 0.0005 || rollingSamples > 0) {
+                const rL = new Float32Array(inL);
+                const rR = new Float32Array(inR);
+                rollingChunksL.push(rL);
+                rollingChunksR.push(rR);
+                rollingSamples += rL.length;
+                const maxRoll = Math.floor(sr * ROLLING_MAX_SEC);
+                while (rollingSamples > maxRoll && rollingChunksL.length > 1) {
+                  rollingSamples -= rollingChunksL[0].length;
+                  rollingChunksL.shift();
+                  rollingChunksR.shift();
+                }
+              }
+            };
+            comp.connect(tap);
+            tap.connect(sink);
+            sink.connect(targetCtx.destination);
+            captureNode = tap;
+            captureSink = sink;
+          } catch (tapErr) {
+            // Si el navegador restringe ScriptProcessor, el export offline sigue 100% operativo
+          }
+        }
+
+        return { compressor: comp, masterGain: mGain, reverbNode: rev, reverbGain: revGain, whiteBuf: wBuf, pinkBuf: pBuf };
+      }
+
       function ensureContext() {
+        if (offlineTarget) return offlineTarget.ctx;
         if (!enabled || volume <= 0.001) return null;
         if (ctx) {
           if (ctx.state === 'suspended') {
@@ -27449,60 +27593,13 @@
           const AC = window.AudioContext || window.webkitAudioContext;
           if (!AC) return null;
           ctx = new AC();
-          compressor = ctx.createDynamicsCompressor();
-          compressor.threshold.value = -14;
-          compressor.knee.value = 18;
-          compressor.ratio.value = 6;
-          compressor.attack.value = 0.003;
-          compressor.release.value = 0.16;
-
-          masterGain = ctx.createGain();
-          masterGain.gain.value = volume;
-
-          compressor.connect(masterGain);
-          masterGain.connect(ctx.destination);
-
-          // Reverb de cámara/sala épica generada proceduralmente (1.35s estéreo)
-          const sr = ctx.sampleRate;
-          const irLen = Math.floor(sr * 1.35);
-          const irBuf = ctx.createBuffer(2, irLen, sr);
-          for (let ch = 0; ch < 2; ch++) {
-            const d = irBuf.getChannelData(ch);
-            let lp = 0;
-            for (let i = 0; i < irLen; i++) {
-              const t = i / irLen;
-              const env = Math.pow(1 - t, 2.75) * (i < sr * 0.015 ? (i / (sr * 0.015)) : 1);
-              const raw = (Math.random() * 2 - 1) * env;
-              lp = lp * 0.78 + raw * 0.22;
-              d[i] = lp * 0.48;
-            }
-          }
-          reverbNode = ctx.createConvolver();
-          reverbNode.buffer = irBuf;
-          reverbGain = ctx.createGain();
-          reverbGain.gain.value = 0.19;
-          reverbNode.connect(reverbGain);
-          reverbGain.connect(compressor);
-
-          // Buffers compartidos de ruido blanco y rosa (2s cada uno)
-          const nLen = Math.floor(sr * 2.0);
-          whiteBuf = ctx.createBuffer(1, nLen, sr);
-          pinkBuf = ctx.createBuffer(1, nLen, sr);
-          const wd = whiteBuf.getChannelData(0);
-          const pd = pinkBuf.getChannelData(0);
-          let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-          for (let i = 0; i < nLen; i++) {
-            const w = Math.random() * 2 - 1;
-            wd[i] = w;
-            b0 = 0.99886 * b0 + w * 0.0555179;
-            b1 = 0.99332 * b1 + w * 0.0750759;
-            b2 = 0.96900 * b2 + w * 0.1538520;
-            b3 = 0.86650 * b3 + w * 0.3104856;
-            b4 = 0.55000 * b4 + w * 0.5329522;
-            b5 = -0.7616 * b5 - w * 0.0168980;
-            pd[i] = Math.max(-1, Math.min(1, (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11));
-            b6 = w * 0.115926;
-          }
+          const g = buildAudioGraph(ctx, volume, true);
+          compressor = g.compressor;
+          masterGain = g.masterGain;
+          reverbNode = g.reverbNode;
+          reverbGain = g.reverbGain;
+          whiteBuf = g.whiteBuf;
+          pinkBuf = g.pinkBuf;
 
           if (ctx.state === 'suspended') {
             try { ctx.resume(); } catch (e) {}
@@ -27538,18 +27635,24 @@
       }
 
       function routeOut(node, wetAmt = 0.18) {
-        node.connect(compressor);
-        if (wetAmt > 0.01 && reverbNode) {
-          const send = ctx.createGain();
+        const tgt = offlineTarget;
+        const activeCtx = tgt ? tgt.ctx : ctx;
+        const activeComp = tgt ? tgt.compressor : compressor;
+        const activeRev = tgt ? tgt.reverbNode : reverbNode;
+        node.connect(activeComp);
+        if (wetAmt > 0.01 && activeRev && activeCtx) {
+          const send = activeCtx.createGain();
           send.gain.value = wetAmt;
           node.connect(send);
-          send.connect(reverbNode);
+          send.connect(activeRev);
         }
       }
 
       function makeNoise(ac, pink, startT, dur, filterType, fStart, fEnd, qVal, gainPeak, atk = 0.01, wet = 0.16, pan = 0) {
         const src = ac.createBufferSource();
-        src.buffer = pink ? pinkBuf : whiteBuf;
+        const activePink = offlineTarget ? offlineTarget.pinkBuf : pinkBuf;
+        const activeWhite = offlineTarget ? offlineTarget.whiteBuf : whiteBuf;
+        src.buffer = pink ? activePink : activeWhite;
         src.loop = true;
         const offset = Math.random() * 1.4;
 
@@ -27742,7 +27845,7 @@
       function playChargeSwell(weaponClass, element = 'lightning', isMagic = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const isBow = (weaponClass === 'arcos');
         const isAxe = AXE_WEAPON_CLASSES.has(weaponClass);
         const isHeavyWeight = (isAxe || weaponClass === 'mazas');
@@ -27777,7 +27880,7 @@
       function playOrbIgnite(weaponClass, element = 'lightning') {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const isStaff = (weaponClass === 'bastones');
         // Rápida succión aerodinámica + pulso cálido de ignición de energía
         makeNoise(ac, false, t, isStaff ? 0.22 : 0.15, 'bandpass', 480, 2900, 3.0, isStaff ? 0.15 : 0.12, 0.06, 0.28);
@@ -27790,7 +27893,7 @@
       function playWeaponSwing(weaponClass, element = 'lightning', speedNorm = 1.0, isPierce = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const sp = Math.max(0.65, Math.min(1.45, speedNorm));
         const pan = (Math.random() - 0.5) * 0.36;
 
@@ -27855,7 +27958,7 @@
       function playDashStep(element = 'void') {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         makeNoise(ac, false, t, 0.16, 'bandpass', 900, 3400, 2.2, 0.22, 0.006, 0.20);
         makeNoise(ac, true, t, 0.14, 'lowpass', 720, 160, 1.1, 0.16, 0.005, 0.14);
         addElementalAccent(ac, element, t, 0.55, false);
@@ -27865,7 +27968,7 @@
       function playEnergyWaveCast(kind, weaponClass, element = 'lightning') {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const isStaff = (weaponClass === 'bastones');
         if (isStaff) {
           // Descarga de hechizo / meteoro / onda arcana desde la esfera de la punta del báculo
@@ -27893,7 +27996,7 @@
       function playHeavyImpact(weaponClass, element = 'lightning', isSlam = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const isAxe = AXE_WEAPON_CLASSES.has(weaponClass);
         const is2HAxe = (weaponClass === 'hachas_2m');
         const heavy = (isSlam || weaponClass === 'mandobles' || is2HAxe || weaponClass === 'mazas') ? 1.28 : (isAxe ? 1.15 : 1.0);
@@ -27922,7 +28025,7 @@
       function playAxeCleave(weaponClass = 'hachas_2m', element = 'fire', isHeavy = false, delaySec = 0) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime + Math.max(0, delaySec || 0);
+        const t = getNow(ac) + Math.max(0, delaySec || 0);
         const is2H = (weaponClass === 'hachas_2m');
         const w = is2H ? 1.24 : 1.0;
         const hMul = isHeavy ? 1.18 : 1.0;
@@ -27952,7 +28055,7 @@
       function playPhysicalHit(weaponClass = 'espadas', kind = 'slash', isHeavy = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const h = isHeavy ? 1.24 : 1.0;
         st.clashPanSide = -st.clashPanSide;
         const pan = st.clashPanSide * (0.12 + Math.random() * 0.18);
@@ -28025,7 +28128,7 @@
       function playSwordClash(weaponClass = 'espadas', element = 'lightning', style = 'clash', delaySec = 0) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime + Math.max(0, delaySec || 0);
+        const t = getNow(ac) + Math.max(0, delaySec || 0);
         const mass = (weaponClass === 'dagas') ? 0.74
           : (weaponClass === 'mandobles' || weaponClass === 'hachas_2m') ? 1.28
           : (weaponClass === 'hachas' || weaponClass === 'lanzas') ? 1.08 : 1.0;
@@ -28086,7 +28189,7 @@
       function playEnergyBeam(element = 'holy') {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const dur = 1.05;
         // Estallido inicial del haz
         makeTone(ac, 'sine', t, 0.34, 175, 42, 0.34, 0.005, 0.24);
@@ -28102,7 +28205,7 @@
       function playSupernova(element = 'prism') {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         // Breve implosión de aire -> detonación colosal
         makeNoise(ac, false, t, 0.11, 'bandpass', 2600, 280, 2.2, 0.20, 0.01, 0.22);
         const boomT = t + 0.09;
@@ -28116,7 +28219,7 @@
       function playArcaneVortex(element = 'arcane') {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         makeNoise(ac, false, t, 0.64, 'bandpass', 460, 2800, 3.4, 0.20, 0.10, 0.36);
         makeNoise(ac, true, t, 0.64, 'bandpass', 240, 780, 2.0, 0.18, 0.12, 0.30);
         makeFilteredTone(ac, 'sawtooth', t, 0.65, 125, 210, 420, 1450, 2.4, 0.12, 0.08, 0.34, -10);
@@ -28128,7 +28231,7 @@
       function playBowDraw(element = 'lightning', fast = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const dur = fast ? 0.34 : 0.68;
         // Crujido de madera y tensión creciente de la cuerda
         makeNoise(ac, true, t, dur, 'bandpass', 300, 760, 3.4, 0.16, 0.08, 0.14);
@@ -28144,7 +28247,7 @@
       function playSimpleFireball(isHeavy = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const h = isHeavy ? 1.22 : 1.0;
         const jit = 0.94 + Math.random() * 0.12;
         // Encendido breve de llama + fwoosh cálido
@@ -28157,7 +28260,7 @@
       function playBowStringCrackle(element = 'lightning', charge = 0.7) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const amp = Math.min(1.0, Math.max(0.25, charge * 0.75));
         if (element === 'fire') {
           makeNoise(ac, true, t, 0.11, 'bandpass', 780, 300, 2.0, 0.10 * amp, 0.01, 0.18);
@@ -28177,7 +28280,7 @@
       function playBowRelease(mode, element = 'lightning', isVolley = false) {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         // TWANG elástico y grave de la cuerda del arco
         makeFilteredTone(ac, 'sawtooth', t, 0.20, 185, 78, 680, 180, 1.6, 0.20, 0.002, 0.16);
         makeTone(ac, 'sine', t, 0.22, 120, 62, 0.20, 0.003, 0.16);
@@ -28202,7 +28305,7 @@
       function playPrismRainSkyCue() {
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime + 0.06;
+        const t = getNow(ac) + 0.06;
         makeNoise(ac, false, t, 0.42, 'bandpass', 650, 4400, 2.8, 0.18, 0.06, 0.34);
         makeFilteredTone(ac, 'sawtooth', t, 0.40, 145, 290, 480, 1900, 2.2, 0.10, 0.08, 0.32, -8);
         makeFilteredTone(ac, 'sawtooth', t + 0.03, 0.38, 218, 360, 620, 2200, 2.0, 0.075, 0.08, 0.32, 10);
@@ -28214,7 +28317,7 @@
         st.rainImpactCD = 0.052;
         const ac = ensureContext();
         if (!ac) return;
-        const t = ac.currentTime;
+        const t = getNow(ac);
         const pan = (Math.random() - 0.5) * 1.1;
         const band = 1400 + ((prismNoteIdx++) % 6) * 420;
         // Clavado contundente en el suelo
@@ -28521,6 +28624,738 @@
         }
       }
 
+      // =========================================================================
+      // MOTOR DE GRABACIÓN Y EXPORTACIÓN DE SONIDOS (.WAV 44.1kHz ESTÉREO + .ZIP)
+      // =========================================================================
+      function sanitizeFilenamePart(str) {
+        return String(str || 'sonido')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '') || 'sonido';
+      }
+
+      function concatFloat32Chunks(chunks, totalLen) {
+        const out = new Float32Array(totalLen);
+        let offset = 0;
+        for (let i = 0; i < chunks.length; i++) {
+          out.set(chunks[i], offset);
+          offset += chunks[i].length;
+        }
+        return out;
+      }
+
+      // Codifica PCM estéreo 16-bit estándar (44-byte RIFF/WAVE) con recorte limpio de silencios y normalización sin clipping
+      function encodeWav16Stereo(leftIn, rightIn, sampleRate = 44100, opts = {}) {
+        const trim = opts.trimSilence !== false;
+        const normalize = opts.normalize !== false;
+        const len = Math.min(leftIn.length, rightIn ? rightIn.length : leftIn.length);
+        const rIn = rightIn || leftIn;
+
+        let startIdx = 0;
+        let endIdx = len;
+        if (trim && len > 0) {
+          const leadThresh = 0.0012;
+          const tailThresh = 0.0018;
+          while (startIdx < len && Math.abs(leftIn[startIdx]) < leadThresh && Math.abs(rIn[startIdx]) < leadThresh) {
+            startIdx++;
+          }
+          if (startIdx >= len) {
+            startIdx = 0;
+            endIdx = Math.min(len, Math.floor(sampleRate * 0.25));
+          } else {
+            startIdx = Math.max(0, startIdx - Math.floor(sampleRate * 0.012));
+            let lastLoud = len - 1;
+            while (lastLoud > startIdx && Math.abs(leftIn[lastLoud]) < tailThresh && Math.abs(rIn[lastLoud]) < tailThresh) {
+              lastLoud--;
+            }
+            endIdx = Math.min(len, lastLoud + Math.floor(sampleRate * 0.14));
+          }
+        }
+
+        const outFrames = Math.max(1, endIdx - startIdx);
+        let peak = 0;
+        for (let i = startIdx; i < endIdx; i++) {
+          const a = Math.abs(leftIn[i]);
+          const b = Math.abs(rIn[i]);
+          if (a > peak) peak = a;
+          if (b > peak) peak = b;
+        }
+        // Normalización musical suave: conserva dinámicas, asegura volumen profesional (-0.7 dBFS) y nunca clipea
+        let gain = 1.0;
+        if (normalize && peak > 0.002) {
+          gain = Math.min(2.4, 0.92 / peak);
+        }
+
+        const numChannels = 2;
+        const bytesPerSample = 2;
+        const dataByteLength = outFrames * numChannels * bytesPerSample;
+        const buf = new ArrayBuffer(44 + dataByteLength);
+        const view = new DataView(buf);
+
+        const writeStr = (off, s) => {
+          for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+        };
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + dataByteLength, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); // PCM
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+        view.setUint16(32, numChannels * bytesPerSample, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, 'data');
+        view.setUint32(40, dataByteLength, true);
+
+        let ptr = 44;
+        const fadeOutSamples = Math.min(Math.floor(sampleRate * 0.025), Math.floor(outFrames * 0.15));
+        for (let i = 0; i < outFrames; i++) {
+          const idx = startIdx + i;
+          let fade = 1.0;
+          const rem = outFrames - 1 - i;
+          if (fadeOutSamples > 0 && rem < fadeOutSamples) fade = rem / fadeOutSamples;
+          const sL = Math.max(-1, Math.min(1, leftIn[idx] * gain * fade));
+          const sR = Math.max(-1, Math.min(1, rIn[idx] * gain * fade));
+          view.setInt16(ptr, sL < 0 ? Math.round(sL * 0x8000) : Math.round(sL * 0x7FFF), true);
+          view.setInt16(ptr + 2, sR < 0 ? Math.round(sR * 0x8000) : Math.round(sR * 0x7FFF), true);
+          ptr += 4;
+        }
+        return {
+          bytes: new Uint8Array(buf),
+          duration: outFrames / sampleRate,
+          sampleRate,
+          peak
+        };
+      }
+
+      // Empaquetador ZIP estándar (Store + CRC-32 IEEE 802.3, cero dependencias externas)
+      const CRC32_TABLE = (() => {
+        const tbl = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+          tbl[i] = c >>> 0;
+        }
+        return tbl;
+      })();
+
+      function crc32Bytes(u8) {
+        let crc = 0xFFFFFFFF;
+        for (let i = 0; i < u8.length; i++) {
+          crc = CRC32_TABLE[(crc ^ u8[i]) & 0xFF] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+      }
+
+      function createZipBlob(entries) {
+        const enc = new TextEncoder();
+        const localParts = [];
+        const centralParts = [];
+        let offset = 0;
+        const nowD = new Date();
+        const dosTime = ((nowD.getHours() & 31) << 11) | ((nowD.getMinutes() & 63) << 5) | ((nowD.getSeconds() >> 1) & 31);
+        const dosDate = (((Math.max(1980, nowD.getFullYear()) - 1980) & 127) << 9) | (((nowD.getMonth() + 1) & 15) << 5) | (nowD.getDate() & 31);
+
+        for (let i = 0; i < entries.length; i++) {
+          const nameBytes = enc.encode(entries[i].name);
+          const dataBytes = entries[i].data instanceof Uint8Array ? entries[i].data : new Uint8Array(entries[i].data);
+          const crc = crc32Bytes(dataBytes);
+          const size = dataBytes.length;
+
+          const lh = new Uint8Array(30 + nameBytes.length);
+          const lv = new DataView(lh.buffer);
+          lv.setUint32(0, 0x04034B50, true);
+          lv.setUint16(4, 20, true);
+          lv.setUint16(6, 0x0800, true); // UTF-8
+          lv.setUint16(8, 0, true);      // Store
+          lv.setUint16(10, dosTime, true);
+          lv.setUint16(12, dosDate, true);
+          lv.setUint32(14, crc, true);
+          lv.setUint32(18, size, true);
+          lv.setUint32(22, size, true);
+          lv.setUint16(26, nameBytes.length, true);
+          lv.setUint16(28, 0, true);
+          lh.set(nameBytes, 30);
+
+          localParts.push(lh, dataBytes);
+
+          const ch = new Uint8Array(46 + nameBytes.length);
+          const cv = new DataView(ch.buffer);
+          cv.setUint32(0, 0x02014B50, true);
+          cv.setUint16(4, 20, true);
+          cv.setUint16(6, 20, true);
+          cv.setUint16(8, 0x0800, true);
+          cv.setUint16(10, 0, true);
+          cv.setUint16(12, dosTime, true);
+          cv.setUint16(14, dosDate, true);
+          cv.setUint32(16, crc, true);
+          cv.setUint32(20, size, true);
+          cv.setUint32(24, size, true);
+          cv.setUint16(28, nameBytes.length, true);
+          cv.setUint16(30, 0, true);
+          cv.setUint16(32, 0, true);
+          cv.setUint16(34, 0, true);
+          cv.setUint16(36, 0, true);
+          cv.setUint32(38, 0, true);
+          cv.setUint32(42, offset, true);
+          ch.set(nameBytes, 46);
+          centralParts.push(ch);
+
+          offset += lh.length + size;
+        }
+
+        const centralSize = centralParts.reduce((s, p) => s + p.length, 0);
+        const eocd = new Uint8Array(22);
+        const ev = new DataView(eocd.buffer);
+        ev.setUint32(0, 0x06054B50, true);
+        ev.setUint16(4, 0, true);
+        ev.setUint16(6, 0, true);
+        ev.setUint16(8, entries.length, true);
+        ev.setUint16(10, entries.length, true);
+        ev.setUint32(12, centralSize, true);
+        ev.setUint32(16, offset, true);
+        ev.setUint16(20, 0, true);
+
+        return new Blob([...localParts, ...centralParts, eocd], { type: 'application/zip' });
+      }
+
+      function triggerBlobDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      }
+
+      function mapStudioAnimToGameAnimKey(anim) {
+        if (anim === 'attack') return 'punch';
+        if (anim === 'archery' || anim === 'bow_double_shot' || anim === 'bow_barrage' || anim === 'bow_prism_rain' || anim === 'bow_frost_shot') return 'idle';
+        return anim;
+      }
+
+      // Renderizado determinista offline (OfflineAudioContext 44.1kHz Estéreo) de cualquier skill o golpe normal
+      async function renderAnimToWav(opts = {}) {
+        const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (!OAC) throw new Error('OfflineAudioContext no disponible en este navegador');
+
+        const anim = opts.anim || STATE.currentAnim || 'normal_slash';
+        const weaponClass = opts.weaponClass || getWeaponClassId(STATE.equipment.weapon || 0);
+        const prof = opts.prof || getEquippedWeaponCombatProfile();
+        const bodyCfg = getActiveBodyEnergyConfig();
+        const element = opts.element || (bodyCfg && bodyCfg.element) || 'lightning';
+        const isNormalPhysical = NORMAL_ATTACK_ANIMS.has(anim);
+        const isBowSkill = BOW_SKILL_ANIMS.has(anim);
+        const isBowNormal = isNormalPhysical && weaponClass === 'arcos';
+        const isStaff = (weaponClass === 'bastones' || (prof && prof.style === 'staff'));
+        const isBladed = BLADED_WEAPON_CLASSES.has(weaponClass);
+        const isAxe = AXE_WEAPON_CLASSES.has(weaponClass);
+        const isFastBladeCombo = (weaponClass === 'dagas' || anim === 'sword_blitz_rush' || anim === 'sword_double_cross' || anim === 'phantom_flurry' || anim === 'dagger_zigzag_blitz' || anim === 'dagger_shadow_dash' || anim === 'dagger_backstab_rush' || anim === 'dragon_helix');
+
+        // Estimar duración real del ciclo completo + cola de reverb
+        let cycleDur = 1.6;
+        if (isBowNormal) {
+          cycleDur = anim === 'normal_combo' ? 2.45 : (anim === 'normal_heavy' ? 1.65 : 1.30);
+        } else if (isBowSkill) {
+          cycleDur = anim === 'bow_prism_rain' ? 4.35
+            : (anim === 'bow_barrage' ? 3.15
+            : (anim === 'bow_double_shot' ? 2.95
+            : (anim === 'bow_frost_shot' ? 3.05
+            : (anim === 'aerial_shot' ? 1.85 : 2.95))));
+        } else {
+          const mappedKey = mapStudioAnimToGameAnimKey(anim);
+          const meta = (typeof GAME_ANIMATIONS !== 'undefined' && GAME_ANIMATIONS[mappedKey]) ? GAME_ANIMATIONS[mappedKey] : null;
+          const tempo = (COMBAT_ENERGY_ANIMS.has(anim) || isNormalPhysical) ? ((prof && prof.tempo) || 1.0) : 1.0;
+          cycleDur = meta ? (meta.duration / Math.max(0.45, tempo)) : 1.6;
+        }
+        const sr = 44100;
+        const tailSec = 1.45;
+        const totalDur = Math.min(8.0, Math.max(1.2, cycleDur + tailSec));
+        const offCtx = new OAC(2, Math.ceil(totalDur * sr), sr);
+        const g = buildAudioGraph(offCtx, 1.0, false);
+
+        const prevOffline = offlineTarget;
+        const prevRainCD = st.rainImpactCD;
+        const prevClashSide = st.clashPanSide;
+        offlineTarget = {
+          ctx: offCtx,
+          compressor: g.compressor,
+          reverbNode: g.reverbNode,
+          whiteBuf: g.whiteBuf,
+          pinkBuf: g.pinkBuf,
+          time: 0.02
+        };
+
+        try {
+          const setT = (sec) => { offlineTarget.time = Math.max(0.015, Math.min(totalDur - 0.15, sec)); };
+          st.rainImpactCD = 0;
+
+          if (isBowNormal) {
+            if (anim === 'normal_combo') {
+              const shots = [[0.22, 0.62, false], [0.82, 1.32, false], [1.54, 2.04, true]];
+              for (const [tDraw, tRel, isH] of shots) {
+                setT(tDraw); playBowDraw('physical', true);
+                setT(tRel);  playPhysicalHit('arcos', 'pierce', isH);
+              }
+            } else if (anim === 'normal_heavy') {
+              setT(0.32); playBowDraw('physical', true);
+              setT(1.24); playPhysicalHit('arcos', 'pierce', true);
+            } else {
+              setT(0.28); playBowDraw('physical', true);
+              setT(0.86); playPhysicalHit('arcos', 'pierce', false);
+            }
+          } else if (isBowSkill) {
+            const bowEl = anim === 'bow_prism_rain' ? 'prism'
+              : (anim === 'bow_barrage' ? 'fire'
+              : (anim === 'bow_frost_shot' ? 'frost'
+              : (anim === 'aerial_shot' ? 'arcane' : (element || 'lightning'))));
+            setT(0.02); playChargeSwell('arcos', bowEl, false);
+            if (anim === 'bow_double_shot') {
+              setT(0.42); playBowDraw(bowEl, true);
+              setT(0.76); playBowStringCrackle(bowEl, 0.85);
+              setT(1.12); playBowRelease(anim, bowEl, false);
+              setT(1.42); playBowDraw(bowEl, true);
+              setT(1.86); playBowStringCrackle(bowEl, 1.0);
+              setT(2.22); playBowRelease(anim, bowEl, true);
+            } else if (anim === 'bow_barrage') {
+              setT(0.65); playBowDraw('fire', false);
+              setT(1.30); playBowStringCrackle('fire', 0.85);
+              setT(1.75); playBowStringCrackle('fire', 1.0);
+              setT(2.18); playBowRelease('bow_barrage', 'fire', true);
+              setT(2.32); playBowRelease('bow_barrage', 'fire', true);
+            } else if (anim === 'bow_prism_rain') {
+              setT(0.76); playBowDraw('prism', false);
+              setT(1.38); playBowStringCrackle('prism', 0.9);
+              setT(1.82); playBowStringCrackle('prism', 1.0);
+              setT(2.18); playBowRelease('bow_prism_rain', 'prism', true);
+              setT(2.24); playPrismRainSkyCue();
+              // Ráfaga de impactos de flechas prismáticas cayendo del cielo
+              for (let k = 0; k < 14; k++) {
+                st.rainImpactCD = 0;
+                setT(2.68 + k * 0.085);
+                playPrismRainImpact('#38bdf8');
+              }
+            } else if (anim === 'bow_frost_shot') {
+              setT(0.72); playBowDraw('frost', false);
+              setT(1.48); playBowStringCrackle('frost', 0.9);
+              setT(1.92); playBowStringCrackle('frost', 1.0);
+              setT(2.28); playBowRelease('bow_frost_shot', 'frost', false);
+            } else if (anim === 'aerial_shot') {
+              setT(0.24); playBowDraw(bowEl, true);
+              setT(0.62); playBowStringCrackle(bowEl, 0.95);
+              setT(0.88); playBowRelease('aerial_shot', bowEl, false);
+            } else {
+              // archery (Flecha de Relámpago)
+              setT(0.55); playBowDraw(bowEl, false);
+              setT(1.18); playBowStringCrackle(bowEl, 0.85);
+              setT(1.56); playBowStringCrackle(bowEl, 1.0);
+              setT(1.85); playBowRelease('archery', bowEl, false);
+            }
+          } else {
+            // Simulación a 60Hz con evaluateGameAnimation real para reproducir el cronograma exacto del estudio
+            const CH = window.CreadorHumano;
+            const mappedKey = mapStudioAnimToGameAnimKey(anim);
+            const meta = (typeof GAME_ANIMATIONS !== 'undefined' && GAME_ANIMATIONS[mappedKey]) ? GAME_ANIMATIONS[mappedKey] : null;
+            const tempo = (COMBAT_ENERGY_ANIMS.has(anim) || isNormalPhysical) ? ((prof && prof.tempo) || 1.0) : 1.0;
+
+            const savedItems = (CH && CH.CONFIG && CH.CONFIG.items) ? {
+              weaponStyle: CH.CONFIG.items.weaponStyle,
+              twoHanded: CH.CONFIG.items.twoHanded,
+              hasShield: CH.CONFIG.items.hasShield,
+              weaponLength: CH.CONFIG.items.weaponLength,
+              weaponWeight: CH.CONFIG.items.weaponWeight
+            } : null;
+            if (CH && CH.CONFIG && CH.CONFIG.items && prof) {
+              CH.CONFIG.items.weaponStyle = prof.style;
+              CH.CONFIG.items.twoHanded = prof.twoHanded;
+              CH.CONFIG.items.hasShield = prof.hasShield;
+              CH.CONFIG.items.weaponLength = prof.length || 0.85;
+              CH.CONFIG.items.weaponWeight = prof.weight || 0.70;
+            }
+
+            try {
+              const dt = 1 / 60;
+              const steps = Math.max(24, Math.ceil(cycleDur / dt));
+              let prevU = -0.01;
+              let prevWaveU = -0.01;
+              let prevArmAng = null;
+              let prevRootX = null;
+              let prevRootZ = null;
+              let swingCD = 0, clashCD = 0, dashCD = 0, impactCD = 0, sparkCD = 0, crackleCD = 0;
+              let chargePlayed = false, orbPlayed = false, beamPlayed = false, novaPlayed = false, arcanePlayed = false;
+              let wasStrike = false, wasShock = false, wasSpark = false;
+              let triggeredAnyAction = false;
+
+              if (!isNormalPhysical && COMBAT_ENERGY_ANIMS.has(anim)) {
+                setT(0.02);
+                const isMagic = (isStaff || anim === 'arcane_tempest' || anim === 'meteor_barrage' || anim === 'celestial_judgment' || anim === 'ultimate_nova' || anim === 'ultimate_beam');
+                playChargeSwell(weaponClass, element, isMagic);
+                chargePlayed = true;
+              }
+
+              for (let s = 0; s <= steps; s++) {
+                const realT = s * dt;
+                const animT = Math.min(meta ? meta.duration * 0.998 : cycleDur, realT * tempo);
+                const pose = (CH && typeof CH.evaluateGameAnimation === 'function' && meta)
+                  ? CH.evaluateGameAnimation(mappedKey, animT, 'apose')
+                  : null;
+                const u = meta ? Math.min(0.999, animT / Math.max(0.05, meta.duration)) : Math.min(0.999, realT / Math.max(0.1, cycleDur));
+                const vfx = pose ? {
+                  vfxType: pose.vfxType || null,
+                  vfxProgress: pose.vfxProgress || 0,
+                  bladeCharge: pose.bladeCharge || 0,
+                  bladeWave: pose.bladeWave || null,
+                  strikeMoments: pose.strikeMoments || null,
+                  animU: u
+                } : { vfxType: null, vfxProgress: u, bladeCharge: 0, bladeWave: null, strikeMoments: null, animU: u };
+
+                swingCD = Math.max(0, swingCD - dt);
+                clashCD = Math.max(0, clashCD - dt);
+                dashCD = Math.max(0, dashCD - dt);
+                impactCD = Math.max(0, impactCD - dt);
+                sparkCD = Math.max(0, sparkCD - dt);
+                crackleCD = Math.max(0, crackleCD - dt);
+                setT(realT + 0.02);
+
+                // Ondas voladoras / Bolas de fuego simples (bladeWave)
+                if (vfx.bladeWave) {
+                  const triggers = Array.isArray(vfx.bladeWave) ? vfx.bladeWave : [vfx.bladeWave];
+                  for (let ti = 0; ti < triggers.length; ti++) {
+                    const tr = triggers[ti];
+                    if (prevWaveU < tr.u && u >= tr.u) {
+                      if (tr.kind === 'fireball') {
+                        playSimpleFireball((tr.scale || 1.0) >= 1.25);
+                      } else {
+                        playEnergyWaveCast(tr.kind, weaponClass, element);
+                      }
+                      triggeredAnyAction = true;
+                    }
+                  }
+                }
+                prevWaveU = u;
+
+                if (isNormalPhysical) {
+                  if (!isStaff && Array.isArray(vfx.strikeMoments)) {
+                    for (let mi = 0; mi < vfx.strikeMoments.length; mi++) {
+                      const m = vfx.strikeMoments[mi];
+                      const mU = (typeof m === 'number') ? m : m.u;
+                      const mKind = (typeof m === 'object' && m.kind) ? m.kind : 'slash';
+                      const mHeavy = (typeof m === 'object' && Boolean(m.heavy)) || anim === 'normal_heavy';
+                      if (prevU < mU && u >= mU && swingCD <= 0) {
+                        playPhysicalHit(weaponClass, mKind, mHeavy);
+                        swingCD = 0.14;
+                        triggeredAnyAction = true;
+                      }
+                    }
+                  }
+                  prevU = u;
+                  continue;
+                }
+
+                // Strike moments explícitos en skills
+                if (Array.isArray(vfx.strikeMoments)) {
+                  for (let mi = 0; mi < vfx.strikeMoments.length; mi++) {
+                    const m = vfx.strikeMoments[mi];
+                    const mU = (typeof m === 'number') ? m : m.u;
+                    const mKind = (typeof m === 'object' && m.kind) ? m.kind : 'slash';
+                    const mHeavy = (typeof m === 'object' && Boolean(m.heavy));
+                    if (prevU < mU && u >= mU && swingCD <= 0) {
+                      playWeaponSwing(weaponClass, element, mHeavy ? 1.18 : 1.02, mKind === 'pierce');
+                      swingCD = 0.18;
+                      triggeredAnyAction = true;
+                      if (isAxe && clashCD <= 0) {
+                        playAxeCleave(weaponClass, element, mHeavy || weaponClass === 'hachas_2m', 0.022);
+                        clashCD = 0.24;
+                      } else if (isBladed && clashCD <= 0 && anim !== 'sword_crescent_draw' && anim !== 'sword_sky_breaker') {
+                        playSwordClash(weaponClass, element, isFastBladeCombo ? 'flurry_clash' : 'clash', 0.022);
+                        clashCD = isFastBladeCombo ? 0.18 : 0.28;
+                      }
+                    }
+                  }
+                }
+
+                const type = vfx.vfxType;
+                const prog = vfx.vfxProgress || 0;
+                const isImpactPeak = (
+                  type === 'shock' || type === 'pierce' || type === 'spark' || type === 'slam' ||
+                  (type === 'beam' && prog >= 0.42 && prog <= 0.86) ||
+                  (type === 'nova' && prog >= 0.42 && prog <= 0.80)
+                );
+                const isActiveSwing = (type === 'trail' || type === 'slam_trail' || type === 'arcane') && u >= 0.34;
+                const isStrikeBurst = isImpactPeak || (isActiveSwing && u >= 0.42);
+                const isShockNow = (type === 'shock' || (type === 'slam' && prog > 0.50 && prog < 0.85) || (type === 'nova' && prog > 0.42 && prog < 0.82) || (type === 'arcane' && prog > 0.62 && prog < 0.92));
+
+                if (!chargePlayed && u >= 0.01 && u < 0.30) {
+                  chargePlayed = true;
+                  const isMagicSkill = isStaff || type === 'arcane' || anim === 'arcane_tempest' || anim === 'meteor_barrage' || anim === 'celestial_judgment' || anim === 'ultimate_nova' || anim === 'ultimate_beam';
+                  playChargeSwell(weaponClass, element, isMagicSkill);
+                }
+                if (!orbPlayed && u >= 0.26 && u < 0.56) {
+                  orbPlayed = true;
+                  if (!isAxe) playOrbIgnite(weaponClass, element);
+                }
+
+                // Dash detectado por velocidad horizontal del rootPos
+                if (pose && pose.rootPos) {
+                  const rx = pose.rootPos.x || 0;
+                  const rz = pose.rootPos.z || 0;
+                  if (prevRootX !== null) {
+                    const hDist = Math.hypot(rx - prevRootX, rz - prevRootZ);
+                    const hSpeed = hDist / dt;
+                    if (hSpeed > 4.2 && hDist < 1.2 && dashCD <= 0) {
+                      if (!isAxe) playDashStep(element);
+                      dashCD = 0.26;
+                    }
+                  }
+                  prevRootX = rx;
+                  prevRootZ = rz;
+                }
+
+                // Velocidad angular estimada del brazo/arma para tajos continuos (trail/pierce/slam_trail)
+                const wantsTrail = (type === 'trail' || type === 'pierce' || type === 'slam_trail' || type === 'arcane');
+                if (pose && pose.armR) {
+                  const armMag = (pose.armR.x || 0) + (pose.armR.y || 0) * 0.8 + (pose.armR.z || 0) * 0.6 + ((pose.spine && pose.spine.y) || 0) * 1.1;
+                  if (prevArmAng !== null && (wantsTrail || isStrikeBurst)) {
+                    const tipSpeedEst = Math.abs(armMag - prevArmAng) / dt * ((prof && prof.length) || 0.95);
+                    const minCD = (weaponClass === 'dagas' || anim === 'phantom_flurry' || anim === 'dagger_zigzag_blitz') ? 0.145
+                      : (weaponClass === 'mandobles' || weaponClass === 'hachas_2m' || weaponClass === 'mazas') ? 0.26 : 0.20;
+                    const speedThresh = (weaponClass === 'mandobles' || weaponClass === 'hachas_2m' || weaponClass === 'mazas') ? 3.5 : 4.0;
+                    if (tipSpeedEst > speedThresh && swingCD <= 0) {
+                      const speedNorm = Math.max(0.78, Math.min(1.38, tipSpeedEst / 9.0));
+                      playWeaponSwing(weaponClass, element, speedNorm, type === 'pierce');
+                      swingCD = minCD;
+                      triggeredAnyAction = true;
+                      const isRangedWaveAnim = (anim === 'sword_crescent_draw' || anim === 'sword_sky_breaker');
+                      if (isAxe && clashCD <= 0 && tipSpeedEst > speedThresh * 1.08) {
+                        playAxeCleave(weaponClass, element, weaponClass === 'hachas_2m', 0.024);
+                        clashCD = 0.28;
+                      } else if (isBladed && !isRangedWaveAnim && clashCD <= 0 && tipSpeedEst > speedThresh * 1.14) {
+                        playSwordClash(weaponClass, element, isFastBladeCombo ? 'flurry_clash' : 'clash', 0.026);
+                        clashCD = isFastBladeCombo ? 0.19 : 0.34;
+                      }
+                    }
+                  }
+                  prevArmAng = armMag;
+                }
+
+                if (isStrikeBurst && !wasStrike && swingCD <= 0 && !isShockNow && type !== 'beam' && type !== 'nova') {
+                  playWeaponSwing(weaponClass, element, 1.12, type === 'pierce');
+                  swingCD = 0.22;
+                  triggeredAnyAction = true;
+                  if (isAxe && clashCD <= 0) {
+                    playAxeCleave(weaponClass, element, weaponClass === 'hachas_2m', 0.020);
+                    clashCD = 0.28;
+                  } else if (isBladed && clashCD <= 0 && anim !== 'sword_crescent_draw' && anim !== 'sword_sky_breaker') {
+                    playSwordClash(weaponClass, element, isFastBladeCombo ? 'flurry_clash' : 'clash', 0.022);
+                    clashCD = isFastBladeCombo ? 0.19 : 0.32;
+                  }
+                }
+                wasStrike = isStrikeBurst;
+
+                if (isShockNow && !wasShock && impactCD <= 0 && type !== 'nova' && type !== 'arcane') {
+                  playHeavyImpact(weaponClass, element, type === 'slam' || anim === 'ultimate_slam' || anim === 'earthshaker_combo');
+                  triggeredAnyAction = true;
+                  if (isAxe && clashCD <= 0) {
+                    playAxeCleave(weaponClass, element, true, 0.010);
+                    clashCD = 0.34;
+                  } else if (isBladed && clashCD <= 0 && (weaponClass === 'espadas' || weaponClass === 'mandobles')) {
+                    playSwordClash(weaponClass, element, 'clash', 0.012);
+                    clashCD = 0.34;
+                  }
+                  impactCD = 0.28;
+                }
+                wasShock = isShockNow;
+
+                if (type === 'spark' && (!wasSpark || sparkCD <= 0)) {
+                  if (isAxe) {
+                    playAxeCleave(weaponClass, element, false, 0);
+                    sparkCD = 0.28;
+                  } else {
+                    const isEarlyDraw = (u < 0.36 && (anim === 'sword_crescent_draw' || anim === 'sword_thunder_thrust' || anim === 'sword_double_cross' || anim === 'sword_heavy_cleave'));
+                    playSwordClash(isBladed ? weaponClass : 'espadas', element, isEarlyDraw ? 'draw_scrape' : 'clash', 0);
+                    sparkCD = isEarlyDraw ? 0.32 : 0.26;
+                  }
+                  clashCD = Math.max(clashCD, 0.22);
+                  triggeredAnyAction = true;
+                }
+                wasSpark = (type === 'spark');
+
+                if (type === 'beam' && prog >= 0.42 && !beamPlayed) {
+                  beamPlayed = true;
+                  playEnergyBeam(element);
+                  triggeredAnyAction = true;
+                }
+                if (type === 'nova' && prog >= 0.38 && !novaPlayed) {
+                  novaPlayed = true;
+                  playSupernova(element);
+                  triggeredAnyAction = true;
+                }
+                if (type === 'arcane' && !arcanePlayed && (anim === 'arcane_tempest' || isStaff)) {
+                  arcanePlayed = true;
+                  playArcaneVortex(element);
+                  triggeredAnyAction = true;
+                }
+                if (!isAxe && u > 0.22 && u < 0.65 && crackleCD <= 0 && (element === 'lightning' || element === 'fire' || element === 'prism')) {
+                  playBowStringCrackle(element, 0.55);
+                  crackleCD = 0.28;
+                }
+
+                prevU = u;
+              }
+
+              // Garantizar disparo limpio si una animación no tuvo keyframes de impacto explícitos
+              if (!triggeredAnyAction) {
+                setT(isNormalPhysical ? 0.18 : Math.min(0.45, cycleDur * 0.45));
+                if (isNormalPhysical) {
+                  if (isStaff) playSimpleFireball(anim === 'normal_heavy');
+                  else playPhysicalHit(weaponClass, 'slash', anim === 'normal_heavy');
+                } else {
+                  playWeaponSwing(weaponClass, element, 1.1, false);
+                  if (isAxe) playAxeCleave(weaponClass, element, true, 0.025);
+                  else if (isBladed) playSwordClash(weaponClass, element, 'clash', 0.025);
+                  else playHeavyImpact(weaponClass, element, false);
+                }
+              }
+            } finally {
+              if (savedItems && CH && CH.CONFIG && CH.CONFIG.items) {
+                Object.assign(CH.CONFIG.items, savedItems);
+              }
+            }
+          }
+        } finally {
+          offlineTarget = prevOffline;
+          st.rainImpactCD = prevRainCD;
+          st.clashPanSide = prevClashSide;
+        }
+
+        const rendered = await offCtx.startRendering();
+        const chL = rendered.getChannelData(0);
+        const chR = rendered.numberOfChannels > 1 ? rendered.getChannelData(1) : chL;
+        return encodeWav16Stereo(chL, chR, rendered.sampleRate, { trimSilence: true, normalize: true });
+      }
+
+      async function exportCurrentSoundWav() {
+        const anim = STATE.currentAnim || 'normal_slash';
+        const weaponClass = getWeaponClassId(STATE.equipment.weapon || 0);
+        const isCombatOrNormal = COMBAT_ENERGY_ANIMS.has(anim) || NORMAL_ATTACK_ANIMS.has(anim) || BOW_SKILL_ANIMS.has(anim);
+
+        // Si el personaje está en reposo/locomoción y existe audio recién escuchado en vivo, exportar ese clip
+        if (!isCombatOrNormal && rollingSamples > 2048) {
+          const bufL = concatFloat32Chunks(rollingChunksL, rollingSamples);
+          const bufR = concatFloat32Chunks(rollingChunksR, rollingSamples);
+          const wav = encodeWav16Stereo(bufL, bufR, lastCapturedSampleRate, { trimSilence: true, normalize: true });
+          const fname = `sfx_${sanitizeFilenamePart(weaponClass)}_ultimo_sonido.wav`;
+          triggerBlobDownload(new Blob([wav.bytes], { type: 'audio/wav' }), fname);
+          return { filename: fname, duration: wav.duration, bytes: wav.bytes.length };
+        }
+
+        const targetAnim = isCombatOrNormal ? anim : 'normal_slash';
+        const activeSkill = STATE.activeWeaponSkill;
+        const bodyCfg = getActiveBodyEnergyConfig();
+        const element = (activeSkill && activeSkill.anim === targetAnim && activeSkill.element)
+          ? activeSkill.element
+          : ((bodyCfg && bodyCfg.element) || 'lightning');
+        const label = (activeSkill && activeSkill.anim === targetAnim)
+          ? activeSkill.name
+          : (targetAnim === 'normal_slash' ? 'golpe_normal'
+            : (targetAnim === 'normal_combo' ? 'combo_normal_3x'
+            : (targetAnim === 'normal_heavy' ? 'golpe_pesado' : targetAnim)));
+
+        const wav = await renderAnimToWav({ anim: targetAnim, weaponClass, element });
+        const fname = `sfx_${sanitizeFilenamePart(weaponClass)}_${sanitizeFilenamePart(label)}.wav`;
+        triggerBlobDownload(new Blob([wav.bytes], { type: 'audio/wav' }), fname);
+        return { filename: fname, duration: wav.duration, bytes: wav.bytes.length, label };
+      }
+
+      async function exportWeaponSoundPackZip() {
+        const weaponClass = getWeaponClassId(STATE.equipment.weapon || 0);
+        const prof = getEquippedWeaponCombatProfile();
+        const skills = WEAPON_CLASS_SKILLS[weaponClass] || WEAPON_CLASS_SKILLS.espadas || [];
+        const entries = [];
+        const manifestClips = [];
+
+        const normals = [
+          { slug: '01_golpe_normal', name: 'Golpe Normal', anim: 'normal_slash', element: 'physical' },
+          { slug: '02_combo_normal_3x', name: 'Combo Normal 3x', anim: 'normal_combo', element: 'physical' },
+          { slug: '03_golpe_pesado', name: 'Golpe Pesado', anim: 'normal_heavy', element: 'physical' }
+        ];
+
+        for (const item of normals) {
+          const wav = await renderAnimToWav({ anim: item.anim, weaponClass, element: item.element, prof });
+          const fileName = `${item.slug}.wav`;
+          entries.push({ name: fileName, data: wav.bytes });
+          manifestClips.push({ file: fileName, name: item.name, anim: item.anim, type: 'normal', durationSec: +wav.duration.toFixed(3) });
+        }
+
+        for (let i = 0; i < skills.length; i++) {
+          const sk = skills[i];
+          const num = String(i + 4).padStart(2, '0');
+          const wav = await renderAnimToWav({ anim: sk.anim, weaponClass, element: sk.element || 'lightning', prof });
+          const fileName = `${num}_${sanitizeFilenamePart(sk.name)}.wav`;
+          entries.push({ name: fileName, data: wav.bytes });
+          manifestClips.push({ file: fileName, id: sk.id, name: sk.name, anim: sk.anim, element: sk.element, type: 'skill', durationSec: +wav.duration.toFixed(3) });
+        }
+
+        const manifestObj = {
+          weaponClass,
+          weaponStyle: prof ? prof.label : weaponClass,
+          format: { codec: 'PCM_16BIT', channels: 2, sampleRate: 44100 },
+          generatedAt: new Date().toISOString(),
+          clips: manifestClips
+        };
+        entries.push({
+          name: 'manifest.json',
+          data: new TextEncoder().encode(JSON.stringify(manifestObj, null, 2))
+        });
+
+        const zipBlob = createZipBlob(entries);
+        const fname = `sfx_pack_${sanitizeFilenamePart(weaponClass)}.zip`;
+        triggerBlobDownload(zipBlob, fname);
+        return { filename: fname, clipCount: manifestClips.length, bytes: zipBlob.size };
+      }
+
+      function startLiveRecording() {
+        if (!enabled) setEnabled(true);
+        if (volume <= 0.001) setVolume(0.72);
+        unlock();
+        if (!ctx) ensureContext();
+        liveRecChunksL = [];
+        liveRecChunksR = [];
+        liveRecSamples = 0;
+        liveRecording = true;
+        return true;
+      }
+
+      function stopLiveRecording(autoDownload = true) {
+        if (!liveRecording) return null;
+        liveRecording = false;
+        if (liveRecSamples < 512) {
+          liveRecChunksL = [];
+          liveRecChunksR = [];
+          liveRecSamples = 0;
+          return { empty: true };
+        }
+        const bufL = concatFloat32Chunks(liveRecChunksL, liveRecSamples);
+        const bufR = concatFloat32Chunks(liveRecChunksR, liveRecSamples);
+        liveRecChunksL = [];
+        liveRecChunksR = [];
+        liveRecSamples = 0;
+        const wav = encodeWav16Stereo(bufL, bufR, lastCapturedSampleRate, { trimSilence: true, normalize: true });
+        const weaponClass = getWeaponClassId(STATE.equipment.weapon || 0);
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(11, 19);
+        const fname = `sfx_live_${sanitizeFilenamePart(weaponClass)}_${ts}.wav`;
+        if (autoDownload) {
+          triggerBlobDownload(new Blob([wav.bytes], { type: 'audio/wav' }), fname);
+        }
+        return { filename: fname, duration: wav.duration, bytes: wav.bytes.length, empty: false };
+      }
+
       return {
         unlock,
         setEnabled,
@@ -28548,7 +29383,16 @@
         playBowDraw,
         playBowRelease,
         playPrismRainSkyCue,
-        playPrismRainImpact
+        playPrismRainImpact,
+        // Grabación y exportación de audio
+        encodeWav16Stereo,
+        createZipBlob,
+        renderAnimToWav,
+        exportCurrentSoundWav,
+        exportWeaponSoundPackZip,
+        startLiveRecording,
+        stopLiveRecording,
+        isRecording: () => liveRecording
       };
     })();
 
@@ -35173,7 +36017,86 @@
       };
       window.addEventListener('pointerdown', _unlockSkillAudioOnce, { passive: true });
       window.addEventListener('keydown', _unlockSkillAudioOnce, { passive: true });
+
+      // Botones de exportación de audio (.WAV individual, Pack .ZIP del arma y Grabación en vivo)
+      const btnExportSfxWav = document.getElementById('btn-export-sfx-wav');
+      const btnExportSfxPack = document.getElementById('btn-export-sfx-pack');
+      const btnRecordSfxLive = document.getElementById('btn-record-sfx-live');
+      const recSfxDot = document.getElementById('rec-sfx-dot');
+      const recSfxLabel = document.getElementById('rec-sfx-label');
+
+      const syncRecordBtnUI = () => {
+        if (!btnRecordSfxLive || typeof SKILL_SFX === 'undefined') return;
+        const rec = SKILL_SFX.isRecording();
+        if (recSfxLabel) recSfxLabel.textContent = rec ? 'Parar' : 'Grabar';
+        if (recSfxDot) {
+          recSfxDot.className = rec
+            ? 'w-2 h-2 rounded-xs bg-rose-400 animate-pulse shrink-0'
+            : 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
+        }
+        btnRecordSfxLive.className = rec
+          ? 'text-[8.5px] font-semibold px-1.5 py-1 rounded-lg bg-rose-600/40 hover:bg-rose-500/50 text-rose-100 border border-rose-400/60 transition cursor-pointer flex items-center justify-center gap-1'
+          : 'text-[8.5px] font-semibold px-1.5 py-1 rounded-lg bg-slate-800/80 hover:bg-rose-600/30 text-slate-200 border border-white/10 hover:border-rose-400/40 transition cursor-pointer flex items-center justify-center gap-1';
+      };
+
+      if (btnExportSfxWav) {
+        btnExportSfxWav.addEventListener('click', async () => {
+          if (typeof SKILL_SFX === 'undefined') return;
+          btnExportSfxWav.disabled = true;
+          try {
+            const res = await SKILL_SFX.exportCurrentSoundWav();
+            showToast(`Audio guardado: ${res.filename} (${res.duration.toFixed(2)}s · 44.1kHz)`);
+          } catch (err) {
+            console.error('Error exportando WAV:', err);
+            showToast('No se pudo exportar el sonido .WAV');
+          } finally {
+            btnExportSfxWav.disabled = false;
+          }
+        });
+      }
+
+      if (btnExportSfxPack) {
+        btnExportSfxPack.addEventListener('click', async () => {
+          if (typeof SKILL_SFX === 'undefined') return;
+          btnExportSfxPack.disabled = true;
+          const prevText = btnExportSfxPack.innerHTML;
+          btnExportSfxPack.innerHTML = '<span>...</span>';
+          try {
+            const res = await SKILL_SFX.exportWeaponSoundPackZip();
+            showToast(`Pack guardado: ${res.filename} (${res.clipCount} WAVs)`);
+          } catch (err) {
+            console.error('Error exportando Pack ZIP:', err);
+            showToast('No se pudo generar el Pack .ZIP de sonidos');
+          } finally {
+            btnExportSfxPack.innerHTML = prevText;
+            btnExportSfxPack.disabled = false;
+            if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+          }
+        });
+      }
+
+      if (btnRecordSfxLive) {
+        btnRecordSfxLive.addEventListener('click', () => {
+          if (typeof SKILL_SFX === 'undefined') return;
+          if (!SKILL_SFX.isRecording()) {
+            SKILL_SFX.startLiveRecording();
+            syncSfxToggleUI();
+            syncRecordBtnUI();
+            showToast('Grabando audio en vivo... lanza skills y pulsa Parar para guardar .WAV');
+          } else {
+            const res = SKILL_SFX.stopLiveRecording(true);
+            syncRecordBtnUI();
+            if (!res || res.empty) {
+              showToast('Grabación vacía: reproduce una skill o golpe mientras grabas');
+            } else {
+              showToast(`Grabación guardada: ${res.filename} (${res.duration.toFixed(2)}s)`);
+            }
+          }
+        });
+      }
+
       syncSfxToggleUI();
+      syncRecordBtnUI();
       window.syncWeaponSkillsUI();
 
       document.getElementById('btn-quick-random').addEventListener('click', randomizeArmorSetup);
@@ -46666,7 +47589,7 @@ function resetCharacter() {
       get clothEntries() { return CLOTH_SIM_ENTRIES; },
       updateClothSimulation, restoreAllClothRestPose,
       updateWardrobePieces, applyHandGrip, getHandGripAnchor, handGripWorld,
-      archeryApplyPose, bakeArcheryClip, getLightExportClips, AR_DRAW
+      archeryApplyPose, bakeArcheryClip, getLightExportClips, AR_DRAW, SKILL_SFX
     };
   </script>
 </body>
