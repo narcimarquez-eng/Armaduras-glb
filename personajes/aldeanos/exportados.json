@@ -1,0 +1,74 @@
+[
+  {
+    "archivo": "streetwear.glb",
+    "id": "mod_streetwear",
+    "nombre": "Urbano / Streetwear",
+    "genero": "hombre"
+  },
+  {
+    "archivo": "casual_denim.glb",
+    "id": "mod_casual_denim",
+    "nombre": "Casual Vaquero (Denim)",
+    "genero": "hombre"
+  },
+  {
+    "archivo": "suit.glb",
+    "id": "mod_suit",
+    "nombre": "Ejecutivo / Traje Formal",
+    "genero": "hombre"
+  },
+  {
+    "archivo": "biker.glb",
+    "id": "mod_biker",
+    "nombre": "Motero / Rockero Urbano",
+    "genero": "hombre"
+  },
+  {
+    "archivo": "sport.glb",
+    "id": "mod_sport",
+    "nombre": "Deportivo / Fitness",
+    "genero": "mujer"
+  },
+  {
+    "archivo": "winter.glb",
+    "id": "mod_winter",
+    "nombre": "Invierno / Plumífero",
+    "genero": "hombre"
+  },
+  {
+    "archivo": "summer.glb",
+    "id": "mod_summer",
+    "nombre": "Verano / Playero Casual",
+    "genero": "mujer"
+  },
+  {
+    "archivo": "college.glb",
+    "id": "mod_college",
+    "nombre": "Universitario / Varsity",
+    "genero": "mujer"
+  },
+  {
+    "archivo": "chic_dress.glb",
+    "id": "mod_chic_dress",
+    "nombre": "Moda Urbana / Falda Midi",
+    "genero": "mujer"
+  },
+  {
+    "archivo": "trench.glb",
+    "id": "mod_trench",
+    "nombre": "Gabardina / Trench Elegante",
+    "genero": "mujer"
+  },
+  {
+    "archivo": "worker.glb",
+    "id": "mod_worker",
+    "nombre": "Obrero / Técnico Actual",
+    "genero": "hombre"
+  },
+  {
+    "archivo": "doctor.glb",
+    "id": "mod_doctor",
+    "nombre": "Médico / Científico",
+    "genero": "mujer"
+  }
+]
